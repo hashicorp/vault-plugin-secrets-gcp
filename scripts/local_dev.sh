@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-MNT_PATH = "gcp"
+MNT_PATH="gcp"
 PLUGIN_NAME="vault-plugin-secrets-gcp"
 #
 # Helper script for local development. Automatically builds and registers the
@@ -58,10 +58,7 @@ vault write sys/plugins/catalog/$PLUGIN_NAME \
   command="$PLUGIN_NAME"
 
 echo "    Mouting plugin"
-vault mount -path=gen -plugin-name=$PLUGIN_NAME plugin
-
-echo "    Reading out"
-vault read gen/info
+vault secrets enable -path=$MNT_PATH -plugin-name=$PLUGIN_NAME plugin
 
 echo "==> Ready!"
 wait $!

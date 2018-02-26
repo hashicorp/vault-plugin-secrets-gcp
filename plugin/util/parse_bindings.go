@@ -103,12 +103,12 @@ func parseRoles(item *ast.ObjectItem, roleSet StringSet, err error) error {
 	}
 
 	for _, roleItem := range lst.List {
-		role := roleItem.(*ast.LiteralType).Token.Text
+		role := roleItem.(*ast.LiteralType).Token.Value().(string)
 		if !strings.HasPrefix(role, "roles/") {
 			err = multierror.Append(err, fmt.Errorf("role '%s' must start with 'roles/' (line %d)", role, roleItem.Pos().Line))
 			continue
 		}
-		roleSet[role] = struct{}{}
+		roleSet.Add(role)
 	}
 
 	return err

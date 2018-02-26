@@ -49,7 +49,9 @@ func (h *IamHandle) doRequest(ctx context.Context, req *http.Request, out interf
 	if req.Header == nil {
 		req.Header = make(http.Header)
 	}
-	req.Header.Set("User-Agent", h.userAgent)
+	if h.userAgent != "" {
+		req.Header.Set("User-Agent", h.userAgent)
+	}
 
 	resp, err := gensupport.SendRequest(ctx, h.c, req)
 	defer googleapi.CloseBody(resp)

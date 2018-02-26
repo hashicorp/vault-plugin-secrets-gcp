@@ -277,12 +277,12 @@ func (rs *RoleSet) newServiceAccount(ctx context.Context, s logical.Storage, iam
 	walId, err := framework.PutWAL(ctx, s, walTypeAccount, &walAccount{
 		RoleSet: rs.Name,
 		Id: gcputil.ServiceAccountId{
-			Project:   rs.AccountId.Project,
-			EmailOrId: rs.AccountId.EmailOrId,
+			Project:   project,
+			EmailOrId: fmt.Sprintf("%s@%s.iam.gserviceaccount.com", saEmailPrefix, project),
 		},
 	})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("unable to create WAL entry for generating new service account: %v", err)
 	}
 
 	sa, err := iamAdmin.Projects.ServiceAccounts.Create(
@@ -291,7 +291,7 @@ func (rs *RoleSet) newServiceAccount(ctx context.Context, s logical.Storage, iam
 			ServiceAccount: &iam.ServiceAccount{DisplayName: displayName},
 		}).Do()
 	if err != nil {
-		return walId, err
+		return walId, fmt.Errorf("unable to create new service account: %v", err)
 	}
 	rs.AccountId = &gcputil.ServiceAccountId{
 		Project:   project,

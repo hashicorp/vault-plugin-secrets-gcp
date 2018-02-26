@@ -2,7 +2,6 @@ package gcpsecrets
 
 import (
 	"context"
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"github.com/hashicorp/vault/helper/logformat"
 	"github.com/hashicorp/vault/logical"
 	"github.com/mgutz/logxi/v1"
@@ -11,10 +10,6 @@ import (
 )
 
 func getTestBackend(t *testing.T) (logical.Backend, logical.Storage) {
-	if _, err := util.GetTestCredentials(); err != nil {
-		t.Fatal(err)
-	}
-
 	defaultLeaseTTLVal := time.Hour * 12
 	maxLeaseTTLVal := time.Hour * 24
 	b := Backend()

@@ -216,16 +216,20 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 		if rs.SecretType != SecretTypeAccessToken {
 			return logical.ErrorResponse(fmt.Sprintf("default_scopes only valid for role set with '%s' secret type", SecretTypeAccessToken)), nil
 		}
-		if rs.TokenGen == nil {
-			rs.TokenGen = &TokenGenerator{}
-		}
 		scopes = scopesRaw.([]string)
-		rs.TokenGen.DefaultScopes = scopes
+	} else {
+		if rs.TokenGen != nil {
+			scopes = rs.TokenGen.DefaultScopes
+		}
 	}
 
 	// Bindings
-	b64ed := d.Get("bindings_format").(bool)
+	b64ed := d.Get("base64_encoded").(bool)
 	bRaw, newBindings := d.GetOk("bindings")
+	if len(bRaw.(string)) == 0 {
+		return logical.ErrorResponse("given empty bindings string"), nil
+	}
+
 	if isCreate && newBindings == false {
 		return logical.ErrorResponse("bindings are required for new role set"), nil
 	}
@@ -243,6 +247,9 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 	bindings, err = util.ParseBindings(bRaw.(string), b64ed)
 	if err != nil {
 		return logical.ErrorResponse(fmt.Sprintf("unable to parse bindings: %v", err)), nil
+	}
+	if len(bindings) == 0 {
+		return logical.ErrorResponse("unable to parse any bindings from given bindings HCL"), nil
 	}
 
 	warnings, err := b.saveRoleSetWithNewAccount(ctx, req.Storage, rs, project, bindings, scopes)

@@ -19,13 +19,8 @@ func TestIamHandle_ServiceAccount(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		proj, err := util.GetTestProject()
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		newSa, err := iamAdmin.Projects.ServiceAccounts.Create(
-			fmt.Sprintf("projects/%s", proj),
+			fmt.Sprintf("projects/%s", util.GetTestProject(t)),
 			&iam.CreateServiceAccountRequest{
 				AccountId: fmt.Sprintf("testvaultsa-%d", time.Now().Unix()),
 				ServiceAccount: &iam.ServiceAccount{
@@ -67,11 +62,8 @@ func TestIamHandle_ServiceAccount(t *testing.T) {
 func verifyIamResource_GetSetPolicy(t *testing.T, resourceType string,
 	getF func(*testing.T, *http.Client) *iamResourceImpl,
 	cleanupF func(*testing.T, *http.Client, *iamResourceImpl)) {
-	creds, err := util.GetTestCredentials()
-	if err != nil {
-		t.Fatal(err)
-	}
 
+	_, creds := util.GetTestCredentials(t)
 	httpC, err := gcputil.GetHttpClient(creds, iam.CloudPlatformScope)
 	if err != nil {
 		t.Fatal(err)

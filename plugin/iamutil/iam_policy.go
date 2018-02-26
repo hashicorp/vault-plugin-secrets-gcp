@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	serviceAccountMemberTmpl = "serviceAccount:%s"
+	ServiceAccountMemberTmpl = "serviceAccount:%s"
 )
 
 type Policy struct {
@@ -45,17 +45,17 @@ func (p *Policy) ChangedBindings(toAdd *PolicyDelta, toRemove *PolicyDelta) (cha
 		memberSet := util.ToSet(bind.Members)
 
 		if toAdd != nil {
-			if _, ok := toAdd.Roles[bind.Role]; ok {
+			if toAdd.Roles.Includes(bind.Role) {
 				changed = true
-				alreadyAdded[bind.Role] = struct{}{}
-				memberSet[fmt.Sprintf(serviceAccountMemberTmpl, toAdd.Email)] = struct{}{}
+				alreadyAdded.Add(bind.Role)
+				memberSet.Add(fmt.Sprintf(ServiceAccountMemberTmpl, toAdd.Email))
 			}
 		}
 
 		if toRemove != nil {
-			if _, ok := toRemove.Roles[bind.Role]; ok {
+			if toRemove.Roles.Includes(bind.Role) {
 				changed = true
-				delete(memberSet, fmt.Sprintf(serviceAccountMemberTmpl, toRemove.Email))
+				delete(memberSet, fmt.Sprintf(ServiceAccountMemberTmpl, toRemove.Email))
 			}
 		}
 
@@ -69,11 +69,11 @@ func (p *Policy) ChangedBindings(toAdd *PolicyDelta, toRemove *PolicyDelta) (cha
 
 	if toAdd != nil {
 		for r := range toAdd.Roles {
-			if _, ok := alreadyAdded[r]; !ok {
+			if !alreadyAdded.Includes(r) {
 				changed = true
 				newBindings = append(newBindings, &Binding{
 					Role:    r,
-					Members: []string{fmt.Sprintf(serviceAccountMemberTmpl, toAdd.Email)},
+					Members: []string{fmt.Sprintf(ServiceAccountMemberTmpl, toAdd.Email)},
 				})
 			}
 		}

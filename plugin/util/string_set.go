@@ -11,6 +11,10 @@ func ToSet(values []string) StringSet {
 	return s
 }
 
+func (ss StringSet) Add(v string) {
+	ss[v] = struct{}{}
+}
+
 func (ss StringSet) ToSlice() []string {
 	ls := make([]string, len(ss))
 	i := 0
