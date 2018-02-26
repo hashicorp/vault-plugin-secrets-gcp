@@ -7,6 +7,9 @@ import (
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
+	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
+	"github.com/hashicorp/vault/helper/useragent"
+	"google.golang.org/api/iam/v1"
 )
 
 const (
@@ -152,9 +155,85 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 	if !ok {
 		return logical.ErrorResponse("name is required"), nil
 	}
+	rsName := nameRaw.(string)
+
+	rs, err := getRoleSet(rsName, ctx, req.Storage)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get role set %s: %v", rsName, err)
+	}
+
+	if rs.AccountId != nil {
+		_, err := framework.PutWAL(ctx, req.Storage, walTypeAccount, &walAccount{
+			RoleSet: rsName,
+			Id:      *rs.AccountId,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to create WAL entry to clean up service account: %v", err)
+		}
+
+		for resName, roleSet := range rs.Bindings{
+			_, err := framework.PutWAL(ctx, req.Storage, walTypeIamPolicy, &walIamPolicy{
+				RoleSet: rsName,
+				AccountId: *rs.AccountId,
+				Resource: resName,
+				Roles: roleSet.ToSlice(),
+			})
+			if err != nil {
+				return nil, fmt.Errorf("unable to create WAL entry to clean up service account bindings: %v", err)
+			}
+		}
+
+		if rs.TokenGen != nil {
+			_, err := framework.PutWAL(ctx, req.Storage, walTypeAccount, &walAccountKey{
+				RoleSet:            rsName,
+				ServiceAccountName: rs.AccountId.ResourceName(),
+				KeyName:            rs.TokenGen.KeyName,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("unable to create WAL entry to clean up service account key: %v", err)
+			}
+		}
+	}
 
 	if err := req.Storage.Delete(ctx, fmt.Sprintf("roleset/%s", nameRaw)); err != nil {
 		return nil, err
+	}
+
+	// Clean up resources:
+	httpC, err := newHttpClient(ctx, req.Storage)
+	if err != nil {
+		return nil, err
+	}
+
+	iamAdmin, err := iam.New(httpC)
+	if err != nil {
+		return nil, err
+	}
+
+	iamHandle := iamutil.GetIamHandle(httpC, useragent.String())
+
+	warnings := make([]string, 0)
+	if rs.AccountId != nil {
+		if err := b.deleteServiceAccount(ctx, iamAdmin, rs.AccountId); err != nil {
+			w := fmt.Sprintf("unable to delete service account '%s' (WAL entry to clean-up later has been added): %v", rs.AccountId.ResourceName(), err)
+			warnings = append(warnings, w)
+		}
+		if err := b.deleteTokenGenKey(ctx, iamAdmin, rs.TokenGen); err != nil {
+			w := fmt.Sprintf("unable to delete key for service account '%s' (WAL entry to clean-up later has been added): %v", rs.AccountId.ResourceName(), err)
+			warnings = append(warnings, w)
+		}
+		if merr := b.deleteBindings(ctx, iamHandle, rs.Name, rs.Bindings); merr == nil {
+			for _, err := range merr.Errors {
+				w := fmt.Sprintf("unable to delete IAM policy bindings for service account '%s' (WAL entry to clean-up later has been added): %v", rs.AccountId.EmailOrId, err)
+				warnings = append(warnings, w)
+			}
+		}
+	}
+
+	if len(warnings) > 0 {
+		return &logical.Response{
+			Warnings: warnings,
+		}, nil
 	}
 
 	return nil, nil
@@ -197,11 +276,13 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 	var project string
 	projectRaw, ok := d.GetOk("project")
 	if ok {
-		project := projectRaw.(string)
+		project = projectRaw.(string)
 		if !isCreate && rs.AccountId.Project != project {
 			return logical.ErrorResponse(fmt.Sprintf("cannot change project for existing role set (old: %s, new: %s)", rs.AccountId.Project, project)), nil
 		}
-		project = projectRaw.(string)
+		if len(project) == 0 {
+			return logical.ErrorResponse("given empty project"), nil
+		}
 	} else {
 		if isCreate {
 			return logical.ErrorResponse("project argument is required for new role set"), nil

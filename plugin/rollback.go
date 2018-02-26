@@ -40,9 +40,9 @@ type walAccount struct {
 }
 
 type walAccountKey struct {
-	RoleSet        string `json:"role_set" struct:"role_set" mapstructure:"role_set"`
-	ServiceAccount string `json:"service_account" struct:"service_account" mapstructure:"service_account"`
-	KeyName        string `json:"key_id" struct:"key_id" mapstructure:"key_id"`
+	RoleSet            string `json:"role_set" struct:"role_set" mapstructure:"role_set"`
+	ServiceAccountName string `json:"service_account_name" struct:"service_account_name" mapstructure:"service_account_name"`
+	KeyName            string `json:"key_id" struct:"key_id" mapstructure:"key_id"`
 }
 
 type walIamPolicy struct {

@@ -197,9 +197,9 @@ func (b *backend) saveRoleSetWithNewTokenKey(ctx context.Context, s logical.Stor
 	oldKeyWalId := ""
 	if rs.TokenGen != nil {
 		if oldKeyWalId, err = framework.PutWAL(ctx, s, walTypeAccountKey, &walAccountKey{
-			RoleSet:        rs.Name,
-			KeyName:        rs.TokenGen.KeyName,
-			ServiceAccount: rs.AccountId.ResourceName(),
+			RoleSet:            rs.Name,
+			KeyName:            rs.TokenGen.KeyName,
+			ServiceAccountName: rs.AccountId.ResourceName(),
 		}); err != nil {
 			return fmt.Errorf("unable to create WAL for deleting old key: %v", err)
 		}
@@ -257,9 +257,9 @@ func (rs *RoleSet) addWALsForCurrentAccount(ctx context.Context, s logical.Stora
 
 	if rs.SecretType == SecretTypeAccessToken && rs.TokenGen != nil {
 		walId, err := framework.PutWAL(ctx, s, walTypeAccountKey, &walAccountKey{
-			RoleSet:        rs.Name,
-			KeyName:        rs.TokenGen.KeyName,
-			ServiceAccount: rs.AccountId.ResourceName(),
+			RoleSet:            rs.Name,
+			KeyName:            rs.TokenGen.KeyName,
+			ServiceAccountName: rs.AccountId.ResourceName(),
 		})
 		if err != nil {
 			return nil, err
@@ -272,7 +272,7 @@ func (rs *RoleSet) addWALsForCurrentAccount(ctx context.Context, s logical.Stora
 func (rs *RoleSet) newServiceAccount(ctx context.Context, s logical.Storage, iamAdmin *iam.Service, project string) (string, error) {
 	saEmailPrefix := roleSetServiceAccountName(rs.Name)
 	projectName := fmt.Sprintf("projects/%s", project)
-	displayName := fmt.Sprintf("Vault Role Set %s service account", rs.Name)
+	displayName := fmt.Sprintf("Service account for Vault secrets backend role set %s", rs.Name)
 
 	walId, err := framework.PutWAL(ctx, s, walTypeAccount, &walAccount{
 		RoleSet: rs.Name,
@@ -291,7 +291,7 @@ func (rs *RoleSet) newServiceAccount(ctx context.Context, s logical.Storage, iam
 			ServiceAccount: &iam.ServiceAccount{DisplayName: displayName},
 		}).Do()
 	if err != nil {
-		return walId, fmt.Errorf("unable to create new service account: %v", err)
+		return walId, fmt.Errorf("unable to create new service account (project: '%s'): %v", projectName, err)
 	}
 	rs.AccountId = &gcputil.ServiceAccountId{
 		Project:   project,
@@ -302,9 +302,9 @@ func (rs *RoleSet) newServiceAccount(ctx context.Context, s logical.Storage, iam
 
 func (rs *RoleSet) newKeyForTokenGen(ctx context.Context, s logical.Storage, iamAdmin *iam.Service, defaultScopes []string) (string, error) {
 	walId, err := framework.PutWAL(ctx, s, walTypeAccountKey, &walAccountKey{
-		RoleSet:        rs.Name,
-		KeyName:        "",
-		ServiceAccount: rs.AccountId.ResourceName(),
+		RoleSet:            rs.Name,
+		KeyName:            "",
+		ServiceAccountName: rs.AccountId.ResourceName(),
 	})
 	if err != nil {
 		return "", err

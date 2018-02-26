@@ -65,15 +65,20 @@ func Backend() *backend {
 }
 
 func newHttpClient(ctx context.Context, s logical.Storage, scopes ...string) (*http.Client, error) {
+	if len(scopes) == 0 {
+		scopes = []string{"https://www.googleapis.com/auth/cloud-platform"}
+	}
+
 	cfg, err := getConfig(ctx, s)
 	if err != nil {
 		return nil, err
 	}
-
-	if len(scopes) == 0 {
-		scopes = []string{"https://www.googleapis.com/auth/cloud-platform"}
+	credsJSON := ""
+	if cfg != nil {
+		credsJSON = cfg.CredentialsRaw
 	}
-	_, tokenSource, err := gcputil.FindCredentials(cfg.CredentialsRaw, ctx, scopes...)
+
+	_, tokenSource, err := gcputil.FindCredentials(credsJSON, ctx, scopes...)
 	if err != nil {
 		return nil, err
 	}
