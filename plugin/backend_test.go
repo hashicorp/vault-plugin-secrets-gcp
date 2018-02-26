@@ -2,13 +2,10 @@ package gcpsecrets
 
 import (
 	"context"
-	"fmt"
-	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"github.com/hashicorp/vault/helper/logformat"
 	"github.com/hashicorp/vault/logical"
 	"github.com/mgutz/logxi/v1"
-	"os"
 	"testing"
 	"time"
 )

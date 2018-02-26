@@ -65,7 +65,7 @@ func pathsRoleSet(b *backend) []*framework.Path {
 			},
 			ExistenceCheck: b.pathRoleSetExistenceCheck,
 			Callbacks: map[logical.Operation]framework.OperationFunc{
-				logical.UpdateOperation: b.getPathRoleSetRotate(false),
+				logical.UpdateOperation: b.pathRoleSetRotateAccount,
 			},
 			HelpSynopsis:    pathRoleSetRotateHelpSyn,
 			HelpDescription: pathRoleSetRotateHelpDesc,
@@ -81,7 +81,7 @@ func pathsRoleSet(b *backend) []*framework.Path {
 			},
 			ExistenceCheck: b.pathRoleSetExistenceCheck,
 			Callbacks: map[logical.Operation]framework.OperationFunc{
-				logical.UpdateOperation: b.getPathRoleSetRotate(true),
+				logical.UpdateOperation: b.pathRoleSetRotateKey,
 			},
 			HelpSynopsis:    pathRoleSetRotateKeyHelpSyn,
 			HelpDescription: pathRoleSetRotateKeyHelpDesc,
@@ -262,45 +262,61 @@ func (b *backend) pathRoleSetList(ctx context.Context, req *logical.Request, d *
 	return logical.ListResponse(rolesets), nil
 }
 
-func (b *backend) getPathRoleSetRotate(keyOnly bool) framework.OperationFunc {
-	return func(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-		nameRaw, ok := d.GetOk("name")
-		if !ok {
-			return logical.ErrorResponse("name is required"), nil
-		}
-		name := nameRaw.(string)
-
-		rs, err := getRoleSet(name, ctx, req.Storage)
-		if err != nil {
-			return nil, err
-		}
-		if rs == nil {
-			return logical.ErrorResponse(fmt.Sprintf("roleset '%s' not found", name)), nil
-		}
-
-		var scopes []string
-		if rs.TokenGen != nil {
-			scopes = rs.TokenGen.DefaultScopes
-		}
-
-		if keyOnly {
-			if rs.SecretType != SecretTypeAccessToken {
-				return logical.ErrorResponse("cannot rotate key for non-access-token role set"), nil
-			}
-			if err := b.saveRoleSetWithNewTokenKey(ctx, req.Storage, rs, rs.TokenGen.DefaultScopes); err != nil {
-				return logical.ErrorResponse(err.Error()), nil
-			}
-			return nil, nil
-		}
-
-		warnings, err := b.saveRoleSetWithNewAccount(ctx, req.Storage, rs, rs.AccountId.Project, rs.Bindings, scopes)
-		if err != nil {
-			return logical.ErrorResponse(err.Error()), nil
-		} else if warnings != nil && len(warnings) > 0 {
-			return &logical.Response{Warnings: warnings}, nil
-		}
-		return nil, nil
+func (b *backend) pathRoleSetRotateAccount(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	nameRaw, ok := d.GetOk("name")
+	if !ok {
+		return logical.ErrorResponse("name is required"), nil
 	}
+	name := nameRaw.(string)
+
+	rs, err := getRoleSet(name, ctx, req.Storage)
+	if err != nil {
+		return nil, err
+	}
+	if rs == nil {
+		return logical.ErrorResponse(fmt.Sprintf("roleset '%s' not found", name)), nil
+	}
+
+	var scopes []string
+	if rs.TokenGen != nil {
+		scopes = rs.TokenGen.DefaultScopes
+	}
+
+	warnings, err := b.saveRoleSetWithNewAccount(ctx, req.Storage, rs, rs.AccountId.Project, rs.Bindings, scopes)
+	if err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	} else if warnings != nil && len(warnings) > 0 {
+		return &logical.Response{Warnings: warnings}, nil
+	}
+	return nil, nil
+}
+
+func (b *backend) pathRoleSetRotateKey(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	nameRaw, ok := d.GetOk("name")
+	if !ok {
+		return logical.ErrorResponse("name is required"), nil
+	}
+	name := nameRaw.(string)
+
+	rs, err := getRoleSet(name, ctx, req.Storage)
+	if err != nil {
+		return nil, err
+	}
+	if rs == nil {
+		return logical.ErrorResponse(fmt.Sprintf("roleset '%s' not found", name)), nil
+	}
+
+	if rs.SecretType != SecretTypeAccessToken {
+		return logical.ErrorResponse("cannot rotate key for non-access-token role set"), nil
+	}
+	var scopes []string
+	if rs.TokenGen != nil {
+		scopes = rs.TokenGen.DefaultScopes
+	}
+	if err := b.saveRoleSetWithNewTokenKey(ctx, req.Storage, rs, scopes); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
+	return nil, nil
 }
 
 func getRoleSet(name string, ctx context.Context, s logical.Storage) (*RoleSet, error) {
