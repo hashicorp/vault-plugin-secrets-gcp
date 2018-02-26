@@ -1,0 +1,380 @@
+package gcpsecrets
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"github.com/hashicorp/go-gcp-common/gcputil"
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
+	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
+	"github.com/hashicorp/vault/helper/useragent"
+	"github.com/hashicorp/vault/logical"
+	"github.com/hashicorp/vault/logical/framework"
+	"google.golang.org/api/iam/v1"
+	"math/rand"
+	"time"
+)
+
+const (
+	serviceAccountMaxLen      = 30
+	defaultCloudPlatformScope = "https://www.googleapis.com/auth/cloud-platform"
+)
+
+type RoleSet struct {
+	Name       string
+	SecretType string
+
+	RawBindings string
+	Bindings    ResourceBindings
+
+	AccountId *gcputil.ServiceAccountId
+	TokenGen  *TokenGenerator
+}
+
+func (rs *RoleSet) validate() error {
+	var err error
+	if rs.Name == "" {
+		multierror.Append(err, errors.New("role set name is empty"))
+	}
+
+	if rs.AccountId == nil {
+		multierror.Append(err, fmt.Errorf("role set should have account associated"))
+	}
+
+	switch rs.SecretType {
+	case SecretTypeAccessToken:
+		if rs.TokenGen == nil {
+			multierror.Append(err, fmt.Errorf("access token role set should have initialized token generator"))
+		}
+	default:
+		multierror.Append(err, fmt.Errorf("unknown secret type: %s", rs.SecretType))
+	}
+	return err
+}
+
+func (rs *RoleSet) save(ctx context.Context, s logical.Storage) error {
+	if err := rs.validate(); err != nil {
+		return err
+	}
+
+	entry, err := logical.StorageEntryJSON(fmt.Sprintf("%s/%s", rolesetStoragePrefix, rs.Name), rs)
+	if err != nil {
+		return err
+	}
+
+	return s.Put(ctx, entry)
+}
+
+func (rs *RoleSet) bindingHash() string {
+	ssum := sha256.Sum256([]byte(rs.RawBindings)[:])
+	return base64.StdEncoding.EncodeToString(ssum[:])
+}
+
+func (rs *RoleSet) getServiceAccount(iamAdmin *iam.Service) (*iam.ServiceAccount, error) {
+	if rs.AccountId == nil {
+		return nil, fmt.Errorf("role set '%s' is invalid, has no associated service account", rs.Name)
+	}
+
+	account, err := iamAdmin.Projects.ServiceAccounts.Get(rs.AccountId.ResourceName()).Do()
+	if err != nil {
+		return nil, fmt.Errorf("could not find service account: %v. If account was deleted, role set must be updated (write to roleset/%s/rotate) before generating new secrets", err, rs.Name)
+	} else if account == nil {
+		return nil, fmt.Errorf("roleset service account was removed - role set must be updated (path roleset/%s/rotate) before generating new secrets", rs.Name)
+	}
+
+	return account, nil
+}
+
+type ResourceBindings map[string]util.StringSet
+
+func (rb ResourceBindings) asOutput() map[string][]string {
+	out := make(map[string][]string)
+	for k, v := range rb {
+		out[k] = v.ToSlice()
+	}
+	return out
+}
+
+type TokenGenerator struct {
+	KeyName string
+	KeyJSON string
+
+	DefaultScopes []string
+}
+
+func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, s logical.Storage, rs *RoleSet,
+	project string, newBinds ResourceBindings, defaultScopes []string) (warning []string, err error) {
+	httpC, err := newHttpClient(ctx, s, defaultCloudPlatformScope)
+	if err != nil {
+		return nil, err
+	}
+
+	iamAdmin, err := newIamAdmin(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+
+	iamHandle := iamutil.GetIamHandle(httpC, useragent.String())
+
+	oldAccount := rs.AccountId
+	oldBindings := rs.Bindings
+	oldTokenKey := rs.TokenGen
+
+	oldWals, err := rs.addWALsForCurrentAccount(ctx, s)
+	if err != nil {
+		tryDeleteWALs(ctx, s, oldWals...)
+		return nil, fmt.Errorf("failed to create WAL for cleaning up old account: %v", err)
+	}
+
+	newWals := make([]string, 0, len(newBinds)+2)
+	walId, err := rs.newServiceAccount(ctx, s, iamAdmin, project)
+	if err != nil {
+		tryDeleteWALs(ctx, s, oldWals...)
+		return nil, err
+	}
+	newWals = append(newWals, walId)
+
+	walIds, err := rs.updateIamPolicies(ctx, s, b.enabledIamResources, iamHandle, newBinds)
+	if err != nil {
+		tryDeleteWALs(ctx, s, oldWals...)
+		return nil, err
+	}
+	newWals = append(newWals, walIds...)
+
+	if rs.SecretType == SecretTypeAccessToken {
+		walId, err := rs.newKeyForTokenGen(ctx, s, iamAdmin, defaultScopes)
+		if err != nil {
+			tryDeleteWALs(ctx, s, oldWals...)
+			return nil, err
+		}
+		newWals = append(newWals, walId)
+	}
+
+	if err := rs.save(ctx, s); err != nil {
+		tryDeleteWALs(ctx, s, oldWals...)
+		return nil, err
+	}
+
+	// Delete WALs for cleaning up new resources now that they have been saved.
+	tryDeleteWALs(ctx, s, newWals...)
+
+	// Try deleting old resources (WALs exist so we can ignore failures)
+	if rs.AccountId == nil || rs.AccountId.EmailOrId != "" {
+		// nothing to clean up
+		return nil, nil
+	}
+
+	// Return any errors as warnings so user knows immediate cleanup failed
+	warnings := make([]string, 0)
+	if errs := b.deleteBindings(ctx, iamHandle, oldAccount.EmailOrId, oldBindings); errs != nil {
+		warnings = make([]string, len(errs.Errors), len(errs.Errors)+2)
+		for idx, err := range errs.Errors {
+			warnings[idx] = fmt.Sprintf("unable to immediately delete old binding (WAL cleanup entry has been added): %v", err)
+		}
+	}
+	if err := b.deleteServiceAccount(ctx, iamAdmin, oldAccount); err != nil {
+		warnings = append(warnings, fmt.Sprintf("unable to immediately delete old account (WAL cleanup entry has been added): %v", err))
+	}
+	if err := b.deleteTokenGenKey(ctx, iamAdmin, oldTokenKey); err != nil {
+		warnings = append(warnings, fmt.Sprintf("unable to immediately delete old key (WAL cleanup entry has been added): %v", err))
+	}
+	return warnings, nil
+}
+
+func (b *backend) saveRoleSetWithNewTokenKey(ctx context.Context, s logical.Storage, rs *RoleSet, defaultScopes []string) (err error) {
+	if rs.SecretType != SecretTypeAccessToken {
+		return fmt.Errorf("a key is not saved or used for non-access-token role set '%s'", rs.Name)
+	}
+
+	iamAdmin, err := newIamAdmin(ctx, s)
+	if err != nil {
+		return err
+	}
+
+	oldKeyWalId := ""
+	if rs.TokenGen != nil {
+		if oldKeyWalId, err = framework.PutWAL(ctx, s, walTypeAccountKey, &walAccountKey{
+			RoleSet:        rs.Name,
+			KeyName:        rs.TokenGen.KeyName,
+			ServiceAccount: rs.AccountId.ResourceName(),
+		}); err != nil {
+			return fmt.Errorf("unable to create WAL for deleting old key: %v", err)
+		}
+	}
+
+	newKeyWalId, err := rs.newKeyForTokenGen(ctx, s, iamAdmin, defaultScopes)
+	if err != nil {
+		tryDeleteWALs(ctx, s, oldKeyWalId)
+		return err
+	}
+
+	if err := rs.save(ctx, s); err != nil {
+		tryDeleteWALs(ctx, s, oldKeyWalId)
+		return err
+	}
+
+	// Delete WALs for cleaning up new key now that it's been saved.
+	tryDeleteWALs(ctx, s, newKeyWalId)
+
+	return nil
+}
+
+func (rs *RoleSet) addWALsForCurrentAccount(ctx context.Context, s logical.Storage) ([]string, error) {
+	if rs.AccountId == nil {
+		return nil, nil
+	}
+	wals := make([]string, 0, len(rs.Bindings)+2)
+	walId, err := framework.PutWAL(ctx, s, walTypeAccount, &walAccount{
+		RoleSet: rs.Name,
+		Id: gcputil.ServiceAccountId{
+			Project:   rs.AccountId.Project,
+			EmailOrId: rs.AccountId.EmailOrId,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	wals = append(wals, walId)
+	for resource, roles := range rs.Bindings {
+		var walId string
+		walId, err = framework.PutWAL(ctx, s, walTypeIamPolicy, &walIamPolicy{
+			RoleSet: rs.Name,
+			AccountId: gcputil.ServiceAccountId{
+				Project:   rs.AccountId.Project,
+				EmailOrId: rs.AccountId.EmailOrId,
+			},
+			Resource: resource,
+			Roles:    roles.ToSlice(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		wals = append(wals, walId)
+	}
+
+	if rs.SecretType == SecretTypeAccessToken && rs.TokenGen != nil {
+		walId, err := framework.PutWAL(ctx, s, walTypeAccountKey, &walAccountKey{
+			RoleSet:        rs.Name,
+			KeyName:        rs.TokenGen.KeyName,
+			ServiceAccount: rs.AccountId.ResourceName(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		wals = append(wals, walId)
+	}
+	return wals, nil
+}
+
+func (rs *RoleSet) newServiceAccount(ctx context.Context, s logical.Storage, iamAdmin *iam.Service, project string) (string, error) {
+	saEmailPrefix := roleSetServiceAccountName(rs.Name)
+	projectName := fmt.Sprintf("projects/%s", project)
+	displayName := fmt.Sprintf("Vault Role Set %s service account", rs.Name)
+
+	walId, err := framework.PutWAL(ctx, s, walTypeAccount, &walAccount{
+		RoleSet: rs.Name,
+		Id: gcputil.ServiceAccountId{
+			Project:   rs.AccountId.Project,
+			EmailOrId: rs.AccountId.EmailOrId,
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	sa, err := iamAdmin.Projects.ServiceAccounts.Create(
+		projectName, &iam.CreateServiceAccountRequest{
+			AccountId:      saEmailPrefix,
+			ServiceAccount: &iam.ServiceAccount{DisplayName: displayName},
+		}).Do()
+	if err != nil {
+		return walId, err
+	}
+	rs.AccountId = &gcputil.ServiceAccountId{
+		Project:   project,
+		EmailOrId: sa.Email,
+	}
+	return walId, nil
+}
+
+func (rs *RoleSet) newKeyForTokenGen(ctx context.Context, s logical.Storage, iamAdmin *iam.Service, defaultScopes []string) (string, error) {
+	walId, err := framework.PutWAL(ctx, s, walTypeAccountKey, &walAccountKey{
+		RoleSet:        rs.Name,
+		KeyName:        "",
+		ServiceAccount: rs.AccountId.ResourceName(),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	key, err := iamAdmin.Projects.ServiceAccounts.Keys.Create(rs.AccountId.ResourceName(),
+		&iam.CreateServiceAccountKeyRequest{
+			PrivateKeyType: privateKeyTypeJson,
+		}).Do()
+	if err != nil {
+		framework.DeleteWAL(ctx, s, walId)
+		return "", err
+	}
+	rs.TokenGen = &TokenGenerator{
+		KeyName: key.Name,
+		KeyJSON: key.PrivateKeyData,
+	}
+	return walId, nil
+}
+
+func (rs *RoleSet) updateIamPolicies(ctx context.Context, s logical.Storage, enabledIamResources iamutil.EnabledResources, iamHandle *iamutil.IamHandle, rb ResourceBindings) ([]string, error) {
+	wals := make([]string, 0, len(rb))
+	for rName, roles := range rb {
+		walId, err := framework.PutWAL(ctx, s, walTypeIamPolicy, &walIamPolicy{
+			RoleSet: rs.Name,
+			AccountId: gcputil.ServiceAccountId{
+				Project:   rs.AccountId.Project,
+				EmailOrId: rs.AccountId.EmailOrId,
+			},
+			Resource: rName,
+			Roles:    roles.ToSlice(),
+		})
+		if err != nil {
+			return wals, err
+		}
+
+		resource, err := enabledIamResources.Resource(rName)
+		if err != nil {
+			return wals, err
+		}
+
+		p, err := iamHandle.GetIamPolicy(ctx, resource)
+		if err != nil {
+			return wals, err
+		}
+
+		changed, newP := p.AddBindings(&iamutil.PolicyDelta{
+			Roles: roles,
+			Email: rs.AccountId.EmailOrId,
+		})
+		if !changed || newP == nil {
+			continue
+		}
+
+		if _, err := iamHandle.SetIamPolicy(ctx, resource, newP); err != nil {
+			return wals, err
+		}
+		wals = append(wals, walId)
+	}
+	return wals, nil
+}
+
+func roleSetServiceAccountName(rsName string) (name string) {
+	randSuffix := fmt.Sprintf("%d-%d", time.Now().Unix(), rand.Int31n(10000))
+	fullName := fmt.Sprintf("vault%s-%s", rsName, randSuffix)
+
+	name = fullName
+	if len(fullName) > serviceAccountMaxLen {
+		toTrunc := len(fullName) - serviceAccountMaxLen
+		name = fmt.Sprintf("vault%s-%s", rsName[:len(rsName)-toTrunc], randSuffix)
+	}
+	return name
+}
