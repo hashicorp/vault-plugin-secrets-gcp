@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
 	"google.golang.org/api/iam/v1"
-	"math/rand"
 	"time"
 )
 
@@ -40,6 +39,10 @@ func (rs *RoleSet) validate() error {
 		multierror.Append(err, errors.New("role set name is empty"))
 	}
 
+	if rs.SecretType == "" {
+		multierror.Append(err, errors.New("role set secret type is empty"))
+	}
+
 	if rs.AccountId == nil {
 		multierror.Append(err, fmt.Errorf("role set should have account associated"))
 	}
@@ -48,6 +51,8 @@ func (rs *RoleSet) validate() error {
 	case SecretTypeAccessToken:
 		if rs.TokenGen == nil {
 			multierror.Append(err, fmt.Errorf("access token role set should have initialized token generator"))
+		} else if len(rs.TokenGen.Scopes) == 0 {
+			multierror.Append(err, fmt.Errorf("access token role set should have defined scopes"))
 		}
 	default:
 		multierror.Append(err, fmt.Errorf("unknown secret type: %s", rs.SecretType))
@@ -99,14 +104,13 @@ func (rb ResourceBindings) asOutput() map[string][]string {
 }
 
 type TokenGenerator struct {
-	KeyName string
-	KeyJSON string
+	KeyName    string
+	B64KeyJSON string
 
-	DefaultScopes []string
+	Scopes []string
 }
 
-func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, s logical.Storage, rs *RoleSet,
-	project string, newBinds ResourceBindings, defaultScopes []string) (warning []string, err error) {
+func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, s logical.Storage, rs *RoleSet, project string, newBinds ResourceBindings, scopes []string) (warning []string, err error) {
 	httpC, err := newHttpClient(ctx, s, defaultCloudPlatformScope)
 	if err != nil {
 		return nil, err
@@ -137,7 +141,12 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, s logical.Stora
 	}
 	newWals = append(newWals, walId)
 
-	walIds, err := rs.updateIamPolicies(ctx, s, b.enabledIamResources, iamHandle, newBinds)
+	binds := rs.Bindings
+	if newBinds != nil {
+		binds = newBinds
+		rs.Bindings = newBinds
+	}
+	walIds, err := rs.updateIamPolicies(ctx, s, b.enabledIamResources, iamHandle, binds)
 	if err != nil {
 		tryDeleteWALs(ctx, s, oldWals...)
 		return nil, err
@@ -145,7 +154,7 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, s logical.Stora
 	newWals = append(newWals, walIds...)
 
 	if rs.SecretType == SecretTypeAccessToken {
-		walId, err := rs.newKeyForTokenGen(ctx, s, iamAdmin, defaultScopes)
+		walId, err := rs.newKeyForTokenGen(ctx, s, iamAdmin, scopes)
 		if err != nil {
 			tryDeleteWALs(ctx, s, oldWals...)
 			return nil, err
@@ -184,7 +193,7 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, s logical.Stora
 	return warnings, nil
 }
 
-func (b *backend) saveRoleSetWithNewTokenKey(ctx context.Context, s logical.Storage, rs *RoleSet, defaultScopes []string) (err error) {
+func (b *backend) saveRoleSetWithNewTokenKey(ctx context.Context, s logical.Storage, rs *RoleSet, scopes []string) (err error) {
 	if rs.SecretType != SecretTypeAccessToken {
 		return fmt.Errorf("a key is not saved or used for non-access-token role set '%s'", rs.Name)
 	}
@@ -205,7 +214,7 @@ func (b *backend) saveRoleSetWithNewTokenKey(ctx context.Context, s logical.Stor
 		}
 	}
 
-	newKeyWalId, err := rs.newKeyForTokenGen(ctx, s, iamAdmin, defaultScopes)
+	newKeyWalId, err := rs.newKeyForTokenGen(ctx, s, iamAdmin, scopes)
 	if err != nil {
 		tryDeleteWALs(ctx, s, oldKeyWalId)
 		return err
@@ -300,7 +309,7 @@ func (rs *RoleSet) newServiceAccount(ctx context.Context, s logical.Storage, iam
 	return walId, nil
 }
 
-func (rs *RoleSet) newKeyForTokenGen(ctx context.Context, s logical.Storage, iamAdmin *iam.Service, defaultScopes []string) (string, error) {
+func (rs *RoleSet) newKeyForTokenGen(ctx context.Context, s logical.Storage, iamAdmin *iam.Service, scopes []string) (string, error) {
 	walId, err := framework.PutWAL(ctx, s, walTypeAccountKey, &walAccountKey{
 		RoleSet:            rs.Name,
 		KeyName:            "",
@@ -319,8 +328,9 @@ func (rs *RoleSet) newKeyForTokenGen(ctx context.Context, s logical.Storage, iam
 		return "", err
 	}
 	rs.TokenGen = &TokenGenerator{
-		KeyName: key.Name,
-		KeyJSON: key.PrivateKeyData,
+		KeyName:    key.Name,
+		B64KeyJSON: key.PrivateKeyData,
+		Scopes: scopes,
 	}
 	return walId, nil
 }
@@ -368,13 +378,13 @@ func (rs *RoleSet) updateIamPolicies(ctx context.Context, s logical.Storage, ena
 }
 
 func roleSetServiceAccountName(rsName string) (name string) {
-	randSuffix := fmt.Sprintf("%d-%d", time.Now().Unix(), rand.Int31n(10000))
-	fullName := fmt.Sprintf("vault%s-%s", rsName, randSuffix)
+	intSuffix := fmt.Sprintf("%d", time.Now().Unix())
+	fullName := fmt.Sprintf("vault%s-%s", rsName, intSuffix)
 
 	name = fullName
 	if len(fullName) > serviceAccountMaxLen {
 		toTrunc := len(fullName) - serviceAccountMaxLen
-		name = fmt.Sprintf("vault%s-%s", rsName[:len(rsName)-toTrunc], randSuffix)
+		name = fmt.Sprintf("vault%s-%s", rsName[:len(rsName)-toTrunc], intSuffix)
 	}
 	return name
 }

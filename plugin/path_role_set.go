@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
+	"github.com/hashicorp/vault/helper/useragent"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
-	"github.com/hashicorp/vault/helper/useragent"
 	"google.golang.org/api/iam/v1"
 )
 
@@ -42,9 +42,9 @@ func pathsRoleSet(b *backend) []*framework.Path {
 					Type:        framework.TypeBool,
 					Description: `Flag determining if bindings string is base64 encoded.`,
 				},
-				"default_scopes": {
+				"token_scopes": {
 					Type:        framework.TypeStringSlice,
-					Description: `List of default scopes to assign to credentials generated under this role set`,
+					Description: `List of OAuth scopes to assign to credentials generated under this role set`,
 				},
 			},
 			ExistenceCheck: b.pathRoleSetExistenceCheck,
@@ -137,6 +137,7 @@ func (b *backend) pathRoleSetRead(ctx context.Context, req *logical.Request, d *
 	}
 
 	data := map[string]interface{}{
+		"secret_type" : rs.SecretType,
 		"bindings": rs.Bindings.asOutput(),
 	}
 
@@ -161,6 +162,9 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 	if err != nil {
 		return nil, fmt.Errorf("unable to get role set %s: %v", rsName, err)
 	}
+	if rs == nil {
+		return nil, nil
+	}
 
 	if rs.AccountId != nil {
 		_, err := framework.PutWAL(ctx, req.Storage, walTypeAccount, &walAccount{
@@ -171,12 +175,12 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 			return nil, fmt.Errorf("unable to create WAL entry to clean up service account: %v", err)
 		}
 
-		for resName, roleSet := range rs.Bindings{
+		for resName, roleSet := range rs.Bindings {
 			_, err := framework.PutWAL(ctx, req.Storage, walTypeIamPolicy, &walIamPolicy{
-				RoleSet: rsName,
+				RoleSet:   rsName,
 				AccountId: *rs.AccountId,
-				Resource: resName,
-				Roles: roleSet.ToSlice(),
+				Resource:  resName,
+				Roles:     roleSet.ToSlice(),
 			})
 			if err != nil {
 				return nil, fmt.Errorf("unable to create WAL entry to clean up service account bindings: %v", err)
@@ -222,7 +226,7 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 			w := fmt.Sprintf("unable to delete key for service account '%s' (WAL entry to clean-up later has been added): %v", rs.AccountId.ResourceName(), err)
 			warnings = append(warnings, w)
 		}
-		if merr := b.deleteBindings(ctx, iamHandle, rs.Name, rs.Bindings); merr == nil {
+		if merr := b.deleteBindings(ctx, iamHandle, rs.Name, rs.Bindings); merr != nil {
 			for _, err := range merr.Errors {
 				w := fmt.Sprintf("unable to delete IAM policy bindings for service account '%s' (WAL entry to clean-up later has been added): %v", rs.AccountId.EmailOrId, err)
 				warnings = append(warnings, w)
@@ -262,8 +266,7 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 	// Secret type
 	secretType := d.Get("secret_type").(string)
 	switch secretType {
-	case SecretTypeKey:
-	case SecretTypeAccessToken:
+	case SecretTypeKey, SecretTypeAccessToken:
 		if !isCreate && rs.SecretType != secretType {
 			return logical.ErrorResponse("cannot change secret_type after roleset creation"), nil
 		}
@@ -292,15 +295,21 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 
 	// Default scopes
 	var scopes []string
-	scopesRaw, ok := d.GetOk("default_scopes")
+	scopesRaw, ok := d.GetOk("token_scopes")
 	if ok {
 		if rs.SecretType != SecretTypeAccessToken {
-			return logical.ErrorResponse(fmt.Sprintf("default_scopes only valid for role set with '%s' secret type", SecretTypeAccessToken)), nil
+			return logical.ErrorResponse(fmt.Sprintf("tokeN-scopes only valid for role set with '%s' secret type", SecretTypeAccessToken)), nil
 		}
 		scopes = scopesRaw.([]string)
-	} else {
+		if len(scopes) == 0 {
+			return logical.ErrorResponse("cannot provide empty token_scopes"), nil
+		}
+	} else if rs.SecretType == SecretTypeAccessToken {
+		if isCreate {
+			return logical.ErrorResponse("token_scopes must be provided for creating access token role set"), nil
+		}
 		if rs.TokenGen != nil {
-			scopes = rs.TokenGen.DefaultScopes
+			scopes = rs.TokenGen.Scopes
 		}
 	}
 
@@ -367,10 +376,10 @@ func (b *backend) pathRoleSetRotateAccount(ctx context.Context, req *logical.Req
 
 	var scopes []string
 	if rs.TokenGen != nil {
-		scopes = rs.TokenGen.DefaultScopes
+		scopes = rs.TokenGen.Scopes
 	}
 
-	warnings, err := b.saveRoleSetWithNewAccount(ctx, req.Storage, rs, rs.AccountId.Project, rs.Bindings, scopes)
+	warnings, err := b.saveRoleSetWithNewAccount(ctx, req.Storage, rs, rs.AccountId.Project, nil, scopes)
 	if err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	} else if warnings != nil && len(warnings) > 0 {
@@ -399,7 +408,7 @@ func (b *backend) pathRoleSetRotateKey(ctx context.Context, req *logical.Request
 	}
 	var scopes []string
 	if rs.TokenGen != nil {
-		scopes = rs.TokenGen.DefaultScopes
+		scopes = rs.TokenGen.Scopes
 	}
 	if err := b.saveRoleSetWithNewTokenKey(ctx, req.Storage, rs, scopes); err != nil {
 		return logical.ErrorResponse(err.Error()), nil

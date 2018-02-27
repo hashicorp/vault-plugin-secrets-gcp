@@ -17,7 +17,7 @@ const (
 
 func secretServiceAccountKey(b *backend) *framework.Secret {
 	return &framework.Secret{
-		Type: SecretTypeAccessToken,
+		Type: SecretTypeKey,
 		Fields: map[string]*framework.FieldSchema{
 			"private_key_data": {
 				Type:        framework.TypeString,
@@ -46,15 +46,15 @@ func pathSecretServiceAccountKey(b *backend) *framework.Path {
 				Type:        framework.TypeString,
 				Description: "Required. Name of the role set.",
 			},
+			"key_algorithm": {
+				Type:        framework.TypeString,
+				Description: fmt.Sprintf(`Private key algorithm for service account key - defaults to %s"`, keyAlgorithmRSA2k),
+				Default:     keyAlgorithmRSA2k,
+			},
 			"key_type": {
 				Type:        framework.TypeString,
 				Description: fmt.Sprintf(`Private key type for service account key - defaults to %s"`, privateKeyTypeJson),
 				Default:     privateKeyTypeJson,
-			},
-			"key_algorithm": {
-				Type:        framework.TypeString,
-				Description: fmt.Sprintf(`Private key type for service account key - defaults to %s"`, keyAlgorithmRSA2k),
-				Default:     keyAlgorithmRSA2k,
 			},
 		},
 		ExistenceCheck: b.pathRoleSetExistenceCheck,
@@ -80,8 +80,8 @@ func (b *backend) pathServiceAccountKey(ctx context.Context, req *logical.Reques
 		return logical.ErrorResponse(fmt.Sprintf("role set '%s' does not exists", rsName)), nil
 	}
 
-	if rs.SecretType != SecretTypeAccessToken {
-		return logical.ErrorResponse(fmt.Sprintf("role set '%s' cannot generate access tokens (has secret type %s)", rsName, rs.SecretType)), nil
+	if rs.SecretType != SecretTypeKey {
+		return logical.ErrorResponse(fmt.Sprintf("role set '%s' cannot generate service account keys (has secret type %s)", rsName, rs.SecretType)), nil
 	}
 
 	return b.getSecretKey(ctx, req.Storage, rs, keyType, keyAlg)
@@ -162,7 +162,7 @@ func secretKeyRevoke(ctx context.Context, req *logical.Request, d *framework.Fie
 	return nil, nil
 }
 
-func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleSet, keyAlgorithm, keyType string) (*logical.Response, error) {
+func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleSet, keyType, keyAlgorithm string) (*logical.Response, error) {
 	var ttl time.Duration
 	cfg, err := getConfig(ctx, s)
 	if err != nil {

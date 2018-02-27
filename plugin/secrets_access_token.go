@@ -2,6 +2,7 @@ package gcpsecrets
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
@@ -35,15 +36,11 @@ func secretAccessToken(b *backend) *framework.Secret {
 
 func pathSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern: fmt.Sprintf("token/%s", framework.GenericNameRegex("name")),
+		Pattern: fmt.Sprintf("token/%s", framework.GenericNameRegex("roleset")),
 		Fields: map[string]*framework.FieldSchema{
-			"name": {
+			"roleset": {
 				Type:        framework.TypeString,
 				Description: "Required. Name of the role set.",
-			},
-			"scopes": {
-				Type:        framework.TypeStringSlice,
-				Description: `List of OAuth scopes to assign to access tokens generated under this role set`,
 			},
 		},
 		ExistenceCheck: b.pathRoleSetExistenceCheck,
@@ -57,7 +54,7 @@ func pathSecretAccessToken(b *backend) *framework.Path {
 }
 
 func (b *backend) pathAccessToken(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	rsName := d.Get("name").(string)
+	rsName := d.Get("roleset").(string)
 
 	rs, err := getRoleSet(rsName, ctx, req.Storage)
 	if err != nil {
@@ -71,9 +68,7 @@ func (b *backend) pathAccessToken(ctx context.Context, req *logical.Request, d *
 		return logical.ErrorResponse(fmt.Sprintf("role set '%s' cannot generate access tokens (has secret type %s)", rsName, rs.SecretType)), nil
 	}
 
-	scopes := d.Get("scopes").([]string)
-
-	return b.getSecretAccessToken(ctx, req.Storage, rs, scopes)
+	return b.getSecretAccessToken(ctx, req.Storage, rs)
 }
 
 func (b *backend) secretAccessTokenRenew(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
@@ -98,7 +93,7 @@ func secretAccessTokenRevoke(ctx context.Context, req *logical.Request, d *frame
 	return nil, nil
 }
 
-func (b *backend) getSecretAccessToken(ctx context.Context, s logical.Storage, rs *RoleSet, scopes []string) (*logical.Response, error) {
+func (b *backend) getSecretAccessToken(ctx context.Context, s logical.Storage, rs *RoleSet) (*logical.Response, error) {
 	iamC, err := newIamAdmin(ctx, s)
 	if err != nil {
 		return nil, fmt.Errorf("could not create IAM Admin client: %v", err)
@@ -107,16 +102,16 @@ func (b *backend) getSecretAccessToken(ctx context.Context, s logical.Storage, r
 	// Verify account still exists
 	_, err = rs.getServiceAccount(iamC)
 	if err != nil {
-		return logical.ErrorResponse(err.Error()), nil
+		return logical.ErrorResponse(fmt.Sprintf("could not get role set service account: %v", err)), nil
 	}
 
 	if rs.TokenGen == nil || rs.TokenGen.KeyName == "" {
 		return logical.ErrorResponse(fmt.Sprintf("invalid role set has no service account key, must be updated (path roleset/%s/rotate-key) before generating new secrets", rs.Name)), nil
 	}
 
-	token, err := rs.TokenGen.getAccessToken(iamC, ctx, scopes)
+	token, err := rs.TokenGen.getAccessToken(iamC, ctx)
 	if err != nil {
-		return logical.ErrorResponse(err.Error()), nil
+		return logical.ErrorResponse(fmt.Sprintf("could not generate token: %v", err)), nil
 	}
 
 	secretD := map[string]interface{}{
@@ -128,14 +123,14 @@ func (b *backend) getSecretAccessToken(ctx context.Context, s logical.Storage, r
 		"role_set":          rs.Name,
 		"role_set_bindings": rs.bindingHash(),
 	}
-	resp := b.Secret(SecretTypeKey).Response(secretD, internalD)
+	resp := b.Secret(SecretTypeAccessToken).Response(secretD, internalD)
 	resp.Secret.LeaseOptions.TTL = token.Expiry.Sub(time.Now())
 	resp.Secret.LeaseOptions.Renewable = false
 
 	return resp, err
 }
 
-func (tg *TokenGenerator) getAccessToken(iamAdmin *iam.Service, ctx context.Context, scopes []string) (*oauth2.Token, error) {
+func (tg *TokenGenerator) getAccessToken(iamAdmin *iam.Service, ctx context.Context) (*oauth2.Token, error) {
 	key, err := iamAdmin.Projects.ServiceAccounts.Keys.Get(tg.KeyName).Do()
 	if err != nil {
 		return nil, fmt.Errorf("could not verify key used to generate tokens: %v", err)
@@ -144,14 +139,19 @@ func (tg *TokenGenerator) getAccessToken(iamAdmin *iam.Service, ctx context.Cont
 		return nil, fmt.Errorf("could not find key used to generate tokens, must update role set")
 	}
 
-	if len(scopes) == 0 {
-		scopes = tg.DefaultScopes
-	}
-
-	cfg, err := google.JWTConfigFromJSON([]byte(tg.KeyJSON), scopes...)
+	jsonBytes, err := base64.StdEncoding.DecodeString(tg.B64KeyJSON)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not b64-decode key data: %v", err)
 	}
 
-	return cfg.TokenSource(ctx).Token()
+	cfg, err := google.JWTConfigFromJSON(jsonBytes, tg.Scopes...)
+	if err != nil {
+		return nil, fmt.Errorf("could not generate token JWT config: %v", err)
+	}
+
+	tkn, err := cfg.TokenSource(ctx).Token()
+	if err != nil {
+		return nil, fmt.Errorf("could not generate token: %v", err)
+	}
+	return tkn, err
 }
