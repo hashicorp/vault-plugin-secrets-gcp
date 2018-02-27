@@ -140,8 +140,7 @@ $ make test TESTARGS='--run=TestConfig'
 
 ## Documentation 
 
-Eventually this section will be moved to [Vault docs](https://www.vaultproject.io/docs/secrets/gcp/index.html). Once it 
-has, this documentation should be considered less up-to-date. 
+(This section will eventually be moved to [Vault docs](https://www.vaultproject.io/docs/secrets/gcp/index.html) and will not be kept-up-to-date)
 
 We assume the backend is mounted at 'gcp':
 
@@ -157,6 +156,12 @@ vault secrets enable --plugin_name=gcppluginname --path=gcp plugin
 
 ```
 
+If you are running from source code, running scripts/local_dev.sh will start and mount this plugin for you:
+
+```sh
+cd $GOPATH/github.com/hashicorp/vault-plugin-secrets-gcp
+./scripts/local_dev
+```
 There are three main paths, two of which must be used to set up the backend for secrets generation.
 
 ### Config (`/config`)
@@ -186,16 +191,16 @@ Examples:
 $ vault write gcp/roleset/token-role-set \
     project="my-gcp-project" \
     secret_type="access_token" \
-    bindings=@path/to/bindings.hcl \
-    base64_encoded=false \
-    default_scopes="https://www.googleapis.com/auth/cloud-platform",...
+    bindings="bindingsb64string..." \
+    base64_encoded=true \
+    token_scopes="https://www.googleapis.com/auth/cloud-platform",...
     
     
 $ vault write gcp/roleset/key-role-set \
     project="my-gcp-project" \
     secret_type="service_account_key" \
     bindings=@path/to/bindings.hcl \
-    base64_encoded=true \
+    base64_encoded=false \
 ```
 
 Params:
@@ -205,8 +210,7 @@ Params:
 * `bindings` (`string`: `<required>`): Max TTL in seconds (or duration string '<#>s') for default leases on long-term secrets (i.e. service account keys); determines
     when a secret no longer can be renewed
 * `base64_encoded` (`bool`: `false`): Whether provided bindings string (if provided as raw string) has been base64 encoded
-* `default_scopes` (`[]string`: optional): Only applies to `access_token` role sets. A default list of OAuth scopes 
-    for generated tokens (can also be specified at secrets generation step)
+* `token_scopes` (`[]string`: `<required>` for `access_token` role sets): Only applies to `access_token` role sets. A default  list of OAuth scopes for generated tokens (can also be specified at secrets generation step)
    
 Once a role-set has been created, there are two additional paths
 for updating rolesets:
@@ -280,9 +284,9 @@ renewal/revocation.
 #### Access Tokens
 
 ```
-
+# Either path works
 $ vault read gcp/token/token-roleset \
-    scopes=...
+$ vault write gcp/token/token-roleset \
     
 $ vault revoke gcp/key/key-roleset/lease_id
         
@@ -293,11 +297,28 @@ Params:
 
 * `scopes` (`[]string`): List of OAuth scopes to assign to token. Uses role set defaults if not specified.
 
+Output:
+```
+Key                 Value
+---                 -----
+lease_id           gcp/token/test/<uuid>
+lease_duration     59m59s
+lease_renewable    false
+token              ya29.c.restoftoken...
+```
+This token can be used by adding it as a header to any request (**note** you must add "Authorization: Bearer" prefix)
+```
+curl -H "Authorization: Bearer $TOKEN" ... 
+```
+
 #### Service Account Key Tokens
 
 ```sh
+# Default key alg/type
+$ vault read gcp/key/key-roleset
 
-$ vault read gcp/key/key-roleset \
+# Write allows arguments for different types of keys.
+$ vault write gcp/key/key-roleset \
     key_type="TYPE_GOOGLE_CREDENTIALS_FILE"
     key_algorithm="KEY_ALG_RSA_2048"
 ```
@@ -307,6 +328,17 @@ Params:
 * `key_algorithm` (`string`: `KEY_ALG_RSA_2048`): Algorithm used to generate key, defaults to 2k RSA. See enum
     [`ServiceAccountKeyAlgorithm`](https://cloud.google.com/iam/reference/rest/v1/projects.serviceAccounts.keys#ServiceAccountKeyAlgorithm)
 
+Output:
+```
+Key                 Value
+---                 -----
+lease_id            gcp/key/key-roleset/<uuid>
+lease_duration      1h
+lease_renewable     true
+key_algorithm       KEY_ALG_RSA_2048
+key_type            TYPE_GOOGLE_CREDENTIALS_FILE
+private_key_data    <b64'd(private key)>
+```
 
 Renew/Revoke:
 ```
@@ -320,7 +352,7 @@ $ vault revoke gcp/token/token-roleset/lease_id
 
 ### Troubleshooting/Things To Note
 
-####Role Set + IAM Quota Limits (Error: "You've reached your limit of ...")
+#### Role Set + IAM Quota Limits (Error: "You've reached your limit of ...")
 
 When we create role sets, we generate a new service account per role set. This means:
 
@@ -338,3 +370,8 @@ When we create role sets, we generate a new service account per role set. This m
     but will deny access to a role set until a new service account has been generatedVault tries t
 
 ### Secrets
+
+* **Role sets by default generate access_tokens**: To generate service account keys, set the role set secret_type to "service_account_key"
+* **Access tokens are non-renewable**: Because access tokens are naturally short-lived (1hr TTL), we decided to make them non-renewable and you will need to do another read/write to the /token endpoint to generate a new token.
+
+
