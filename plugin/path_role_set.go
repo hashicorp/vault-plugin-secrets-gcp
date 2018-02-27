@@ -352,7 +352,7 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 }
 
 func (b *backend) pathRoleSetList(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	rolesets, err := req.Storage.List(ctx, "roleset")
+	rolesets, err := req.Storage.List(ctx, "roleset/")
 	if err != nil {
 		return nil, err
 	}
