@@ -21,7 +21,7 @@ func secretServiceAccountKey(b *backend) *framework.Secret {
 		Fields: map[string]*framework.FieldSchema{
 			"private_key_data": {
 				Type:        framework.TypeString,
-				Description: "Private key data for a service account key",
+				Description: "Base-64 encoded string. Private key data for a service account key",
 			},
 			"key_algorithm": {
 				Type:        framework.TypeString,
