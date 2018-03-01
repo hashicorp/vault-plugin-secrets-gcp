@@ -135,10 +135,13 @@ func (b *backend) pathRoleSetRead(ctx context.Context, req *logical.Request, d *
 	if err != nil {
 		return nil, err
 	}
+	if rs == nil {
+		return nil, nil
+	}
 
 	data := map[string]interface{}{
-		"secret_type" : rs.SecretType,
-		"bindings": rs.Bindings.asOutput(),
+		"secret_type": rs.SecretType,
+		"bindings":    rs.Bindings.asOutput(),
 	}
 
 	if rs.AccountId != nil {
@@ -332,7 +335,7 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 		return nil, nil
 	}
 
-	// Only update service account if bindings are different.
+	// If new bindings, update service account.
 	var bindings ResourceBindings
 	bindings, err = util.ParseBindings(bRaw.(string), b64ed)
 	if err != nil {
@@ -341,7 +344,7 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 	if len(bindings) == 0 {
 		return logical.ErrorResponse("unable to parse any bindings from given bindings HCL"), nil
 	}
-
+	rs.RawBindings = bRaw.(string)
 	warnings, err := b.saveRoleSetWithNewAccount(ctx, req.Storage, rs, project, bindings, scopes)
 	if err != nil {
 		return logical.ErrorResponse(err.Error()), nil

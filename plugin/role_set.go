@@ -47,6 +47,14 @@ func (rs *RoleSet) validate() error {
 		multierror.Append(err, fmt.Errorf("role set should have account associated"))
 	}
 
+	if len(rs.Bindings) == 0 {
+		multierror.Append(err, fmt.Errorf("role set bindings cannot be empty"))
+	}
+
+	if len(rs.RawBindings) == 0 {
+		multierror.Append(err, fmt.Errorf("role set raw bindings cannot be empty string"))
+	}
+
 	switch rs.SecretType {
 	case SecretTypeAccessToken:
 		if rs.TokenGen == nil {
@@ -171,7 +179,7 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, s logical.Stora
 	tryDeleteWALs(ctx, s, newWals...)
 
 	// Try deleting old resources (WALs exist so we can ignore failures)
-	if rs.AccountId == nil || rs.AccountId.EmailOrId != "" {
+	if oldAccount == nil || oldAccount.EmailOrId != "" {
 		// nothing to clean up
 		return nil, nil
 	}
@@ -330,7 +338,7 @@ func (rs *RoleSet) newKeyForTokenGen(ctx context.Context, s logical.Storage, iam
 	rs.TokenGen = &TokenGenerator{
 		KeyName:    key.Name,
 		B64KeyJSON: key.PrivateKeyData,
-		Scopes: scopes,
+		Scopes:     scopes,
 	}
 	return walId, nil
 }

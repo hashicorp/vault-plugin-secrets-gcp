@@ -108,7 +108,7 @@ func (b *backend) serviceAccountKeyRollback(ctx context.Context, req *logical.Re
 		}
 
 		// delete all keys not in use by role set
-		keys, err := iamC.Projects.ServiceAccounts.Keys.List(rs.AccountId.ResourceName()).Do()
+		keys, err := iamC.Projects.ServiceAccounts.Keys.List(rs.AccountId.ResourceName()).KeyTypes("USER_MANAGED").Do()
 		if err != nil && !isGoogleApi404Error(err) {
 			return err
 		} else if err != nil || keys == nil {

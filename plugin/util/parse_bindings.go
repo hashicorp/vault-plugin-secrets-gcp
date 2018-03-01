@@ -13,14 +13,16 @@ import (
 	"text/template"
 )
 
+const bindingTemplate = "util/bindings_template"
+
 func BindingsHCL(bindings map[string]StringSet) (string, error) {
-	tpl, err := template.ParseGlob(bindingTemplate)
+	tpl, err := template.ParseFiles(bindingTemplate)
 	if err != nil {
 		return "", err
 	}
 
 	var buf bytes.Buffer
-	if err := tpl.ExecuteTemplate(&buf, "main", bindings); err != nil {
+	if err := tpl.ExecuteTemplate(&buf, "bindings", bindings); err != nil {
 		return "", err
 	}
 	return buf.String(), nil
@@ -113,16 +115,3 @@ func parseRoles(item *ast.ObjectItem, roleSet StringSet, err error) error {
 
 	return err
 }
-
-const bindingTemplate = `
-{{define "bindings" -}}
-{{ range $resource,$roleStringSet := . -}}
-resource "{{$resource}}" {
-	roles = [
-	{{- range $role := $roleStringSet -}}
-		"{{ $role }}",
-	{{ end -}}
-	],
-}
-{{- end }}
-`
