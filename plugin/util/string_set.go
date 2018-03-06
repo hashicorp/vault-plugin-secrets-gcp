@@ -74,3 +74,7 @@ func (ss StringSet) Sub(other StringSet) StringSet {
 	}
 	return sub
 }
+
+func (ss StringSet) Equals(other StringSet) bool {
+	return len(ss.Intersection(other)) == len(ss)
+}

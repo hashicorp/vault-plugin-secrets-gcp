@@ -247,6 +247,7 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 }
 
 func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	var warnings []string
 	nameRaw, ok := d.GetOk("name")
 	if !ok {
 		return logical.ErrorResponse("name is required"), nil
@@ -267,18 +268,22 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 	isCreate := req.Operation == logical.CreateOperation
 
 	// Secret type
-	secretType := d.Get("secret_type").(string)
-	switch secretType {
-	case SecretTypeKey, SecretTypeAccessToken:
-		if !isCreate && rs.SecretType != secretType {
+	if isCreate {
+		secretType := d.Get("secret_type").(string)
+		switch secretType {
+		case SecretTypeKey, SecretTypeAccessToken:
+			rs.SecretType = secretType
+		default:
+			return logical.ErrorResponse(fmt.Sprintf(`invalid "secret_type" value: "%s"`, secretType)), nil
+		}
+	} else {
+		secretTypeRaw, ok := d.GetOk("secret_type")
+		if ok && rs.SecretType != secretTypeRaw.(string) {
 			return logical.ErrorResponse("cannot change secret_type after roleset creation"), nil
 		}
-		rs.SecretType = secretType
-	default:
-		return logical.ErrorResponse(fmt.Sprintf(`invalid "secret_type" value: "%s"`, secretType)), nil
 	}
 
-	// Secret type
+	// Project
 	var project string
 	projectRaw, ok := d.GetOk("project")
 	if ok {
@@ -301,7 +306,9 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 	scopesRaw, ok := d.GetOk("token_scopes")
 	if ok {
 		if rs.SecretType != SecretTypeAccessToken {
-			return logical.ErrorResponse(fmt.Sprintf("tokeN-scopes only valid for role set with '%s' secret type", SecretTypeAccessToken)), nil
+			warnings = []string{
+				fmt.Sprintf("ignoring token_scopes, only valid for '%s' secret type role set", SecretTypeAccessToken),
+			}
 		}
 		scopes = scopesRaw.([]string)
 		if len(scopes) == 0 {
@@ -345,7 +352,10 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 		return logical.ErrorResponse("unable to parse any bindings from given bindings HCL"), nil
 	}
 	rs.RawBindings = bRaw.(string)
-	warnings, err := b.saveRoleSetWithNewAccount(ctx, req.Storage, rs, project, bindings, scopes)
+	updateWarns, err := b.saveRoleSetWithNewAccount(ctx, req.Storage, rs, project, bindings, scopes)
+	if updateWarns != nil {
+		warnings = append(warnings, updateWarns...)
+	}
 	if err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	} else if warnings != nil && len(warnings) > 0 {
