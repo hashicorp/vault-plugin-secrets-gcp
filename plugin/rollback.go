@@ -190,21 +190,25 @@ func (b *backend) serviceAccountPolicyRollback(ctx context.Context, req *logical
 }
 
 func (b *backend) deleteServiceAccount(ctx context.Context, iamAdmin *iam.Service, account *gcputil.ServiceAccountId) error {
-	if account != nil && account.EmailOrId != "" {
-		_, err := iamAdmin.Projects.ServiceAccounts.Delete(account.ResourceName()).Do()
-		if err != nil && !isGoogleApi404Error(err) {
-			return fmt.Errorf("unable to delete service account: %v", err)
-		}
+	if account == nil || account.EmailOrId == "" {
+		return nil
+	}
+
+	_, err := iamAdmin.Projects.ServiceAccounts.Delete(account.ResourceName()).Do()
+	if err != nil && !isGoogleApi404Error(err) {
+		return fmt.Errorf("unable to delete service account: %v", err)
 	}
 	return nil
 }
 
 func (b *backend) deleteTokenGenKey(ctx context.Context, iamAdmin *iam.Service, tgen *TokenGenerator) error {
-	if tgen != nil && tgen.KeyName != "" {
-		_, err := iamAdmin.Projects.ServiceAccounts.Keys.Delete(tgen.KeyName).Do()
-		if err != nil && !isGoogleApi404Error(err) {
-			return fmt.Errorf("unable to delete service account key: %v", err)
-		}
+	if tgen == nil || tgen.KeyName == "" {
+		return nil
+	}
+
+	_, err := iamAdmin.Projects.ServiceAccounts.Keys.Delete(tgen.KeyName).Do()
+	if err != nil && !isGoogleApi404Error(err) {
+		return fmt.Errorf("unable to delete service account key: %v", err)
 	}
 	return nil
 }

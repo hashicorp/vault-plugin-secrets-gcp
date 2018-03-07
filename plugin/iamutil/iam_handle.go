@@ -24,11 +24,11 @@ func GetIamHandle(client *http.Client, userAgent string) *IamHandle {
 func (h *IamHandle) GetIamPolicy(ctx context.Context, r IamResource) (*Policy, error) {
 	req, err := r.GetIamPolicyRequest()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to construct GetIamPolicy request: %v", err)
 	}
 	var p Policy
 	if err := h.doRequest(ctx, req, &p); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get policy: %v", err)
 	}
 	return &p, nil
 }
@@ -36,11 +36,11 @@ func (h *IamHandle) GetIamPolicy(ctx context.Context, r IamResource) (*Policy, e
 func (h *IamHandle) SetIamPolicy(ctx context.Context, r IamResource, p *Policy) (*Policy, error) {
 	req, err := r.SetIamPolicyRequest(p)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to construct SetIamPolicy request: %v", err)
 	}
 	var out Policy
 	if err := h.doRequest(ctx, req, &out); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to set policy: %v", err)
 	}
 	return &out, nil
 }
