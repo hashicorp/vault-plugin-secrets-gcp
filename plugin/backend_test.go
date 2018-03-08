@@ -9,16 +9,19 @@ import (
 	"time"
 )
 
+const (
+	defaultLeaseTTLHr = 1
+	maxLeaseTTLHr     = 12
+)
+
 func getTestBackend(t *testing.T) (logical.Backend, logical.Storage) {
-	defaultLeaseTTLVal := time.Hour * 12
-	maxLeaseTTLVal := time.Hour * 24
 	b := Backend()
 
 	config := &logical.BackendConfig{
 		Logger: logformat.NewVaultLogger(log.LevelTrace),
 		System: &logical.StaticSystemView{
-			DefaultLeaseTTLVal: defaultLeaseTTLVal,
-			MaxLeaseTTLVal:     maxLeaseTTLVal,
+			DefaultLeaseTTLVal: defaultLeaseTTLHr * time.Hour,
+			MaxLeaseTTLVal:     maxLeaseTTLHr * time.Hour,
 		},
 		StorageView: &logical.InmemStorage{},
 	}
