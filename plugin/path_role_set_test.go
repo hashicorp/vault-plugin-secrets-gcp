@@ -15,15 +15,15 @@ import (
 )
 
 func TestPathRoleSet_Basic(t *testing.T) {
-	rsName := "testrs"
+	rsName := "test-basicrs"
 	roles := util.StringSet{
 		"roles/viewer": struct{}{},
 	}
 
 	td := setupTest(t)
+	defer cleanup(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf("projects/%s", td.Project)
-	defer cleanup(t, td, rsName, roles)
 
 	// 1. Read should return nothing
 	respData := testRoleSetRead(t, td, rsName)
@@ -65,7 +65,7 @@ func TestPathRoleSet_Basic(t *testing.T) {
 }
 
 func TestPathRoleSet_UpdateKeyRoleSet(t *testing.T) {
-	rsName := "testrs"
+	rsName := "test-updatekeyrs"
 	initRoles := util.StringSet{
 		"roles/viewer": struct{}{},
 	}
@@ -76,9 +76,9 @@ func TestPathRoleSet_UpdateKeyRoleSet(t *testing.T) {
 
 	// Initial test set up - backend, initial config, test resources in project
 	td := setupTest(t)
+	defer cleanup(t, td, rsName, initRoles.Union(updatedRoles))
 
 	projRes := fmt.Sprintf("projects/%s", td.Project)
-	defer cleanup(t, td, rsName, initRoles.Union(updatedRoles))
 
 	// Create role set
 	expectedBinds := ResourceBindings{projRes: initRoles}
@@ -169,16 +169,16 @@ func TestPathRoleSet_UpdateKeyRoleSet(t *testing.T) {
 }
 
 func TestPathRoleSet_RotateKeyRoleSet(t *testing.T) {
-	rsName := "testrs"
+	rsName := "test-rotatekeyrs"
 	roles := util.StringSet{
 		"roles/viewer": struct{}{},
 	}
 
 	// Initial test set up - backend, initial config, test resources in project
 	td := setupTest(t)
+	defer cleanup(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf("projects/%s", td.Project)
-	defer cleanup(t, td, rsName, roles)
 
 	// Create role set
 	expectedBinds := ResourceBindings{projRes: roles}
@@ -225,7 +225,7 @@ func TestPathRoleSet_RotateKeyRoleSet(t *testing.T) {
 }
 
 func TestPathRoleSet_UpdateTokenRoleSet(t *testing.T) {
-	rsName := "testrs"
+	rsName := "test-updatetokenrs"
 	initRoles := util.StringSet{
 		"roles/viewer": struct{}{},
 	}
@@ -236,9 +236,9 @@ func TestPathRoleSet_UpdateTokenRoleSet(t *testing.T) {
 
 	// Initial test set up - backend, initial config, test resources in project
 	td := setupTest(t)
+	defer cleanup(t, td, rsName, initRoles.Union(updatedRoles))
 
 	projRes := fmt.Sprintf("projects/%s", td.Project)
-	defer cleanup(t, td, rsName, initRoles.Union(updatedRoles))
 
 	// Create role set
 	expectedBinds := ResourceBindings{projRes: initRoles}
@@ -323,16 +323,16 @@ func TestPathRoleSet_UpdateTokenRoleSet(t *testing.T) {
 }
 
 func TestPathRoleSet_RotateTokenRoleSet(t *testing.T) {
-	rsName := "testrs"
+	rsName := "test-rotatetokenrs"
 	roles := util.StringSet{
 		"roles/viewer": struct{}{},
 	}
 
 	// Initial test set up - backend, initial config, test resources in project
 	td := setupTest(t)
+	defer cleanup(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf("projects/%s", td.Project)
-	defer cleanup(t, td, rsName, roles)
 
 	// Create role set
 	expectedBinds := ResourceBindings{projRes: roles}
@@ -655,10 +655,12 @@ func setupTest(t *testing.T) *testData {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	iamAdmin, err := iam.New(httpC)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	b, reqStorage := getTestBackend(t)
 	testConfigUpdate(t, b, reqStorage, map[string]interface{}{
 		"credentials": credsJson,
