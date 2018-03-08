@@ -18,6 +18,7 @@ import (
 const (
 	SecretTypeAccessToken     = "access_token"
 	revokeAccessTokenEndpoint = "https://accounts.google.com/o/oauth2/revoke"
+	revokeTokenWarning        = `revocation request was successful; however, due to how OAuth access propagation works, the OAuth token might still be valid until it expires`
 )
 
 func secretAccessToken(b *backend) *framework.Secret {
@@ -77,7 +78,7 @@ func (b *backend) secretAccessTokenRenew(ctx context.Context, req *logical.Reque
 }
 
 func secretAccessTokenRevoke(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	tokenRaw, ok := req.Secret.InternalData["token"]
+	tokenRaw, ok := req.Secret.InternalData["access_token"]
 	if !ok {
 		return nil, fmt.Errorf("secret is missing token internal data")
 	}
@@ -86,11 +87,13 @@ func secretAccessTokenRevoke(ctx context.Context, req *logical.Request, d *frame
 	if err != nil {
 		return logical.ErrorResponse(fmt.Sprintf("revoke returned error: %v", err)), nil
 	}
-
 	if err := googleapi.CheckResponse(resp); err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	}
-	return nil, nil
+
+	return &logical.Response{
+		Warnings: []string{revokeTokenWarning},
+	}, nil
 }
 
 func (b *backend) getSecretAccessToken(ctx context.Context, s logical.Storage, rs *RoleSet) (*logical.Response, error) {
@@ -118,7 +121,7 @@ func (b *backend) getSecretAccessToken(ctx context.Context, s logical.Storage, r
 		"token": token.AccessToken,
 	}
 	internalD := map[string]interface{}{
-		"token":             token.AccessToken,
+		"access_token":      token.AccessToken,
 		"key_name":          rs.TokenGen.KeyName,
 		"role_set":          rs.Name,
 		"role_set_bindings": rs.bindingHash(),
