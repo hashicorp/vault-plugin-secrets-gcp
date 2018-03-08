@@ -255,6 +255,9 @@ func tryDeleteWALs(ctx context.Context, s logical.Storage, walIds ...string) {
 }
 
 func isGoogleApi404Error(err error) bool {
+	if err == nil {
+		return false
+	}
 	gErr, ok := err.(*googleapi.Error)
 	if ok && gErr.Code == 404 {
 		return true
