@@ -179,14 +179,14 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, s logical.Stora
 	tryDeleteWALs(ctx, s, newWals...)
 
 	// Try deleting old resources (WALs exist so we can ignore failures)
-	if oldAccount == nil || oldAccount.EmailOrId != "" {
+	if oldAccount == nil || oldAccount.EmailOrId == "" {
 		// nothing to clean up
 		return nil, nil
 	}
 
 	// Return any errors as warnings so user knows immediate cleanup failed
 	warnings := make([]string, 0)
-	if errs := b.deleteBindings(ctx, iamHandle, oldAccount.EmailOrId, oldBindings); errs != nil {
+	if errs := b.removeBindings(ctx, iamHandle, oldAccount.EmailOrId, oldBindings); errs != nil {
 		warnings = make([]string, len(errs.Errors), len(errs.Errors)+2)
 		for idx, err := range errs.Errors {
 			warnings[idx] = fmt.Sprintf("unable to immediately delete old binding (WAL cleanup entry has been added): %v", err)
@@ -201,14 +201,14 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, s logical.Stora
 	return warnings, nil
 }
 
-func (b *backend) saveRoleSetWithNewTokenKey(ctx context.Context, s logical.Storage, rs *RoleSet, scopes []string) (err error) {
+func (b *backend) saveRoleSetWithNewTokenKey(ctx context.Context, s logical.Storage, rs *RoleSet, scopes []string) (warning string, err error) {
 	if rs.SecretType != SecretTypeAccessToken {
-		return fmt.Errorf("a key is not saved or used for non-access-token role set '%s'", rs.Name)
+		return "", fmt.Errorf("a key is not saved or used for non-access-token role set '%s'", rs.Name)
 	}
 
 	iamAdmin, err := newIamAdmin(ctx, s)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	oldKeyWalId := ""
@@ -218,25 +218,29 @@ func (b *backend) saveRoleSetWithNewTokenKey(ctx context.Context, s logical.Stor
 			KeyName:            rs.TokenGen.KeyName,
 			ServiceAccountName: rs.AccountId.ResourceName(),
 		}); err != nil {
-			return fmt.Errorf("unable to create WAL for deleting old key: %v", err)
+			return "", fmt.Errorf("unable to create WAL for deleting old key: %v", err)
 		}
 	}
+	oldKeyGen := rs.TokenGen
 
 	newKeyWalId, err := rs.newKeyForTokenGen(ctx, s, iamAdmin, scopes)
 	if err != nil {
 		tryDeleteWALs(ctx, s, oldKeyWalId)
-		return err
+		return "", err
 	}
 
 	if err := rs.save(ctx, s); err != nil {
 		tryDeleteWALs(ctx, s, oldKeyWalId)
-		return err
+		return "", err
 	}
 
 	// Delete WALs for cleaning up new key now that it's been saved.
 	tryDeleteWALs(ctx, s, newKeyWalId)
+	if err := b.deleteTokenGenKey(ctx, iamAdmin, oldKeyGen); err != nil {
+		return fmt.Sprintf("unable to delete old key (delayed cleaned up WAL entry added): %v", err), nil
+	}
 
-	return nil
+	return "", nil
 }
 
 func (rs *RoleSet) addWALsForCurrentAccount(ctx context.Context, s logical.Storage) ([]string, error) {

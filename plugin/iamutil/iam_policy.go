@@ -36,6 +36,15 @@ func (p *Policy) ChangedBindings(toAdd *PolicyDelta, toRemove *PolicyDelta) (cha
 	if toAdd == nil && toRemove == nil {
 		return false, p
 	}
+
+	var toAddMem, toRemoveMem string
+	if toAdd != nil {
+		toAddMem = fmt.Sprintf(ServiceAccountMemberTmpl, toAdd.Email)
+	}
+	if toRemove != nil {
+		toRemoveMem = fmt.Sprintf(ServiceAccountMemberTmpl, toRemove.Email)
+	}
+
 	changed = false
 
 	newBindings := make([]*Binding, 0, len(p.Bindings))
@@ -48,14 +57,16 @@ func (p *Policy) ChangedBindings(toAdd *PolicyDelta, toRemove *PolicyDelta) (cha
 			if toAdd.Roles.Includes(bind.Role) {
 				changed = true
 				alreadyAdded.Add(bind.Role)
-				memberSet.Add(fmt.Sprintf(ServiceAccountMemberTmpl, toAdd.Email))
+				memberSet.Add(toAddMem)
 			}
 		}
 
 		if toRemove != nil {
 			if toRemove.Roles.Includes(bind.Role) {
-				changed = true
-				delete(memberSet, fmt.Sprintf(ServiceAccountMemberTmpl, toRemove.Email))
+				if memberSet.Includes(toRemoveMem) {
+					changed = true
+					delete(memberSet, toRemoveMem)
+				}
 			}
 		}
 
@@ -73,7 +84,7 @@ func (p *Policy) ChangedBindings(toAdd *PolicyDelta, toRemove *PolicyDelta) (cha
 				changed = true
 				newBindings = append(newBindings, &Binding{
 					Role:    r,
-					Members: []string{fmt.Sprintf(ServiceAccountMemberTmpl, toAdd.Email)},
+					Members: []string{toAddMem},
 				})
 			}
 		}

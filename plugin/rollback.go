@@ -213,7 +213,7 @@ func (b *backend) deleteTokenGenKey(ctx context.Context, iamAdmin *iam.Service, 
 	return nil
 }
 
-func (b *backend) deleteBindings(ctx context.Context, iamHandle *iamutil.IamHandle, email string, bindings ResourceBindings) (allErr *multierror.Error) {
+func (b *backend) removeBindings(ctx context.Context, iamHandle *iamutil.IamHandle, email string, bindings ResourceBindings) (allErr *multierror.Error) {
 	for resName, roles := range bindings {
 		resource, err := b.enabledIamResources.Resource(resName)
 		if err != nil {
@@ -234,7 +234,6 @@ func (b *backend) deleteBindings(ctx context.Context, iamHandle *iamutil.IamHand
 		if !changed {
 			continue
 		}
-
 		if _, err = iamHandle.SetIamPolicy(ctx, resource, newP); err != nil {
 			allErr = multierror.Append(allErr, fmt.Errorf("unable to delete role binding for resource '%s': %v", resName, err))
 			continue

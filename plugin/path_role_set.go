@@ -149,6 +149,10 @@ func (b *backend) pathRoleSetRead(ctx context.Context, req *logical.Request, d *
 		data["service_account_project"] = rs.AccountId.Project
 	}
 
+	if rs.TokenGen != nil && rs.SecretType == SecretTypeAccessToken {
+		data["token_scopes"] = rs.TokenGen.Scopes
+	}
+
 	return &logical.Response{
 		Data: data,
 	}, nil
@@ -229,7 +233,7 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 			w := fmt.Sprintf("unable to delete key for service account '%s' (WAL entry to clean-up later has been added): %v", rs.AccountId.ResourceName(), err)
 			warnings = append(warnings, w)
 		}
-		if merr := b.deleteBindings(ctx, iamHandle, rs.Name, rs.Bindings); merr != nil {
+		if merr := b.removeBindings(ctx, iamHandle, rs.AccountId.EmailOrId, rs.Bindings); merr != nil {
 			for _, err := range merr.Errors {
 				w := fmt.Sprintf("unable to delete IAM policy bindings for service account '%s' (WAL entry to clean-up later has been added): %v", rs.AccountId.EmailOrId, err)
 				warnings = append(warnings, w)
@@ -238,9 +242,7 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 	}
 
 	if len(warnings) > 0 {
-		return &logical.Response{
-			Warnings: warnings,
-		}, nil
+		return &logical.Response{Warnings: warnings}, nil
 	}
 
 	return nil, nil
@@ -423,8 +425,12 @@ func (b *backend) pathRoleSetRotateKey(ctx context.Context, req *logical.Request
 	if rs.TokenGen != nil {
 		scopes = rs.TokenGen.Scopes
 	}
-	if err := b.saveRoleSetWithNewTokenKey(ctx, req.Storage, rs, scopes); err != nil {
+	warn, err := b.saveRoleSetWithNewTokenKey(ctx, req.Storage, rs, scopes)
+	if err != nil {
 		return logical.ErrorResponse(err.Error()), nil
+	}
+	if warn != "" {
+		return &logical.Response{Warnings: []string{warn}}, nil
 	}
 	return nil, nil
 }
