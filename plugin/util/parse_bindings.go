@@ -106,11 +106,24 @@ func parseRoles(item *ast.ObjectItem, roleSet StringSet, err error) error {
 
 	for _, roleItem := range lst.List {
 		role := roleItem.(*ast.LiteralType).Token.Value().(string)
-		if !strings.HasPrefix(role, "roles/") {
-			err = multierror.Append(err, fmt.Errorf("role '%s' must start with 'roles/' (line %d)", role, roleItem.Pos().Line))
-			continue
+
+		tkns := strings.Split(role, "/")
+		switch len(tkns) {
+		case 2:
+			// "roles/X"
+			if tkns[0] == "roles" {
+				roleSet.Add(role)
+				continue
+			}
+		case 4:
+			// "projects/X/roles/Y" or "organizations/X/roles/Y"
+			if (tkns[0] == "projects" || tkns[0] == "organizations") && tkns[2] == "roles" {
+				roleSet.Add(role)
+				continue
+			}
 		}
-		roleSet.Add(role)
+
+		err = multierror.Append(err, fmt.Errorf("invalid role: %s (line %d): must be project-level, organization-level, or global role", role, roleItem.Pos().Line))
 	}
 
 	return err

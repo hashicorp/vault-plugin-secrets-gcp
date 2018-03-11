@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	serviceAccountMaxLen      = 30
-	defaultCloudPlatformScope = "https://www.googleapis.com/auth/cloud-platform"
+	serviceAccountMaxLen          = 30
+	serviceAccountDisplayNameTmpl = "Service account for Vault secrets backend role set %s"
+	defaultCloudPlatformScope     = "https://www.googleapis.com/auth/cloud-platform"
 )
 
 type RoleSet struct {
@@ -293,7 +294,7 @@ func (rs *RoleSet) addWALsForCurrentAccount(ctx context.Context, s logical.Stora
 func (rs *RoleSet) newServiceAccount(ctx context.Context, s logical.Storage, iamAdmin *iam.Service, project string) (string, error) {
 	saEmailPrefix := roleSetServiceAccountName(rs.Name)
 	projectName := fmt.Sprintf("projects/%s", project)
-	displayName := fmt.Sprintf("Service account for Vault secrets backend role set %s", rs.Name)
+	displayName := fmt.Sprintf(serviceAccountDisplayNameTmpl, rs.Name)
 
 	walId, err := framework.PutWAL(ctx, s, walTypeAccount, &walAccount{
 		RoleSet: rs.Name,

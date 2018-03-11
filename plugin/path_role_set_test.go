@@ -682,8 +682,10 @@ func cleanup(t *testing.T, td *testData, rsName string, roles util.StringSet) {
 		return
 	}
 
+	memberStrs := make(util.StringSet)
 	for _, sa := range resp.Accounts {
-		if strings.HasPrefix(sa.Email, fmt.Sprintf("vault%s", rsName)) {
+		if sa.DisplayName == fmt.Sprintf(serviceAccountDisplayNameTmpl, rsName) {
+			memberStrs.Add("serviceAccount:" + sa.Email)
 			t.Logf("[WARNING] had to clean up service account %s, should have been deleted (did test fail?)", sa.Name)
 			if _, err := td.IamAdmin.Projects.ServiceAccounts.Delete(sa.Name).Do(); err != nil {
 				t.Logf("[WARNING] Auto-delete failed - manually clean up service account %s: %v", sa.Name, err)
@@ -703,18 +705,17 @@ func cleanup(t *testing.T, td *testData, rsName string, roles util.StringSet) {
 		return
 	}
 
-	prefix := fmt.Sprintf("serviceAccount:vault" + rsName)
 	var changesMade bool
 	found := make(util.StringSet)
 	for idx, b := range p.Bindings {
 		if roles.Includes(b.Role) {
 			members := make([]string, 0, len(b.Members))
 			for _, m := range b.Members {
-				if !strings.HasPrefix(m, prefix) {
-					found.Add(b.Role)
-					members = append(members, m)
-				} else {
+				if memberStrs.Includes(m) {
 					changesMade = true
+					found.Add(b.Role)
+				} else {
+					members = append(members, m)
 				}
 			}
 			p.Bindings[idx].Members = members
