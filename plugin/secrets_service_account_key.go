@@ -40,9 +40,9 @@ func secretServiceAccountKey(b *backend) *framework.Secret {
 
 func pathSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern: fmt.Sprintf("key/%s", framework.GenericNameRegex("name")),
+		Pattern: fmt.Sprintf("key/%s", framework.GenericNameRegex("roleset")),
 		Fields: map[string]*framework.FieldSchema{
-			"name": {
+			"roleset": {
 				Type:        framework.TypeString,
 				Description: "Required. Name of the role set.",
 			},
@@ -68,7 +68,7 @@ func pathSecretServiceAccountKey(b *backend) *framework.Path {
 }
 
 func (b *backend) pathServiceAccountKey(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	rsName := d.Get("name").(string)
+	rsName := d.Get("roleset").(string)
 	keyType := d.Get("key_type").(string)
 	keyAlg := d.Get("key_algorithm").(string)
 
