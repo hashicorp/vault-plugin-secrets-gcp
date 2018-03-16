@@ -3,6 +3,7 @@ package gcpsecrets
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
@@ -53,6 +54,9 @@ type walIamPolicy struct {
 }
 
 func (b *backend) serviceAccountRollback(ctx context.Context, req *logical.Request, data interface{}) error {
+	b.rolesetLock.Lock()
+	defer b.rolesetLock.Unlock()
+
 	var entry walAccount
 	if err := mapstructure.Decode(data, &entry); err != nil {
 		return err
@@ -80,6 +84,9 @@ func (b *backend) serviceAccountRollback(ctx context.Context, req *logical.Reque
 }
 
 func (b *backend) serviceAccountKeyRollback(ctx context.Context, req *logical.Request, data interface{}) error {
+	b.rolesetLock.Lock()
+	defer b.rolesetLock.Unlock()
+
 	var entry walAccountKey
 	if err := mapstructure.Decode(data, &entry); err != nil {
 		return err
@@ -135,6 +142,9 @@ func (b *backend) serviceAccountKeyRollback(ctx context.Context, req *logical.Re
 }
 
 func (b *backend) serviceAccountPolicyRollback(ctx context.Context, req *logical.Request, data interface{}) error {
+	b.rolesetLock.Lock()
+	defer b.rolesetLock.Unlock()
+
 	var entry walIamPolicy
 	if err := mapstructure.Decode(data, &entry); err != nil {
 		return err
@@ -196,7 +206,7 @@ func (b *backend) deleteServiceAccount(ctx context.Context, iamAdmin *iam.Servic
 
 	_, err := iamAdmin.Projects.ServiceAccounts.Delete(account.ResourceName()).Do()
 	if err != nil && !isGoogleApi404Error(err) {
-		return fmt.Errorf("unable to delete service account: %v", err)
+		return fmt.Errorf("unable to delete service account: {{err}}", err)
 	}
 	return nil
 }
@@ -208,7 +218,7 @@ func (b *backend) deleteTokenGenKey(ctx context.Context, iamAdmin *iam.Service, 
 
 	_, err := iamAdmin.Projects.ServiceAccounts.Keys.Delete(tgen.KeyName).Do()
 	if err != nil && !isGoogleApi404Error(err) {
-		return fmt.Errorf("unable to delete service account key: %v", err)
+		return errwrap.Wrapf("unable to delete service account key: {{err}}", err)
 	}
 	return nil
 }
@@ -217,13 +227,13 @@ func (b *backend) removeBindings(ctx context.Context, iamHandle *iamutil.IamHand
 	for resName, roles := range bindings {
 		resource, err := b.enabledIamResources.Resource(resName)
 		if err != nil {
-			allErr = multierror.Append(allErr, fmt.Errorf("unable to delete role binding for resource '%s': %v", resName, err))
+			allErr = multierror.Append(allErr, errwrap.Wrapf(fmt.Sprintf("unable to delete role binding for resource '%s': {{err}}", resName), err))
 			continue
 		}
 
 		p, err := iamHandle.GetIamPolicy(ctx, resource)
 		if err != nil {
-			allErr = multierror.Append(allErr, fmt.Errorf("unable to delete role binding for resource '%s': %v", resName, err))
+			allErr = multierror.Append(allErr, errwrap.Wrapf(fmt.Sprintf("unable to delete role binding for resource '%s': {{err}}", resName), err))
 			continue
 		}
 
@@ -235,7 +245,7 @@ func (b *backend) removeBindings(ctx context.Context, iamHandle *iamutil.IamHand
 			continue
 		}
 		if _, err = iamHandle.SetIamPolicy(ctx, resource, newP); err != nil {
-			allErr = multierror.Append(allErr, fmt.Errorf("unable to delete role binding for resource '%s': %v", resName, err))
+			allErr = multierror.Append(allErr, errwrap.Wrapf(fmt.Sprintf("unable to delete role binding for resource '%s': {{err}}", resName), err))
 			continue
 		}
 	}

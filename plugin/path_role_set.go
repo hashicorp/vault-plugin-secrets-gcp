@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"github.com/hashicorp/vault/helper/useragent"
@@ -167,11 +168,14 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 
 	rs, err := getRoleSet(rsName, ctx, req.Storage)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get role set %s: %v", rsName, err)
+		return nil, errwrap.Wrapf(fmt.Sprintf("unable to get role set %s: {{err}}", rsName), err)
 	}
 	if rs == nil {
 		return nil, nil
 	}
+
+	b.rolesetLock.Lock()
+	defer b.rolesetLock.Unlock()
 
 	if rs.AccountId != nil {
 		_, err := framework.PutWAL(ctx, req.Storage, walTypeAccount, &walAccount{
@@ -179,7 +183,7 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 			Id:      *rs.AccountId,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("unable to create WAL entry to clean up service account: %v", err)
+			return nil, errwrap.Wrapf("unable to create WAL entry to clean up service account: {{err}}", err)
 		}
 
 		for resName, roleSet := range rs.Bindings {
@@ -190,7 +194,7 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 				Roles:     roleSet.ToSlice(),
 			})
 			if err != nil {
-				return nil, fmt.Errorf("unable to create WAL entry to clean up service account bindings: %v", err)
+				return nil, errwrap.Wrapf("unable to create WAL entry to clean up service account bindings: {{err}}", err)
 			}
 		}
 
@@ -201,7 +205,7 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 				KeyName:            rs.TokenGen.KeyName,
 			})
 			if err != nil {
-				return nil, fmt.Errorf("unable to create WAL entry to clean up service account key: %v", err)
+				return nil, errwrap.Wrapf("unable to create WAL entry to clean up service account key: {{err}}", err)
 			}
 		}
 	}

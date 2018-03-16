@@ -2,6 +2,7 @@ package gcpsecrets
 
 import (
 	"context"
+	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
 	"github.com/hashicorp/vault/logical"
@@ -10,6 +11,7 @@ import (
 	"google.golang.org/api/iam/v1"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -17,6 +19,8 @@ type backend struct {
 	*framework.Backend
 
 	enabledIamResources iamutil.EnabledResources
+
+	rolesetLock *sync.Mutex
 }
 
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
@@ -83,7 +87,10 @@ func newHttpClient(ctx context.Context, s logical.Storage, scopes ...string) (*h
 		return nil, err
 	}
 
-	return oauth2.NewClient(ctx, tokenSource), nil
+	tc := cleanhttp.DefaultClient()
+	return oauth2.NewClient(
+		context.WithValue(ctx, oauth2.HTTPClient, tc),
+		tokenSource), nil
 }
 
 func newIamAdmin(ctx context.Context, s logical.Storage) (*iam.Service, error) {

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
@@ -120,6 +121,9 @@ type TokenGenerator struct {
 }
 
 func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, s logical.Storage, rs *RoleSet, project string, newBinds ResourceBindings, scopes []string) (warning []string, err error) {
+	b.rolesetLock.Lock()
+	defer b.rolesetLock.Unlock()
+
 	httpC, err := newHttpClient(ctx, s, defaultCloudPlatformScope)
 	if err != nil {
 		return nil, err
@@ -139,7 +143,7 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, s logical.Stora
 	oldWals, err := rs.addWALsForCurrentAccount(ctx, s)
 	if err != nil {
 		tryDeleteWALs(ctx, s, oldWals...)
-		return nil, fmt.Errorf("failed to create WAL for cleaning up old account: %v", err)
+		return nil, errwrap.Wrapf("failed to create WAL for cleaning up old account: {{err}}", err)
 	}
 
 	newWals := make([]string, 0, len(newBinds)+2)
@@ -203,6 +207,9 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, s logical.Stora
 }
 
 func (b *backend) saveRoleSetWithNewTokenKey(ctx context.Context, s logical.Storage, rs *RoleSet, scopes []string) (warning string, err error) {
+	b.rolesetLock.Lock()
+	defer b.rolesetLock.Unlock()
+
 	if rs.SecretType != SecretTypeAccessToken {
 		return "", fmt.Errorf("a key is not saved or used for non-access-token role set '%s'", rs.Name)
 	}
@@ -219,7 +226,7 @@ func (b *backend) saveRoleSetWithNewTokenKey(ctx context.Context, s logical.Stor
 			KeyName:            rs.TokenGen.KeyName,
 			ServiceAccountName: rs.AccountId.ResourceName(),
 		}); err != nil {
-			return "", fmt.Errorf("unable to create WAL for deleting old key: %v", err)
+			return "", errwrap.Wrapf("unable to create WAL for deleting old key: {{err}}", err)
 		}
 	}
 	oldKeyGen := rs.TokenGen
@@ -238,7 +245,7 @@ func (b *backend) saveRoleSetWithNewTokenKey(ctx context.Context, s logical.Stor
 	// Delete WALs for cleaning up new key now that it's been saved.
 	tryDeleteWALs(ctx, s, newKeyWalId)
 	if err := b.deleteTokenGenKey(ctx, iamAdmin, oldKeyGen); err != nil {
-		return fmt.Sprintf("unable to delete old key (delayed cleaned up WAL entry added): %v", err), nil
+		return errwrap.Wrapf("unable to delete old key (delayed cleaned up WAL entry added): {{err}}", err).Error(), nil
 	}
 
 	return "", nil
@@ -304,7 +311,7 @@ func (rs *RoleSet) newServiceAccount(ctx context.Context, s logical.Storage, iam
 		},
 	})
 	if err != nil {
-		return "", fmt.Errorf("unable to create WAL entry for generating new service account: %v", err)
+		return "", errwrap.Wrapf("unable to create WAL entry for generating new service account: {{err}}", err)
 	}
 
 	sa, err := iamAdmin.Projects.ServiceAccounts.Create(
@@ -313,7 +320,7 @@ func (rs *RoleSet) newServiceAccount(ctx context.Context, s logical.Storage, iam
 			ServiceAccount: &iam.ServiceAccount{DisplayName: displayName},
 		}).Do()
 	if err != nil {
-		return walId, fmt.Errorf("unable to create new service account (project: '%s'): %v", projectName, err)
+		return walId, errwrap.Wrapf(fmt.Sprintf("unable to create new service account under project '%s': {{err}}", projectName), err)
 	}
 	rs.AccountId = &gcputil.ServiceAccountId{
 		Project:   project,
