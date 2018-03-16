@@ -70,11 +70,10 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 
 	credentialsRaw, ok := data.GetOk("credentials")
 	if ok {
-		creds, err := gcputil.Credentials(credentialsRaw.(string))
+		_, err := gcputil.Credentials(credentialsRaw.(string))
 		if err != nil {
 			return logical.ErrorResponse(fmt.Sprintf("invalid credentials JSON file: %v", err)), nil
 		}
-		cfg.Credentials = creds
 		cfg.CredentialsRaw = credentialsRaw.(string)
 	}
 
@@ -103,7 +102,6 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 }
 
 type config struct {
-	Credentials    *gcputil.GcpCredentials
 	CredentialsRaw string
 
 	TTL    time.Duration
