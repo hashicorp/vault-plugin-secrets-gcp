@@ -114,7 +114,7 @@ func (b *backend) getSecretAccessToken(ctx context.Context, s logical.Storage, r
 		return logical.ErrorResponse(fmt.Sprintf("invalid role set has no service account key, must be updated (path roleset/%s/rotate-key) before generating new secrets", rs.Name)), nil
 	}
 
-	token, err := rs.TokenGen.getAccessToken(iamC, ctx)
+	token, err := rs.TokenGen.getAccessToken(ctx, iamC)
 	if err != nil {
 		return logical.ErrorResponse(fmt.Sprintf("could not generate token: %v", err)), nil
 	}
@@ -135,7 +135,7 @@ func (b *backend) getSecretAccessToken(ctx context.Context, s logical.Storage, r
 	return resp, err
 }
 
-func (tg *TokenGenerator) getAccessToken(iamAdmin *iam.Service, ctx context.Context) (*oauth2.Token, error) {
+func (tg *TokenGenerator) getAccessToken(ctx context.Context, iamAdmin *iam.Service) (*oauth2.Token, error) {
 	key, err := iamAdmin.Projects.ServiceAccounts.Keys.Get(tg.KeyName).Do()
 	if err != nil {
 		return nil, errwrap.Wrapf("could not verify key used to generate tokens: {{err}}", err)
