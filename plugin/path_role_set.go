@@ -39,12 +39,8 @@ func pathsRoleSet(b *backend) []*framework.Path {
 					Type:        framework.TypeString,
 					Description: "Bindings configuration string.",
 				},
-				"base64_encoded": {
-					Type:        framework.TypeBool,
-					Description: `Flag determining if bindings string is base64 encoded.`,
-				},
 				"token_scopes": {
-					Type:        framework.TypeStringSlice,
+					Type:        framework.TypeCommaStringSlice,
 					Description: `List of OAuth scopes to assign to credentials generated under this role set`,
 				},
 			},
@@ -330,7 +326,6 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 	}
 
 	// Bindings
-	b64ed := d.Get("base64_encoded").(bool)
 	bRaw, newBindings := d.GetOk("bindings")
 	if len(bRaw.(string)) == 0 {
 		return logical.ErrorResponse("given empty bindings string"), nil
@@ -350,7 +345,7 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 
 	// If new bindings, update service account.
 	var bindings ResourceBindings
-	bindings, err = util.ParseBindings(bRaw.(string), b64ed)
+	bindings, err = util.ParseBindings(bRaw.(string))
 	if err != nil {
 		return logical.ErrorResponse(fmt.Sprintf("unable to parse bindings: %v", err)), nil
 	}

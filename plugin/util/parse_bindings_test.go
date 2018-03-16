@@ -67,7 +67,7 @@ func checkParseBindings(t *testing.T, encodeB64 bool) {
 			input = base64.StdEncoding.EncodeToString([]byte(tc.Input))
 		}
 
-		binds, err := ParseBindings(input, encodeB64)
+		binds, err := ParseBindings(input)
 		if err != nil {
 			t.Errorf("unexpected error: %v \nInput: \n%s\n", err, tc.Input)
 		}

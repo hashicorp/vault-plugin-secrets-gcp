@@ -29,21 +29,25 @@ func BindingsHCL(bindings map[string]StringSet) (string, error) {
 	return buf.String(), nil
 }
 
-func ParseBindings(bindingsStr string, b64Encoded bool) (map[string]StringSet, error) {
-	binds := bindingsStr
+func ParseBindings(bindingsStr string) (map[string]StringSet, error) {
+	// Try to base64 decode
+	decoder := base64.NewDecoder(base64.StdEncoding, strings.NewReader(bindingsStr))
+	decoded, b64err := ioutil.ReadAll(decoder)
 
-	if b64Encoded {
-		decoder := base64.NewDecoder(base64.StdEncoding, strings.NewReader(bindingsStr))
-		decoded, err := ioutil.ReadAll(decoder)
-		if err != nil {
-			return nil, errors.New(`unable to base-64 decode string`)
-		}
-		binds = string(decoded)
+	var bindsString string
+	if b64err != nil {
+		bindsString = bindingsStr
+	} else {
+		bindsString = string(decoded)
 	}
 
-	root, err := hcl.Parse(binds)
+	root, err := hcl.Parse(bindsString)
 	if err != nil {
-		return nil, errwrap.Wrapf("unable to parse bindings: {{err}}", err)
+		if b64err == nil {
+			return nil, errwrap.Wrapf("unable to parse base64-encoded bindings as valid HCL: {{err}}", err)
+		} else {
+			return nil, errwrap.Wrapf("unable to parse raw string bindings as valid HCL: {{err}}", err)
+		}
 	}
 
 	bindingLst, ok := root.Node.(*ast.ObjectList)
@@ -59,19 +63,19 @@ func ParseBindings(bindingsStr string, b64Encoded bool) (map[string]StringSet, e
 }
 
 func parseBindingObjList(topList *ast.ObjectList) (map[string]StringSet, error) {
-	var err error
+	var merr *multierror.Error
 
 	bindings := make(map[string]StringSet)
 
 	for _, item := range topList.Items {
 		if len(item.Keys) != 2 {
-			err = multierror.Append(err, fmt.Errorf("invalid resource item does not have ID on line %d", item.Assign.Line))
+			merr = multierror.Append(merr, fmt.Errorf("invalid resource item does not have ID on line %d", item.Assign.Line))
 			continue
 		}
 
 		key := item.Keys[0].Token.Value().(string)
 		if key != "resource" {
-			err = multierror.Append(err, fmt.Errorf("invalid key '%s' (line %d)", key, item.Assign.Line))
+			merr = multierror.Append(merr, fmt.Errorf("invalid key '%s' (line %d)", key, item.Assign.Line))
 			continue
 		}
 
@@ -86,23 +90,25 @@ func parseBindingObjList(topList *ast.ObjectList) (map[string]StringSet, error) 
 			key := rolesItem.Keys[0].Token.Text
 			switch key {
 			case "roles":
-				err = parseRoles(rolesItem, bindings[resourceName], err)
+				parseRoles(rolesItem, bindings[resourceName], merr)
 			default:
-				err = multierror.Append(err, fmt.Errorf("invalid key '%s' in resource '%s' (line %d)", key, resourceName, item.Assign.Line))
+				merr = multierror.Append(merr, fmt.Errorf("invalid key '%s' in resource '%s' (line %d)", key, resourceName, item.Assign.Line))
 				continue
 			}
 		}
 	}
+	err := merr.ErrorOrNil()
 	if err != nil {
 		return nil, err
 	}
 	return bindings, nil
 }
 
-func parseRoles(item *ast.ObjectItem, roleSet StringSet, err error) error {
+func parseRoles(item *ast.ObjectItem, roleSet StringSet, merr *multierror.Error) {
 	lst, ok := item.Val.(*ast.ListType)
 	if !ok {
-		return multierror.Append(err, fmt.Errorf("roles must be a list (line %d)", item.Assign.Line))
+		merr = multierror.Append(merr, fmt.Errorf("roles must be a list (line %d)", item.Assign.Line))
+		return
 	}
 
 	for _, roleItem := range lst.List {
@@ -124,8 +130,6 @@ func parseRoles(item *ast.ObjectItem, roleSet StringSet, err error) error {
 			}
 		}
 
-		err = multierror.Append(err, fmt.Errorf("invalid role: %s (line %d): must be project-level, organization-level, or global role", role, roleItem.Pos().Line))
+		merr = multierror.Append(merr, fmt.Errorf("invalid role: %s (line %d): must be project-level, organization-level, or global role", role, roleItem.Pos().Line))
 	}
-
-	return err
 }
