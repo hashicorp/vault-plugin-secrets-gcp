@@ -2,6 +2,7 @@ package iamutil
 
 import (
 	"fmt"
+	"github.com/hashicorp/errwrap"
 	"net/http"
 	"strings"
 	"testing"
@@ -175,7 +176,7 @@ func verifyResource(rType string, resource *iamResourceImpl) error {
 
 	req, err := resource.GetIamPolicyRequest()
 	if err != nil {
-		return fmt.Errorf("unable to construct GetIamPolicyRequest: %v", err)
+		return errwrap.Wrapf("unable to construct GetIamPolicyRequest: {{err}}", err)
 	}
 	if err := verifyConstructRequest(req, rType); err != nil {
 		return err
@@ -183,7 +184,7 @@ func verifyResource(rType string, resource *iamResourceImpl) error {
 
 	req, err = resource.SetIamPolicyRequest(nil)
 	if err != nil {
-		return fmt.Errorf("unable to construct SetIamPolicyRequest: %v", err)
+		return errwrap.Wrapf("unable to construct SetIamPolicyRequest: {{err}}", err)
 	}
 	if err := verifyConstructRequest(req, rType); err != nil {
 		return err

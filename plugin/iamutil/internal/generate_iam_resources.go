@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
 	"go/format"
@@ -321,7 +322,7 @@ func writeToFile(resources resourceMap, services serviceMap) error {
 	srcBytes, err := format.Source(buf.Bytes())
 	if err != nil {
 		log.Printf("[ERROR] Outputting unformatted src:\n %s\n", string(buf.Bytes()))
-		return fmt.Errorf("error formatting generated code: %v", err)
+		return errwrap.Wrapf("error formatting generated code: {{err}}", err)
 	}
 
 	dst, err := os.Create(outputFile)

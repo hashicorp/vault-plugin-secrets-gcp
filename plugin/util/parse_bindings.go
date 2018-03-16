@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
@@ -42,17 +43,17 @@ func ParseBindings(bindingsStr string, b64Encoded bool) (map[string]StringSet, e
 
 	root, err := hcl.Parse(binds)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse bindings: %v", err)
+		return nil, errwrap.Wrapf("unable to parse bindings: {{err}}", err)
 	}
 
 	bindingLst, ok := root.Node.(*ast.ObjectList)
 	if !ok {
-		return nil, fmt.Errorf("unable to parse bindings: does not contain a root object")
+		return nil, errors.New("unable to parse bindings: does not contain a root object")
 	}
 
 	bindingsMap, err := parseBindingObjList(bindingLst)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse bindings: %v", err)
+		return nil, errwrap.Wrapf("unable to parse bindings: {{err}}", err)
 	}
 	return bindingsMap, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/iam/v1"
@@ -114,7 +115,7 @@ func getIamClient(creds string) (*iam.Service, error) {
 	if len(creds) > 1 && creds[0] == '@' {
 		d, err := ioutil.ReadFile(creds[1:])
 		if err != nil {
-			return nil, fmt.Errorf("unable to read contents of file '%s': %v", creds[1:], err)
+			return nil, errwrap.Wrapf(fmt.Sprintf("unable to read contents of file '%s': {{err}}", creds[1:]), err)
 		}
 		creds = string(d)
 	}

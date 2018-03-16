@@ -3,6 +3,7 @@ package gcpsecrets
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
 	"google.golang.org/api/iam/v1"
@@ -166,7 +167,7 @@ func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleS
 	var ttl time.Duration
 	cfg, err := getConfig(ctx, s)
 	if err != nil {
-		return nil, fmt.Errorf("could not read backend config: %v", err)
+		return nil, errwrap.Wrapf("could not read backend config: {{err}}", err)
 	} else if cfg == nil {
 		ttl = b.System().DefaultLeaseTTL()
 	} else {
@@ -175,7 +176,7 @@ func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleS
 
 	iamC, err := newIamAdmin(ctx, s)
 	if err != nil {
-		return nil, fmt.Errorf("could not create IAM Admin client: %v", err)
+		return nil, errwrap.Wrapf("could not create IAM Admin client: {{err}}", err)
 	}
 
 	account, err := rs.getServiceAccount(iamC)

@@ -3,7 +3,9 @@ package gcpsecrets
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
 	"golang.org/x/oauth2"
@@ -99,7 +101,7 @@ func secretAccessTokenRevoke(ctx context.Context, req *logical.Request, d *frame
 func (b *backend) getSecretAccessToken(ctx context.Context, s logical.Storage, rs *RoleSet) (*logical.Response, error) {
 	iamC, err := newIamAdmin(ctx, s)
 	if err != nil {
-		return nil, fmt.Errorf("could not create IAM Admin client: %v", err)
+		return nil, errwrap.Wrapf("could not create IAM Admin client: {{err}}", err)
 	}
 
 	// Verify account still exists
@@ -136,25 +138,25 @@ func (b *backend) getSecretAccessToken(ctx context.Context, s logical.Storage, r
 func (tg *TokenGenerator) getAccessToken(iamAdmin *iam.Service, ctx context.Context) (*oauth2.Token, error) {
 	key, err := iamAdmin.Projects.ServiceAccounts.Keys.Get(tg.KeyName).Do()
 	if err != nil {
-		return nil, fmt.Errorf("could not verify key used to generate tokens: %v", err)
+		return nil, errwrap.Wrapf("could not verify key used to generate tokens: {{err}}", err)
 	}
 	if key == nil {
-		return nil, fmt.Errorf("could not find key used to generate tokens, must update role set")
+		return nil, errors.New("could not find key used to generate tokens, must update role set")
 	}
 
 	jsonBytes, err := base64.StdEncoding.DecodeString(tg.B64KeyJSON)
 	if err != nil {
-		return nil, fmt.Errorf("could not b64-decode key data: %v", err)
+		return nil, errwrap.Wrapf("could not b64-decode key data: {{err}}", err)
 	}
 
 	cfg, err := google.JWTConfigFromJSON(jsonBytes, tg.Scopes...)
 	if err != nil {
-		return nil, fmt.Errorf("could not generate token JWT config: %v", err)
+		return nil, errwrap.Wrapf("could not generate token JWT config: {{err}}", err)
 	}
 
 	tkn, err := cfg.TokenSource(ctx).Token()
 	if err != nil {
-		return nil, fmt.Errorf("could not generate token: %v", err)
+		return nil, errwrap.Wrapf("could not generate token: {{err}}", err)
 	}
 	return tkn, err
 }
