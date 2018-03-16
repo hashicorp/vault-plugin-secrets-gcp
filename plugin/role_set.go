@@ -36,38 +36,38 @@ type RoleSet struct {
 }
 
 func (rs *RoleSet) validate() error {
-	var err error
+	var err *multierror.Error
 	if rs.Name == "" {
-		multierror.Append(err, errors.New("role set name is empty"))
+		err = multierror.Append(err, errors.New("role set name is empty"))
 	}
 
 	if rs.SecretType == "" {
-		multierror.Append(err, errors.New("role set secret type is empty"))
+		err = multierror.Append(err, errors.New("role set secret type is empty"))
 	}
 
 	if rs.AccountId == nil {
-		multierror.Append(err, fmt.Errorf("role set should have account associated"))
+		err = multierror.Append(err, fmt.Errorf("role set should have account associated"))
 	}
 
 	if len(rs.Bindings) == 0 {
-		multierror.Append(err, fmt.Errorf("role set bindings cannot be empty"))
+		err = multierror.Append(err, fmt.Errorf("role set bindings cannot be empty"))
 	}
 
 	if len(rs.RawBindings) == 0 {
-		multierror.Append(err, fmt.Errorf("role set raw bindings cannot be empty string"))
+		err = multierror.Append(err, fmt.Errorf("role set raw bindings cannot be empty string"))
 	}
 
 	switch rs.SecretType {
 	case SecretTypeAccessToken:
 		if rs.TokenGen == nil {
-			multierror.Append(err, fmt.Errorf("access token role set should have initialized token generator"))
+			err = multierror.Append(err, fmt.Errorf("access token role set should have initialized token generator"))
 		} else if len(rs.TokenGen.Scopes) == 0 {
-			multierror.Append(err, fmt.Errorf("access token role set should have defined scopes"))
+			err = multierror.Append(err, fmt.Errorf("access token role set should have defined scopes"))
 		}
 	default:
-		multierror.Append(err, fmt.Errorf("unknown secret type: %s", rs.SecretType))
+		err = multierror.Append(err, fmt.Errorf("unknown secret type: %s", rs.SecretType))
 	}
-	return err
+	return err.ErrorOrNil()
 }
 
 func (rs *RoleSet) save(ctx context.Context, s logical.Storage) error {
