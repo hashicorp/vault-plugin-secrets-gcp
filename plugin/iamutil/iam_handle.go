@@ -3,7 +3,6 @@ package iamutil
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/hashicorp/errwrap"
 	"google.golang.org/api/gensupport"
 	"google.golang.org/api/googleapi"
