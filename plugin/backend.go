@@ -20,7 +20,7 @@ type backend struct {
 
 	enabledIamResources iamutil.EnabledResources
 
-	rolesetLock *sync.Mutex
+	rolesetLock sync.Mutex
 }
 
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {

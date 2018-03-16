@@ -64,6 +64,8 @@ func (rs *RoleSet) validate() error {
 		} else if len(rs.TokenGen.Scopes) == 0 {
 			err = multierror.Append(err, fmt.Errorf("access token role set should have defined scopes"))
 		}
+	case SecretTypeKey:
+		break
 	default:
 		err = multierror.Append(err, fmt.Errorf("unknown secret type: %s", rs.SecretType))
 	}
