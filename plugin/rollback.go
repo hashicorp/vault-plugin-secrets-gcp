@@ -36,21 +36,21 @@ func (b *backend) walRollback(ctx context.Context, req *logical.Request, kind st
 }
 
 type walAccount struct {
-	RoleSet string                   `json:"role_set" struct:"role_set" mapstructure:"role_set"`
-	Id      gcputil.ServiceAccountId `json:"service_account_id" struct:"service_account_id" mapstructure:"service_account_id"`
+	RoleSet string
+	Id      gcputil.ServiceAccountId
 }
 
 type walAccountKey struct {
-	RoleSet            string `json:"role_set" struct:"role_set" mapstructure:"role_set"`
-	ServiceAccountName string `json:"service_account_name" struct:"service_account_name" mapstructure:"service_account_name"`
-	KeyName            string `json:"key_id" struct:"key_id" mapstructure:"key_id"`
+	RoleSet            string
+	ServiceAccountName string
+	KeyName            string
 }
 
 type walIamPolicy struct {
-	RoleSet   string                   `json:"role_set" struct:"role_set" mapstructure:"role_set"`
-	AccountId gcputil.ServiceAccountId `json:"service_account_id" struct:"service_account_id" mapstructure:"service_account_id"`
-	Resource  string                   `json:"resource" struct:"resource" mapstructure:"resource"`
-	Roles     []string                 `json:"roles" struct:"roles" mapstructure:"roles"`
+	RoleSet   string
+	AccountId gcputil.ServiceAccountId
+	Resource  string
+	Roles     []string
 }
 
 func (b *backend) serviceAccountRollback(ctx context.Context, req *logical.Request, data interface{}) error {
@@ -206,7 +206,7 @@ func (b *backend) deleteServiceAccount(ctx context.Context, iamAdmin *iam.Servic
 
 	_, err := iamAdmin.Projects.ServiceAccounts.Delete(account.ResourceName()).Do()
 	if err != nil && !isGoogleApi404Error(err) {
-		return fmt.Errorf("unable to delete service account: {{err}}", err)
+		return errwrap.Wrapf("unable to delete service account: {{err}}", err)
 	}
 	return nil
 }
