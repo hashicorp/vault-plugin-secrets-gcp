@@ -168,10 +168,21 @@ func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleS
 	cfg, err := getConfig(ctx, s)
 	if err != nil {
 		return nil, errwrap.Wrapf("could not read backend config: {{err}}", err)
-	} else if cfg == nil {
+	}
+	max := b.System().MaxLeaseTTL()
+	if cfg == nil {
 		ttl = b.System().DefaultLeaseTTL()
 	} else {
-		ttl = cfg.TTL
+		if cfg.MaxTTL != 0 && cfg.MaxTTL < max {
+			max = cfg.MaxTTL
+		}
+		if cfg.TTL > 0 {
+			ttl = cfg.TTL
+		}
+	}
+
+	if ttl > max {
+		ttl = max
 	}
 
 	iamC, err := newIamAdmin(ctx, s)
