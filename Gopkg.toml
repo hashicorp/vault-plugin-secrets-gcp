@@ -1,7 +1,6 @@
-
 # Gopkg.toml example
 #
-# Refer to https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md
+# Refer to https://golang.github.io/dep/docs/Gopkg.toml.html
 # for detailed Gopkg.toml documentation.
 #
 # required = ["github.com/user/thing/cmd/thing"]
@@ -17,9 +16,22 @@
 #   source = "github.com/myfork/project2"
 #
 # [[override]]
-#  name = "github.com/x/y"
-#  version = "2.4.0"
+#   name = "github.com/x/y"
+#   version = "2.4.0"
+#
+# [prune]
+#   non-go = false
+#   go-tests = true
+#   unused-packages = true
 
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/hashicorp/errwrap"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/hashicorp/go-cleanhttp"
 
 [[constraint]]
   branch = "master"
@@ -35,7 +47,7 @@
 
 [[constraint]]
   name = "github.com/hashicorp/vault"
-  version = "0.9.4"
+  version = "0.9.6"
 
 [[constraint]]
   name = "github.com/mgutz/logxi"
@@ -52,3 +64,7 @@
 [[constraint]]
   branch = "master"
   name = "google.golang.org/api"
+
+[prune]
+  go-tests = true
+  unused-packages = true

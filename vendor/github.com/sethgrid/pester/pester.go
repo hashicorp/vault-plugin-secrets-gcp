@@ -307,7 +307,6 @@ func (c *Client) pester(p params) (*http.Response, error) {
 					case <-ctx.Done():
 						multiplexCh <- result{resp: resp, err: ctx.Err()}
 						return
-					default:
 					}
 				}
 
