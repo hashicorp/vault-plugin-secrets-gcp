@@ -2,10 +2,11 @@ package iamutil
 
 import (
 	"fmt"
-	"github.com/hashicorp/errwrap"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/hashicorp/errwrap"
 )
 
 func TestEnabledIamResources_RelativeName(t *testing.T) {

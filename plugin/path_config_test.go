@@ -2,9 +2,10 @@ package gcpsecrets
 
 import (
 	"context"
+	"testing"
+
 	"github.com/hashicorp/vault/helper/jsonutil"
 	"github.com/hashicorp/vault/logical"
-	"testing"
 )
 
 func TestConfig(t *testing.T) {
@@ -75,10 +76,6 @@ func testConfigRead(t *testing.T, b logical.Backend, s logical.Storage, expected
 
 	if resp.IsError() {
 		t.Fatal(resp.Error())
-	}
-
-	if len(resp.Warnings) != 1 || resp.Warnings[0] != cfgReadWarning {
-		t.Errorf("expected read access warning on response")
 	}
 
 	if len(expected) != len(resp.Data) {

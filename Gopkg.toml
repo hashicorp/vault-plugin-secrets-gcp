@@ -46,12 +46,8 @@
   name = "github.com/hashicorp/hcl"
 
 [[constraint]]
+  branch = "master"
   name = "github.com/hashicorp/vault"
-  version = "0.9.6"
-
-[[constraint]]
-  name = "github.com/mgutz/logxi"
-  version = "1.0.0"
 
 [[constraint]]
   branch = "master"

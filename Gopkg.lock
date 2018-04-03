@@ -126,6 +126,7 @@
   revision = "f40e974e75af4e271d97ce0fc917af5898ae7bda"
 
 [[projects]]
+  branch = "master"
   name = "github.com/hashicorp/vault"
   packages = [
     "api",
@@ -135,8 +136,7 @@
     "helper/errutil",
     "helper/jsonutil",
     "helper/locksutil",
-    "helper/logbridge",
-    "helper/logformat",
+    "helper/logging",
     "helper/mlock",
     "helper/parseutil",
     "helper/pluginutil",
@@ -152,8 +152,7 @@
     "physical/inmem",
     "version"
   ]
-  revision = "7e1fbde40afee241f81ef08700e7987d86fc7242"
-  version = "v0.9.6"
+  revision = "c76628b27863b0c5088be342d1b5d6807ddc1044"
 
 [[projects]]
   branch = "master"
@@ -364,6 +363,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "84731647385f47a0aeead96fb73d7d2ee93267d3f44f3e26a53de8dc3209dc75"
+  inputs-digest = "6503788b8c880f9cc74c9e64d9e632f60f90ea85e49adf230aebd06755b9b552"
   solver-name = "gps-cdcl"
   solver-version = 1

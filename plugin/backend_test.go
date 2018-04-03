@@ -2,11 +2,12 @@ package gcpsecrets
 
 import (
 	"context"
-	"github.com/hashicorp/vault/helper/logformat"
-	"github.com/hashicorp/vault/logical"
-	"github.com/mgutz/logxi/v1"
 	"testing"
 	"time"
+
+	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/vault/helper/logging"
+	"github.com/hashicorp/vault/logical"
 )
 
 const (
@@ -18,7 +19,7 @@ func getTestBackend(t *testing.T) (logical.Backend, logical.Storage) {
 	b := Backend()
 
 	config := &logical.BackendConfig{
-		Logger: logformat.NewVaultLogger(log.LevelTrace),
+		Logger: logging.NewVaultLogger(log.Trace),
 		System: &logical.StaticSystemView{
 			DefaultLeaseTTLVal: defaultLeaseTTLHr * time.Hour,
 			MaxLeaseTTLVal:     maxLeaseTTLHr * time.Hour,
