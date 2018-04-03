@@ -130,8 +130,8 @@ func (b *backend) getSecretAccessToken(ctx context.Context, s logical.Storage, r
 		"role_set_bindings": rs.bindingHash(),
 	}
 	resp := b.Secret(SecretTypeAccessToken).Response(secretD, internalD)
-	resp.Secret.LeaseOptions.TTL = token.Expiry.Sub(time.Now())
-	resp.Secret.LeaseOptions.Renewable = false
+	resp.Secret.TTL = token.Expiry.Sub(time.Now())
+	resp.Secret.Renewable = false
 
 	return resp, err
 }

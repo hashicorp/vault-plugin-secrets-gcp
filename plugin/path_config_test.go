@@ -78,10 +78,6 @@ func testConfigRead(t *testing.T, b logical.Backend, s logical.Storage, expected
 		t.Fatal(resp.Error())
 	}
 
-	if len(resp.Warnings) != 1 || resp.Warnings[0] != cfgReadWarning {
-		t.Errorf("expected read access warning on response")
-	}
-
 	if len(expected) != len(resp.Data) {
 		t.Errorf("read data mismatch (expected %d values, got %d)", len(expected), len(resp.Data))
 	}
