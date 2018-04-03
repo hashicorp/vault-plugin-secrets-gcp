@@ -3,11 +3,12 @@ package gcpsecrets
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
 	"google.golang.org/api/iam/v1"
-	"time"
 )
 
 const (

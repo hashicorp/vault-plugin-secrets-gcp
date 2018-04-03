@@ -4,14 +4,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/hashicorp/errwrap"
-	"github.com/hashicorp/go-gcp-common/gcputil"
-	"golang.org/x/oauth2"
-	"google.golang.org/api/iam/v1"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/hashicorp/errwrap"
+	"github.com/hashicorp/go-gcp-common/gcputil"
+	"golang.org/x/oauth2"
+	"google.golang.org/api/iam/v1"
 )
 
 var defaultScopes = []string{

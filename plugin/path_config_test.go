@@ -2,9 +2,10 @@ package gcpsecrets
 
 import (
 	"context"
+	"testing"
+
 	"github.com/hashicorp/vault/helper/jsonutil"
 	"github.com/hashicorp/vault/logical"
-	"testing"
 )
 
 func TestConfig(t *testing.T) {

@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net/http"
+	"testing"
+	"time"
+
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"github.com/hashicorp/vault/logical"
 	"golang.org/x/oauth2"
@@ -11,9 +15,6 @@ import (
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
-	"net/http"
-	"testing"
-	"time"
 )
 
 var testRoles = util.StringSet{

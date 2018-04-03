@@ -2,11 +2,12 @@ package gcpsecrets
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/hashicorp/vault/helper/logformat"
 	"github.com/hashicorp/vault/logical"
 	"github.com/mgutz/logxi/v1"
-	"testing"
-	"time"
 )
 
 const (

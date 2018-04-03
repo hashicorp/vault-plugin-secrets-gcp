@@ -3,15 +3,16 @@ package gcpsecrets
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+	"testing"
+
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"github.com/hashicorp/vault/helper/strutil"
 	"github.com/hashicorp/vault/logical"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
-	"net/http"
-	"strings"
-	"testing"
 )
 
 func TestPathRoleSet_Basic(t *testing.T) {

@@ -5,9 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/errwrap"
-	"github.com/hashicorp/go-gcp-common/gcputil"
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
 	"go/format"
 	"io/ioutil"
 	"log"
@@ -16,6 +13,10 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+
+	"github.com/hashicorp/errwrap"
+	"github.com/hashicorp/go-gcp-common/gcputil"
+	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
 )
 
 const (
