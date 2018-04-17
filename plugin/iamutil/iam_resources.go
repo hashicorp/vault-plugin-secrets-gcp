@@ -219,6 +219,7 @@ type ServiceConfig struct {
 func (r *iamResourceImpl) SetIamPolicyRequest(p *Policy) (req *http.Request, err error) {
 	var data interface{}
 	switch strings.ToLower(r.config.Service.Name) {
+	// GCS uses a different payload than every other API.
 	case "storage":
 		data = p
 	default:
