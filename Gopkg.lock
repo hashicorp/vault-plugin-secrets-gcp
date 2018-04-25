@@ -64,7 +64,7 @@
   branch = "master"
   name = "github.com/hashicorp/go-gcp-common"
   packages = ["gcputil"]
-  revision = "4b38f46ac60aebc9c67f2548aec1ff5bc1e9a4eb"
+  revision = "763e39302965f115fba738b409b320563267b8df"
 
 [[projects]]
   branch = "master"
@@ -159,30 +159,6 @@
   name = "github.com/hashicorp/yamux"
   packages = ["."]
   revision = "2658be15c5f05e76244154714161f17e3e77de2e"
-
-[[projects]]
-  name = "github.com/mattn/go-colorable"
-  packages = ["."]
-  revision = "167de6bfdfba052fa6b2d3664c8f5272e23c9072"
-  version = "v0.0.9"
-
-[[projects]]
-  name = "github.com/mattn/go-isatty"
-  packages = ["."]
-  revision = "0360b2af4f38e8d38c7fce2a9f4e702702d73a39"
-  version = "v0.0.3"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/mgutz/ansi"
-  packages = ["."]
-  revision = "9520e82c474b0a04dd04f8a40959027271bab992"
-
-[[projects]]
-  name = "github.com/mgutz/logxi"
-  packages = ["v1"]
-  revision = "aebf8a7d67ab4625e0fd4a665766fef9a709161b"
-  version = "v1"
 
 [[projects]]
   branch = "master"
@@ -363,6 +339,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6503788b8c880f9cc74c9e64d9e632f60f90ea85e49adf230aebd06755b9b552"
+  inputs-digest = "31e8e884ae6ce90df249ae9c51a1f5aa13406a184ea676db31096ab5db1ed066"
   solver-name = "gps-cdcl"
   solver-version = 1
