@@ -83,6 +83,60 @@ var generatedIamResources = map[string]map[string]map[string]IamRestResource{
 			},
 		},
 	},
+	"buckets": {
+		"storage": {
+			"v1": IamRestResource{
+				Name:               "buckets",
+				TypeKey:            "buckets",
+				Service:            "storage",
+				IsPreferredVersion: true,
+				Parameters:         []string{"bucket"},
+				CollectionReplacementKeys: map[string]string{
+					"b":       "bucket",
+					"buckets": "bucket",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://www.googleapis.com/storage/v1/",
+					Path:       "b/{bucket}/iam",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "PUT",
+					BaseURL:       "https://www.googleapis.com/storage/v1/",
+					Path:          "b/{bucket}/iam",
+					RequestFormat: `%s`,
+				},
+			},
+		},
+	},
+	"buckets/objects": {
+		"storage": {
+			"v1": IamRestResource{
+				Name:               "objects",
+				TypeKey:            "buckets/objects",
+				Service:            "storage",
+				IsPreferredVersion: true,
+				Parameters:         []string{"bucket", "object"},
+				CollectionReplacementKeys: map[string]string{
+					"b":       "bucket",
+					"buckets": "bucket",
+					"o":       "object",
+					"objects": "object",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://www.googleapis.com/storage/v1/",
+					Path:       "b/{bucket}/o/{object}/iam",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "PUT",
+					BaseURL:       "https://www.googleapis.com/storage/v1/",
+					Path:          "b/{bucket}/o/{object}/iam",
+					RequestFormat: `%s`,
+				},
+			},
+		},
+	},
 	"datasets": {
 		"genomics": {
 			"v1": IamRestResource{

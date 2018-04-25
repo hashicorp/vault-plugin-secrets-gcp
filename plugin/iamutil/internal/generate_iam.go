@@ -30,6 +30,12 @@ var sanizitedCollectionIds = map[string]string{
 	"o": "objects",
 }
 
+var sanizitedTypeKeys = map[string]string{
+	// Storage doesn't use properly RESTful resource path in request.
+	"b": "buckets",
+	"b/o": "buckets/objects",
+}
+
 var correctedRequestFormats = map[string]string{
 	// Compute Discovery Doc request format is incorrect.
 	"compute": `{"policy": %s}`,
@@ -100,7 +106,11 @@ func checkResource(name string, fullPath string, resource *discovery.RestResourc
 		CollectionReplacementKeys: replacementMap,
 	}
 
-	addToConfig(typeKey, doc.Name, doc.Version, &r, config)
+	addToConfig(typeKey, doc.Name, doc.Version, r, config)
+	if saneKey, ok := sanizitedTypeKeys[typeKey]; ok {
+		r.TypeKey = saneKey
+		addToConfig(saneKey, doc.Name, doc.Version, r, config)
+	}
 
 	return nil
 }
@@ -171,7 +181,7 @@ func getPolicyReplacementString(sch *discovery.JsonSchema) string {
 	return ""
 }
 
-func addToConfig(resourceKey, service, version string, r *iamutil.IamRestResource, config iamutil.GeneratedResources) {
+func addToConfig(resourceKey, service, version string, r iamutil.IamRestResource, config iamutil.GeneratedResources) {
 	log.Printf("adding [%s %s %s]", resourceKey, service, version)
 	if _, ok := config[resourceKey]; !ok {
 		config[resourceKey] = make(map[string]map[string]iamutil.IamRestResource)
@@ -179,7 +189,7 @@ func addToConfig(resourceKey, service, version string, r *iamutil.IamRestResourc
 	if _, ok := config[resourceKey][service]; !ok {
 		config[resourceKey][service] = make(map[string]iamutil.IamRestResource)
 	}
-	config[resourceKey][service][version] = *r
+	config[resourceKey][service][version] = r
 }
 
 func generateConfig() error {
