@@ -51,9 +51,11 @@ func TestEnabledIamResources_FullName(t *testing.T) {
 			if !expectVersionError(versions) {
 				if err != nil {
 					t.Errorf("failed to get resource for full resource name %s (type: %s): %v", testFullName, resourceType, err)
+					continue
 				}
 				if err = verifyResource(resourceType, resource.(*parsedIamResource)); err != nil {
 					t.Errorf("could not verify resource for relative resource name %s: %v", testFullName, err)
+					continue
 				}
 			} else if resource != nil || err == nil {
 				t.Errorf("expected error for using full resource name %s (type: %s), got resource:\n %v\n", testFullName, resourceType, resource)
@@ -63,12 +65,28 @@ func TestEnabledIamResources_FullName(t *testing.T) {
 	}
 }
 
-func expectVersionError(versions map[string]IamRestResource) bool {
-	needsVersion := len(versions) > 1
-	for _, cfg := range versions {
-		needsVersion = needsVersion && !cfg.IsPreferredVersion
+func constructSelfLink(relName string, cfg IamRestResource) (string, error) {
+	reqUrl := cfg.GetMethod.BaseURL + cfg.GetMethod.Path
+
+	_, err := url.Parse(reqUrl)
+	if err != nil {
+		return "", fmt.Errorf("unexpected request URL in resource GetMethod - %s is not a URL", reqUrl)
 	}
-	return needsVersion
+
+	fullResourceI := strings.Index(reqUrl, "/{+resource}")
+	if fullResourceI >= 0 {
+		return reqUrl[:fullResourceI] + relName, nil
+	}
+
+	endI := strings.Index(reqUrl, "/{")
+	if endI < 1 {
+		return "", fmt.Errorf("unexpected request URL in resource does not have parameter to be replaced: %s", reqUrl)
+	}
+	startI := strings.LastIndex(reqUrl, "/")
+	if startI < 0 {
+		return "", fmt.Errorf("unexpected request URL in resource does not have proper parameter to be replaced: %s", reqUrl)
+	}
+	return reqUrl[:startI] + relName, nil
 }
 
 func TestEnabledIamResources_SelfLink(t *testing.T) {
@@ -78,7 +96,11 @@ func TestEnabledIamResources_SelfLink(t *testing.T) {
 		for _, versions := range services {
 			for _, cfg := range versions {
 				relName := getFakeId(resourceType)
-				testSelfLink := fmt.Sprintf("%s/%s/%s", cfg.GetMethod.BaseURL, relName)
+				testSelfLink, err := constructSelfLink(relName, cfg)
+				if err != nil {
+					t.Error(err)
+					continue
+				}
 				isProjectLevel := strings.HasPrefix(relName, "projects/")
 				if isProjectLevel && strings.HasSuffix(cfg.GetMethod.BaseURL, "projects/") {
 					testSelfLink = cfg.GetMethod.BaseURL + strings.TrimPrefix(relName, "projects/")
@@ -99,6 +121,14 @@ func TestEnabledIamResources_SelfLink(t *testing.T) {
 			}
 		}
 	}
+}
+
+func expectVersionError(versions map[string]IamRestResource) bool {
+	needsVersion := len(versions) > 1
+	for _, cfg := range versions {
+		needsVersion = needsVersion && !cfg.IsPreferredVersion
+	}
+	return needsVersion
 }
 
 func verifyHttpMethod(typeKey string, m *RestMethod) error {

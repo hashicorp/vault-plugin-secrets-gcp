@@ -11,7 +11,7 @@ import (
 const (
 	resourceParsingErrorTmpl = `invalid resource "%s": %v`
 	errorMultipleServices    = `please provide a self-link or full resource name for non-service-unique resource type`
-	errorMultipleVersions    = `please provide a self-link with version instead; only non-preferred versions of this resource have IAM resource`
+	errorMultipleVersions    = `please provide a self-link with version instead; multiple versions of this resource exist, all non-preferred`
 )
 
 // IamResourceParser handles parsing resource ID and REST
@@ -25,15 +25,32 @@ type IamResourceParser interface {
 type GeneratedResources map[string]map[string]map[string]IamRestResource
 
 func getResourceFromVersions(rawName string, versionMap map[string]IamRestResource) (*IamRestResource, error) {
-	for _, config := range versionMap {
+	possibleVer := make([]string, 0, len(versionMap))
+	for v, config := range versionMap {
 		if config.IsPreferredVersion || len(versionMap) == 1 {
 			return &config, nil
 		}
+		if strings.Contains(v, "alpha") {
+			continue
+		}
+		if strings.Contains(v, "beta") {
+			continue
+		}
+		possibleVer = append(possibleVer, v)
+	}
+	if len(possibleVer) == 1 {
+		cfg := versionMap[possibleVer[0]]
+		return &cfg, nil
 	}
 	return nil, fmt.Errorf(resourceParsingErrorTmpl, rawName, errorMultipleVersions)
 }
 
-func (apis GeneratedResources) GetRestConfig(rawName string, relName *gcputil.RelativeResourceName, service string, prefix string) (*IamRestResource, error) {
+func (apis GeneratedResources) GetRestConfig(rawName string, fullName *gcputil.FullResourceName, prefix string) (*IamRestResource, error) {
+	relName := fullName.RelativeResourceName
+	if relName == nil {
+		return nil, fmt.Errorf(resourceParsingErrorTmpl, rawName, fmt.Errorf("unsupported resource type: %s", rawName))
+	}
+
 	serviceMap, ok := apis[relName.TypeKey]
 	if !ok {
 		return nil, fmt.Errorf(resourceParsingErrorTmpl, rawName, fmt.Errorf("unsupported resource type: %s", relName.TypeKey))
@@ -48,10 +65,10 @@ func (apis GeneratedResources) GetRestConfig(rawName string, relName *gcputil.Re
 			}
 		}
 		return nil, fmt.Errorf(resourceParsingErrorTmpl, rawName, fmt.Errorf("unsupported service/version for resource with prefix %s", prefix))
-	} else if len(service) > 0 {
-		versionMap, ok := serviceMap[service]
+	} else if len(fullName.Service) > 0 {
+		versionMap, ok := serviceMap[fullName.Service]
 		if !ok {
-			return nil, fmt.Errorf(resourceParsingErrorTmpl, rawName, fmt.Errorf("unsupported service %s for resource %s", service, relName.TypeKey))
+			return nil, fmt.Errorf(resourceParsingErrorTmpl, rawName, fmt.Errorf("unsupported service %s for resource %s", fullName.Service, relName.TypeKey))
 		}
 
 		return getResourceFromVersions(rawName, versionMap)
@@ -93,10 +110,16 @@ func (apis GeneratedResources) Parse(rawName string) (IamResource, error) {
 	}
 
 	if relName == nil {
-		return nil, fmt.Errorf(resourceParsingErrorTmpl, rawName, "unable to parse relative name")
+		return nil, fmt.Errorf(resourceParsingErrorTmpl, rawName, "nil relative name")
 	}
 
-	cfg, err := apis.GetRestConfig(rawName, relName, prefix, service)
+	cfg, err := apis.GetRestConfig(
+		rawName,
+		&gcputil.FullResourceName{
+			Service:              service,
+			RelativeResourceName: relName,
+		},
+		prefix)
 	if err != nil {
 		return nil, err
 	}

@@ -46,8 +46,10 @@ type IamRestResource struct {
 	// IsPreferredVersion is true if this version of the API/resource is preferred.
 	SetMethod RestMethod
 
+	// Ordered parameters to be replaced in method paths
+	Parameters []string
+
 	// collection Id --> parameter to be replaced {} name
-	Parameters                []string
 	CollectionReplacementKeys map[string]string
 }
 
@@ -95,22 +97,26 @@ func (r *parsedIamResource) constructRequest(restMethod *RestMethod, data io.Rea
 	relId := r.relativeId
 	replacementMap := make(map[string]string)
 
-	for colId, replaceK := range r.config.CollectionReplacementKeys {
-		rId, ok := relId.IdTuples[colId]
-		if !ok {
-			return nil, fmt.Errorf("expected value for collection id %s", colId)
+	if strings.Contains(restMethod.Path, "{+resource}") {
+		// +resource is used to represent full relative resource name
+		if len(r.config.Parameters) == 1 && r.config.Parameters[0] == "resource" {
+			relName := ""
+			tkns := strings.Split(r.config.TypeKey, "/")
+			for _, colId := range tkns {
+				relName += fmt.Sprintf("%s/%s/", colId, relId.IdTuples[colId])
+			}
+			replacementMap["resource"] = strings.Trim(relName, "/")
 		}
-		replacementMap[replaceK] = rId
+	} else {
+		for colId, resId := range relId.IdTuples {
+			rId, ok := r.config.CollectionReplacementKeys[colId]
+			if !ok {
+				return nil, fmt.Errorf("expected value for collection id %s", colId)
+			}
+			replacementMap[rId] = resId
+		}
 	}
 
-	if len(r.config.Parameters) == 1 && r.config.Parameters[0] == "resource" {
-		relName := ""
-		tkns := strings.Split(r.config.TypeKey, "/")
-		for _, colId := range tkns {
-			relName += fmt.Sprintf("%s/%s/", colId, relId.IdTuples[colId])
-		}
-		replacementMap["+resource"] = strings.Trim(relName, "/")
-	}
 	googleapi.Expand(req.URL, replacementMap)
 	return req, nil
 }
