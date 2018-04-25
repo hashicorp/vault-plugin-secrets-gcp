@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
 	"google.golang.org/api/iam/v1"
+	"regexp"
 )
 
 const (
@@ -401,9 +402,12 @@ func (rs *RoleSet) updateIamPolicies(ctx context.Context, s logical.Storage, ena
 }
 
 func roleSetServiceAccountName(rsName string) (name string) {
+	// Sanitize role name
+	reg := regexp.MustCompile("[^a-zA-Z0-9-]+")
+	rsName = reg.ReplaceAllString(rsName, "-")
+
 	intSuffix := fmt.Sprintf("%d", time.Now().Unix())
 	fullName := fmt.Sprintf("vault%s-%s", rsName, intSuffix)
-
 	name = fullName
 	if len(fullName) > serviceAccountMaxLen {
 		toTrunc := len(fullName) - serviceAccountMaxLen
