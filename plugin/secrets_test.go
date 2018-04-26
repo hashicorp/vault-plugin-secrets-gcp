@@ -63,8 +63,12 @@ func TestSecrets_GenerateAccessToken(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected 'token' field to be returned")
 	}
-	token := tokenRaw.(string)
 
+	if resp.Secret.TTL >= time.Hour {
+		t.Fatalf("expected token to expire within an hour")
+	}
+
+	token := tokenRaw.(string)
 	callC := oauth2.NewClient(
 		context.Background(),
 		oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token}),

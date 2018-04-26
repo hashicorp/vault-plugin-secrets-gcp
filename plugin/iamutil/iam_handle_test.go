@@ -14,7 +14,7 @@ import (
 )
 
 func TestIamHandle_ServiceAccount(t *testing.T) {
-	createServiceAccount := func(t *testing.T, httpC *http.Client) *iamResourceImpl {
+	createServiceAccount := func(t *testing.T, httpC *http.Client) *parsedIamResource {
 		iamAdmin, err := iam.New(httpC)
 		if err != nil {
 			t.Fatal(err)
@@ -37,13 +37,15 @@ func TestIamHandle_ServiceAccount(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		return &iamResourceImpl{
+		rConfig := generatedIamResources["projects/serviceAccounts"]["iam"]["v1"]
+
+		return &parsedIamResource{
 			relativeId: relId,
-			config:     generatedResources["projects/serviceAccounts"]["iam"]["v1"],
+			config:     &rConfig,
 		}
 	}
 
-	deleteServiceAccount := func(t *testing.T, httpC *http.Client, r *iamResourceImpl) {
+	deleteServiceAccount := func(t *testing.T, httpC *http.Client, r *parsedIamResource) {
 		saName := fmt.Sprintf("projects/%s/serviceAccounts/%s",
 			r.relativeId.IdTuples["projects"],
 			r.relativeId.IdTuples["serviceAccounts"])
@@ -61,8 +63,8 @@ func TestIamHandle_ServiceAccount(t *testing.T) {
 }
 
 func verifyIamResource_GetSetPolicy(t *testing.T, resourceType string,
-	getF func(*testing.T, *http.Client) *iamResourceImpl,
-	cleanupF func(*testing.T, *http.Client, *iamResourceImpl)) {
+	getF func(*testing.T, *http.Client) *parsedIamResource,
+	cleanupF func(*testing.T, *http.Client, *parsedIamResource)) {
 
 	_, creds := util.GetTestCredentials(t)
 	httpC, err := gcputil.GetHttpClient(creds, iam.CloudPlatformScope)

@@ -163,7 +163,7 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, s logical.Stora
 		binds = newBinds
 		rs.Bindings = newBinds
 	}
-	walIds, err := rs.updateIamPolicies(ctx, s, b.enabledIamResources, iamHandle, binds)
+	walIds, err := rs.updateIamPolicies(ctx, s, b.iamResources, iamHandle, binds)
 	if err != nil {
 		tryDeleteWALs(ctx, s, oldWals...)
 		return nil, err
@@ -359,7 +359,7 @@ func (rs *RoleSet) newKeyForTokenGen(ctx context.Context, s logical.Storage, iam
 	return walId, nil
 }
 
-func (rs *RoleSet) updateIamPolicies(ctx context.Context, s logical.Storage, enabledIamResources iamutil.EnabledResources, iamHandle *iamutil.IamHandle, rb ResourceBindings) ([]string, error) {
+func (rs *RoleSet) updateIamPolicies(ctx context.Context, s logical.Storage, enabledIamResources iamutil.IamResourceParser, iamHandle *iamutil.IamHandle, rb ResourceBindings) ([]string, error) {
 	wals := make([]string, 0, len(rb))
 	for rName, roles := range rb {
 		walId, err := framework.PutWAL(ctx, s, walTypeIamPolicy, &walIamPolicy{
@@ -375,7 +375,7 @@ func (rs *RoleSet) updateIamPolicies(ctx context.Context, s logical.Storage, ena
 			return wals, err
 		}
 
-		resource, err := enabledIamResources.Resource(rName)
+		resource, err := enabledIamResources.Parse(rName)
 		if err != nil {
 			return wals, err
 		}
