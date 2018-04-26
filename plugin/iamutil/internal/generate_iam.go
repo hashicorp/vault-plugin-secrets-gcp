@@ -32,7 +32,7 @@ var sanizitedCollectionIds = map[string]string{
 
 var sanizitedTypeKeys = map[string]string{
 	// Storage doesn't use properly RESTful resource path in request.
-	"b": "buckets",
+	"b":   "buckets",
 	"b/o": "buckets/objects",
 }
 
