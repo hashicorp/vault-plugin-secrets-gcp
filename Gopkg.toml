@@ -39,6 +39,10 @@
 
 [[constraint]]
   branch = "master"
+  name = "github.com/hashicorp/go-hclog"
+
+[[constraint]]
+  branch = "master"
   name = "github.com/hashicorp/go-multierror"
 
 [[constraint]]
@@ -46,8 +50,8 @@
   name = "github.com/hashicorp/hcl"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/hashicorp/vault"
+  branch = "master"
 
 [[constraint]]
   branch = "master"
