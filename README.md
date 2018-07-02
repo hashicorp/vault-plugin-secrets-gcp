@@ -1,4 +1,4 @@
-# Vault Plugin: Google Cloud Platform Auth Backend
+# Vault Plugin: Google Cloud Platform Secrets Backend
 
 This is a backend plugin to be used with [Hashicorp Vault](https://www.github.com/hashicorp/vault).
 This plugin generates either one-time (non-renewable) OAuth2 access tokens or 
