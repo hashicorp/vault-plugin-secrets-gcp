@@ -16,8 +16,8 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
-	"strings"
 	"log"
+	"strings"
 )
 
 const (
