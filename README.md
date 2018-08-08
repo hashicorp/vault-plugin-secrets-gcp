@@ -12,7 +12,7 @@ contacting us at [security@hashicorp.com](mailto:security@hashicorp.com).
 
 ## Quick Links
 - [Vault Website](https://www.vaultproject.io)
-- [GCP Secrets BE Docs](https://www.vaultproject.io/docs/secrets/gcp/index.html)
+- [GCP Secrets Docs](https://www.vaultproject.io/docs/secrets/gcp/index.html)
 - [Vault Github](https://www.github.com/hashicorp/vault)
 - [General Announcement List](https://groups.google.com/forum/#!forum/hashicorp-announce)
 - [Discussion List](https://groups.google.com/forum/#!forum/vault-tool)
@@ -97,9 +97,9 @@ $ vault write sys/plugins/catalog/gcpsecrets \
         command="vault-plugin-secrets-gcp"
 ```
 
-Any name can be substituted for the plugin name "mygcpplugin". This
-name will be referenced in the next step, where we enable the auth
-plugin backend using the GCP auth plugin:
+Any name can be substituted for the plugin name "gcpsecrets". This
+name will be referenced in the next step, where we enable the secrets
+plugin backend using the GCP secrets plugin:
 
 ```sh
 $ vault secrets enable --plugin-name='gcpsecrets' --path="gcp" plugin
@@ -175,5 +175,5 @@ you run into. It could be that the API is a non-standard form or we need to re-g
 
 ## Other Docs (To Be Removed/Replaced)
 
-See up-to-date [HTTP API Docs](https://github.com/emilymye/vault/blob/docs/website/source/api/secret/gcp/index.html.md)
-and general [GCP engine docs](https://github.com/emilymye/vault/blob/docs/website/source/docs/secrets/gcp/index.html.md)
+See up-to-date [engine docs](https://www.vaultproject.io/docs/secrets/gcp/index.html)
+and general [API docs](https://www.vaultproject.io/api/secret/gcp/index.html).
