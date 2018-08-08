@@ -173,7 +173,7 @@ If you are having trouble during role set creation with errors suggesting the re
 are failing for a resource you know exists, please [report any issues](https://github.com/hashicorp/vault-plugin-secrets-gcp/issues) 
 you run into. It could be that the API is a non-standard form or we need to re-generate our config file.
 
-## Other Docs (To Be Removed/Replaced)
+## Other Docs
 
 See up-to-date [engine docs](https://www.vaultproject.io/docs/secrets/gcp/index.html)
 and general [API docs](https://www.vaultproject.io/api/secret/gcp/index.html).
