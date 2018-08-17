@@ -15,6 +15,8 @@ import (
 	"google.golang.org/api/iam/v1"
 )
 
+const testProjectResourceTemplate = "//cloudresourcemanager.googleapis.com/projects/%s"
+
 func TestPathRoleSet_Basic(t *testing.T) {
 	rsName := "test-basicrs"
 	roles := util.StringSet{
@@ -24,7 +26,7 @@ func TestPathRoleSet_Basic(t *testing.T) {
 	td := setupTest(t)
 	defer cleanup(t, td, rsName, roles)
 
-	projRes := fmt.Sprintf("projects/%s", td.Project)
+	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
 	// 1. Read should return nothing
 	respData := testRoleSetRead(t, td, rsName)
@@ -79,7 +81,7 @@ func TestPathRoleSet_UpdateKeyRoleSet(t *testing.T) {
 	td := setupTest(t)
 	defer cleanup(t, td, rsName, initRoles.Union(updatedRoles))
 
-	projRes := fmt.Sprintf("projects/%s", td.Project)
+	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
 	// Create role set
 	expectedBinds := ResourceBindings{projRes: initRoles}
@@ -179,7 +181,7 @@ func TestPathRoleSet_RotateKeyRoleSet(t *testing.T) {
 	td := setupTest(t)
 	defer cleanup(t, td, rsName, roles)
 
-	projRes := fmt.Sprintf("projects/%s", td.Project)
+	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
 	// Create role set
 	expectedBinds := ResourceBindings{projRes: roles}
@@ -239,7 +241,7 @@ func TestPathRoleSet_UpdateTokenRoleSet(t *testing.T) {
 	td := setupTest(t)
 	defer cleanup(t, td, rsName, initRoles.Union(updatedRoles))
 
-	projRes := fmt.Sprintf("projects/%s", td.Project)
+	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
 	// Create role set
 	expectedBinds := ResourceBindings{projRes: initRoles}
@@ -333,7 +335,7 @@ func TestPathRoleSet_RotateTokenRoleSet(t *testing.T) {
 	td := setupTest(t)
 	defer cleanup(t, td, rsName, roles)
 
-	projRes := fmt.Sprintf("projects/%s", td.Project)
+	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
 	// Create role set
 	expectedBinds := ResourceBindings{projRes: roles}
