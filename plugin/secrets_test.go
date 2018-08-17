@@ -33,7 +33,7 @@ func TestSecrets_GenerateAccessToken(t *testing.T) {
 	td := setupTest(t)
 	defer cleanup(t, td, rsName, testRoles)
 
-	projRes := fmt.Sprintf("projects/%s", td.Project)
+	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
 	// Create new role set
 	expectedBinds := ResourceBindings{projRes: testRoles}
@@ -93,7 +93,7 @@ func TestSecrets_GenerateKey(t *testing.T) {
 	td := setupTest(t)
 	defer cleanup(t, td, rsName, testRoles)
 
-	projRes := fmt.Sprintf("projects/%s", td.Project)
+	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
 	// Create new role set
 	expectedBinds := ResourceBindings{projRes: testRoles}
