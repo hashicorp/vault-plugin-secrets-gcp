@@ -124,11 +124,20 @@ func TestEnabledIamResources_SelfLink(t *testing.T) {
 }
 
 func expectVersionError(versions map[string]IamRestResource) bool {
-	needsVersion := len(versions) > 1
-	for _, cfg := range versions {
-		needsVersion = needsVersion && !cfg.IsPreferredVersion
+	if len(versions) == 1 {
+		return false
 	}
-	return needsVersion
+	verCnt := 0
+	for versionName, cfg := range versions {
+		if cfg.IsPreferredVersion {
+			return false
+		}
+		if strings.Contains(versionName, "alpha") || strings.Contains(versionName, "beta") {
+			continue
+		}
+		verCnt++
+	}
+	return verCnt != 1
 }
 
 func verifyHttpMethod(typeKey string, m *RestMethod) error {
