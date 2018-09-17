@@ -23,7 +23,7 @@ import (
 const (
 	SecretTypeAccessToken     = "access_token"
 	revokeAccessTokenEndpoint = "https://accounts.google.com/o/oauth2/revoke"
-	revokeTokenWarning        = `revocation request was successful; however, due to how OAuth access propagation works, the OAuth token might still be valid until it expires`
+	revokeTokenWarning        = `revocation request succeeded; however, due to how OAuth access works, the OAuth token might still be valid until it expires`
 )
 
 func secretAccessToken(b *backend) *framework.Secret {
@@ -103,8 +103,8 @@ func (b *backend) secretAccessTokenRevoke(ctx context.Context, req *logical.Requ
 
 	if err != nil {
 		// Token may have already expired on server; ignore if OAuth server returns error.
-		if req.Secret.ExpirationTime().Before(time.Now()) && isInvalidTokenErr(err) {
-			invalidTokenWarn := fmt.Sprintf("manual token revocation failed because token has already been invalidated. ignoring error: '%v'", err)
+		if isInvalidTokenErr(err) {
+			invalidTokenWarn := fmt.Sprintf("skipping manual token revocation because token has already been invalidated")
 			b.Logger().Warn(invalidTokenWarn)
 
 			return &logical.Response{
