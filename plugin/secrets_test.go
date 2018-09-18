@@ -51,35 +51,15 @@ func TestSecrets_GenerateAccessToken(t *testing.T) {
 	sa := getRoleSetAccount(t, td, rsName)
 
 	// expect error for trying to read key from token roleset
-	testGetKey(t, td, rsName, nil, true)
+	testGetKeyFail(t, td, rsName)
 
-	resp := testGetToken(t, td, rsName, nil, false) // !expectError
+	token := testGetToken(t, td, rsName)
 
-	if time.Now().Sub(resp.Secret.ExpirationTime()) > time.Hour {
-		t.Fatalf("expected token to expire within an hour")
-	}
-
-	tokenRaw, ok := resp.Data["token"]
-	if !ok {
-		t.Fatalf("expected 'token' field to be returned")
-	}
-
-	if resp.Secret.TTL >= time.Hour {
-		t.Fatalf("expected token to expire within an hour")
-	}
-
-	token := tokenRaw.(string)
 	callC := oauth2.NewClient(
 		context.Background(),
 		oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token}),
 	)
 	checkSecretPermissions(t, td, callC)
-
-	testRenewSecret(t, td, resp.Secret)
-
-	// OAuth token revocation is delayed so we can't really
-	// test permissions are removed. Revocation shouldn't fail though.
-	testRevokeSecret(t, td, resp.Secret, true) // isToken
 
 	// Cleanup: Delete role set
 	testRoleSetDelete(t, td, rsName, sa.Name)
@@ -110,20 +90,15 @@ func TestSecrets_GenerateKey(t *testing.T) {
 	sa := getRoleSetAccount(t, td, rsName)
 
 	// expect error for trying to read token from key roleset
-	testGetToken(t, td, rsName, nil, true)
+	testGetTokenFail(t, td, rsName)
 
-	resp := testGetKey(t, td, rsName, nil, false) // !expectError
-
-	// Confirm lease data
-	if resp.Secret.ExpirationTime().Sub(resp.Secret.IssueTime) > defaultLeaseTTLHr*time.Hour {
-		t.Fatalf("unexpected lease duration is longer than backend default")
-	}
+	oauthCfg, secret := testGetKey(t, td, rsName)
 
 	// Confirm calls with key work
-	callC := getKeyJWTConfig(t, resp.Data).Client(context.Background())
-	checkSecretPermissions(t, td, callC)
+	keyHttpC := oauthCfg.Client(context.Background())
+	checkSecretPermissions(t, td, keyHttpC)
 
-	keyName := resp.Secret.InternalData["key_name"].(string)
+	keyName := secret.InternalData["key_name"].(string)
 	if keyName == "" {
 		t.Fatalf("expected internal data to include key name")
 	}
@@ -133,8 +108,8 @@ func TestSecrets_GenerateKey(t *testing.T) {
 		t.Fatalf("could not get key from given internal 'key_name': %v", err)
 	}
 
-	testRenewSecret(t, td, resp.Secret)
-	testRevokeSecret(t, td, resp.Secret, false) // !isToken
+	testRenewSecretKey(t, td, secret)
+	testRevokeSecretKey(t, td, secret)
 
 	k, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
 
@@ -166,50 +141,89 @@ func getRoleSetAccount(t *testing.T, td *testData, rsName string) *iam.ServiceAc
 	return sa
 }
 
-func testGetToken(t *testing.T, td *testData, rsName string, d map[string]interface{}, expectError bool) (resp *logical.Response) {
-	return testGetSecret("token", t, td, rsName, d, expectError)
-}
-
-func testGetKey(t *testing.T, td *testData, rsName string, d map[string]interface{}, expectError bool) (resp *logical.Response) {
-	return testGetSecret("key", t, td, rsName, d, expectError)
-}
-
-func testGetSecret(pathPrefix string, t *testing.T, td *testData, rsName string, d map[string]interface{}, expectError bool) (resp *logical.Response) {
-	var err error
-	if len(d) > 0 {
-		resp, err = td.B.HandleRequest(context.Background(), &logical.Request{
-			Operation: logical.ReadOperation,
-			Path:      fmt.Sprintf("%s/%s", pathPrefix, rsName),
-			Storage:   td.S,
-		})
-	} else {
-		resp, err = td.B.HandleRequest(context.Background(), &logical.Request{
-			Operation: logical.UpdateOperation,
-			Path:      fmt.Sprintf("%s/%s", pathPrefix, rsName),
-			Data:      d,
-			Storage:   td.S,
-		})
-	}
-	if !expectError {
-		if err != nil {
-			t.Fatal(err)
-		}
-		if resp != nil && resp.IsError() {
-			t.Fatal(resp.Error())
-		}
-		if resp == nil || resp.Secret == nil {
-			t.Fatalf("expected response with secret, got response: %v", resp)
-		}
-		return resp
-	}
-
+func testGetTokenFail(t *testing.T, td *testData, rsName string) {
+	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      fmt.Sprintf("token/%s", rsName),
+		Data:      make(map[string]interface{}),
+		Storage:   td.S,
+	})
 	if err == nil && !resp.IsError() {
 		t.Fatalf("expected error, instead got valid response (data: %v)", resp.Data)
 	}
-	return nil
 }
 
-func testRenewSecret(t *testing.T, td *testData, sec *logical.Secret) {
+func testGetKeyFail(t *testing.T, td *testData, rsName string) {
+	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      fmt.Sprintf("key/%s", rsName),
+		Data:      make(map[string]interface{}),
+		Storage:   td.S,
+	})
+	if err == nil && !resp.IsError() {
+		t.Fatalf("expected error, instead got valid response (data: %v)", resp.Data)
+	}
+}
+
+func testGetToken(t *testing.T, td *testData, rsName string) (token string) {
+	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      fmt.Sprintf("token/%s", rsName),
+		Storage:   td.S,
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp != nil && resp.IsError() {
+		t.Fatal(resp.Error())
+	}
+
+	if resp == nil || resp.Data == nil {
+		t.Fatalf("expected response with secret, got response: %v", resp)
+	}
+
+	expiresAtRaw, ok := resp.Data["expires_at"]
+	if !ok {
+		t.Fatalf("expected 'expires_at' field to be returned")
+	}
+	expiresAt := expiresAtRaw.(time.Time)
+	if time.Now().Sub(expiresAt) > time.Hour {
+		t.Fatalf("expected token to expire within an hour")
+	}
+
+	tokenRaw, ok := resp.Data["token"]
+	if !ok {
+		t.Fatalf("expected 'token' field to be returned")
+	}
+	return tokenRaw.(string)
+}
+
+func testGetKey(t *testing.T, td *testData, rsName string) (*jwt.Config, *logical.Secret) {
+	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      fmt.Sprintf("key/%s", rsName),
+		Storage:   td.S,
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp != nil && resp.IsError() {
+		t.Fatal(resp.Error())
+	}
+	if resp == nil || resp.Secret == nil {
+		t.Fatalf("expected response with secret, got response: %v", resp)
+	}
+	if resp.Secret.ExpirationTime().Sub(resp.Secret.IssueTime) > defaultLeaseTTLHr*time.Hour {
+		t.Fatalf("unexpected lease duration is longer than backend default")
+	}
+
+	cfg := getKeyJWTConfig(t, resp.Data)
+	return cfg, resp.Secret
+}
+
+func testRenewSecretKey(t *testing.T, td *testData, sec *logical.Secret) {
 	sec.IssueTime = time.Now()
 	sec.Increment = time.Hour
 	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
@@ -229,7 +243,7 @@ func testRenewSecret(t *testing.T, td *testData, sec *logical.Secret) {
 	}
 }
 
-func testRevokeSecret(t *testing.T, td *testData, sec *logical.Secret, isToken bool) {
+func testRevokeSecretKey(t *testing.T, td *testData, sec *logical.Secret) {
 	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.RevokeOperation,
 		Secret:    sec,
@@ -240,11 +254,6 @@ func testRevokeSecret(t *testing.T, td *testData, sec *logical.Secret, isToken b
 	}
 	if resp != nil && resp.IsError() {
 		t.Fatal(resp.Error())
-	}
-	if isToken {
-		if resp == nil || len(resp.Warnings) == 0 {
-			t.Fatal("expected non-nil response with warning on revoking access tokens")
-		}
 	}
 }
 
