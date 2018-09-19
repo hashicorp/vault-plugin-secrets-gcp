@@ -11,6 +11,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/iam/v1"
+	"time"
 )
 
 func pathSecretAccessToken(b *backend) *framework.Path {
@@ -73,8 +74,9 @@ func (b *backend) secretAccessTokenResponse(ctx context.Context, s logical.Stora
 
 	return &logical.Response{
 		Data: map[string]interface{}{
-			"token":      token.AccessToken,
-			"expires_at": token.Expiry,
+			"token":           token.AccessToken,
+			"token_ttl":       time.Now().Sub(token.Expiry),
+			"expires_at_unix": token.Expiry.Unix(),
 		},
 	}, nil
 }
@@ -106,10 +108,9 @@ func (tg *TokenGenerator) getAccessToken(ctx context.Context, iamAdmin *iam.Serv
 }
 
 const deprecationWarning = `
-We have recently changed the behavior of the gcp/token/ endpoint to no longer generate leases. 
-This is due to limitations of the GCP API, as service account OAuth access tokens cannot be revoked.
-This access_token secret and associated lease were created by an older version of the GCP secrets engine
-and will be cleaned up now. Note that there is the chance that this access_token, if not already expired, 
+This endpoint no longer generates leases due to limitations of the GCP API, as OAuth2 tokens belonging to Service 
+Accounts cannot be revoked. This access_token and lease were created by a previous version of the GCP secrets 
+engine and will be cleaned up now. Note that there is the chance that this access_token, if not already expired, 
 will still be valid up to one hour. 
 `
 
@@ -123,10 +124,6 @@ then "gcp/token/deploy" would generate tokens for the "deploy" role set.
 On the backend, each roleset is associated with a service account. 
 The token will be associated with this service account. Tokens have a 
 short-term lease (1-hour) associated with them but cannot be renewed.
-
-NOTE: As of Vault 0.11.2, we have changed the behavior of the token/ endpoint.
-Note that revocation is no longer supported and Vault will no longer create a
-lease for this type. 
 
 Please see backend documentation for more information: 
 https://www.vaultproject.io/docs/secrets/gcp/index.html
@@ -162,5 +159,7 @@ func (b *backend) secretAccessTokenRenew(ctx context.Context, req *logical.Reque
 // Any associated secret (access_token) has already expired and thus doesn't need to
 // actually be revoked,  or will expire within an hour and currently can't actually be revoked anyways.
 func (b *backend) secretAccessTokenRevoke(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	return &logical.Response{Warnings: []string{deprecationWarning}}, nil
+	resp := &logical.Response{}
+	resp.AddWarning(deprecationWarning)
+	return resp, nil
 }

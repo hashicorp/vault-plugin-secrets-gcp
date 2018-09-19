@@ -183,13 +183,22 @@ func testGetToken(t *testing.T, td *testData, rsName string) (token string) {
 		t.Fatalf("expected response with secret, got response: %v", resp)
 	}
 
-	expiresAtRaw, ok := resp.Data["expires_at"]
+	expiresAtRaw, ok := resp.Data["expires_at_unix"]
 	if !ok {
 		t.Fatalf("expected 'expires_at' field to be returned")
 	}
-	expiresAt := expiresAtRaw.(time.Time)
+	expiresAt := time.Unix(expiresAtRaw.(int64), 0)
 	if time.Now().Sub(expiresAt) > time.Hour {
 		t.Fatalf("expected token to expire within an hour")
+	}
+
+	ttlRaw, ok := resp.Data["token_ttl"]
+	if !ok {
+		t.Fatalf("expected 'token_ttl' field to be returned")
+	}
+	tokenTtl := ttlRaw.(time.Duration)
+	if tokenTtl > time.Hour {
+		t.Fatalf("expected token ttl to be less than one hour")
 	}
 
 	tokenRaw, ok := resp.Data["token"]
