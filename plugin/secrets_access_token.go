@@ -75,7 +75,7 @@ func (b *backend) secretAccessTokenResponse(ctx context.Context, s logical.Stora
 	return &logical.Response{
 		Data: map[string]interface{}{
 			"token":              token.AccessToken,
-			"token_ttl":          token.Expiry.UTC().Sub(time.Now().UTC()),
+			"token_ttl":          token.Expiry.UTC().Sub(time.Now().UTC()) / (time.Second),
 			"expires_at_seconds": token.Expiry.Unix(),
 		},
 	}, nil
