@@ -197,7 +197,7 @@ func testGetToken(t *testing.T, td *testData, rsName string) (token string) {
 		t.Fatalf("expected 'token_ttl' field to be returned")
 	}
 	tokenTtl := ttlRaw.(time.Duration)
-	if tokenTtl > time.Hour {
+	if tokenTtl > time.Hour || tokenTtl < 0 {
 		t.Fatalf("expected token ttl to be less than one hour")
 	}
 
