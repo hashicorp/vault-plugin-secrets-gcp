@@ -499,10 +499,11 @@ func testRoleSetDelete(t *testing.T, td *testData, rsName, saName string) {
 	if err != nil {
 		t.Fatalf("unable to delete role set: %v", err)
 	} else if resp != nil {
+		if len(resp.Warnings) > 0 {
+			t.Logf("warnings returned from role set delete. Warnings:\n %s\n", strings.Join(resp.Warnings, ",\n"))
+		}
 		if resp.IsError() {
 			t.Fatalf("unable to delete role set: %v", resp.Error())
-		} else if len(resp.Warnings) > 0 {
-			t.Logf("warnings returned from role set delete. Warnings:\n %s\n", strings.Join(resp.Warnings, ",\n"))
 		}
 	}
 
