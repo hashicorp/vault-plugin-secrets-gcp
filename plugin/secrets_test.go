@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/vault/logical"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
 )
@@ -92,10 +91,10 @@ func TestSecrets_GenerateKey(t *testing.T) {
 	// expect error for trying to read token from key roleset
 	testGetTokenFail(t, td, rsName)
 
-	oauthCfg, secret := testGetKey(t, td, rsName)
+	creds, secret := testGetKey(t, td, rsName)
 
 	// Confirm calls with key work
-	keyHttpC := oauthCfg.Client(context.Background())
+	keyHttpC := oauth2.NewClient(context.Background(), creds.TokenSource)
 	checkSecretPermissions(t, td, keyHttpC)
 
 	keyName := secret.InternalData["key_name"].(string)
@@ -208,7 +207,7 @@ func testGetToken(t *testing.T, td *testData, rsName string) (token string) {
 	return tokenRaw.(string)
 }
 
-func testGetKey(t *testing.T, td *testData, rsName string) (*jwt.Config, *logical.Secret) {
+func testGetKey(t *testing.T, td *testData, rsName string) (*google.Credentials, *logical.Secret) {
 	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.ReadOperation,
 		Path:      fmt.Sprintf("key/%s", rsName),
@@ -228,8 +227,8 @@ func testGetKey(t *testing.T, td *testData, rsName string) (*jwt.Config, *logica
 		t.Fatalf("unexpected lease duration is longer than backend default")
 	}
 
-	cfg := getKeyJWTConfig(t, resp.Data)
-	return cfg, resp.Secret
+	creds := getGoogleCredentials(t, resp.Data)
+	return creds, resp.Secret
 }
 
 func testRenewSecretKey(t *testing.T, td *testData, sec *logical.Secret) {
@@ -299,7 +298,7 @@ func checkSecretPermissions(t *testing.T, td *testData, callClient *http.Client)
 	}
 }
 
-func getKeyJWTConfig(t *testing.T, d map[string]interface{}) *jwt.Config {
+func getGoogleCredentials(t *testing.T, d map[string]interface{}) *google.Credentials {
 	kAlg, ok := d["key_algorithm"]
 	if !ok {
 		t.Fatalf("expected 'key_algorithm' field to be returned")
@@ -324,9 +323,10 @@ func getKeyJWTConfig(t *testing.T, d map[string]interface{}) *jwt.Config {
 	if err != nil {
 		t.Fatalf("could not b64 decode 'private_key_data' field: %v", err)
 	}
-	cfg, err := google.JWTConfigFromJSON([]byte(keyJSON), iam.CloudPlatformScope)
+
+	creds, err := google.CredentialsFromJSON(context.Background(), []byte(keyJSON), iam.CloudPlatformScope)
 	if err != nil {
 		t.Fatalf("could not get JWT config from given 'private_key_data': %v", err)
 	}
-	return cfg
+	return creds
 }
