@@ -53,9 +53,9 @@ func TestPathRoleSet_Basic(t *testing.T) {
 		t.Fatalf("expected role set to have been created")
 	}
 	verifyReadData(t, respData, map[string]interface{}{
-		"secret_type":             SecretTypeAccessToken, // default
-		"service_account_project": td.Project,
-		"bindings":                expectedBinds,
+		"secret_type": SecretTypeAccessToken, // default
+		"project":     td.Project,
+		"bindings":    expectedBinds,
 	})
 
 	// Verify service account exists and has given role on project
@@ -102,9 +102,9 @@ func TestPathRoleSet_UpdateKeyRoleSet(t *testing.T) {
 		t.Fatalf("expected role set to have been created")
 	}
 	verifyReadData(t, respData, map[string]interface{}{
-		"secret_type":             SecretTypeKey,
-		"service_account_project": td.Project,
-		"bindings":                expectedBinds,
+		"secret_type": SecretTypeKey,
+		"project":     td.Project,
+		"bindings":    expectedBinds,
 	})
 
 	initSa := getServiceAccount(t, td.IamAdmin, respData)
@@ -152,9 +152,9 @@ func TestPathRoleSet_UpdateKeyRoleSet(t *testing.T) {
 		t.Fatalf("expected role set to have been created")
 	}
 	verifyReadData(t, respData, map[string]interface{}{
-		"secret_type":             SecretTypeKey, // default
-		"service_account_project": td.Project,
-		"bindings":                expectedBinds,
+		"secret_type": SecretTypeKey, // default
+		"project":     td.Project,
+		"bindings":    expectedBinds,
 	})
 
 	newSa := getServiceAccount(t, td.IamAdmin, respData)
@@ -263,10 +263,10 @@ func TestPathRoleSet_UpdateTokenRoleSet(t *testing.T) {
 		t.Fatalf("expected role set to have been created")
 	}
 	verifyReadData(t, respData, map[string]interface{}{
-		"secret_type":             SecretTypeAccessToken,
-		"service_account_project": td.Project,
-		"bindings":                expectedBinds,
-		"token_scopes":            []string{"https://www.googleapis.com/auth/cloud-platform"},
+		"secret_type":  SecretTypeAccessToken,
+		"project":      td.Project,
+		"bindings":     expectedBinds,
+		"token_scopes": []string{"https://www.googleapis.com/auth/cloud-platform"},
 	})
 
 	initSa := getServiceAccount(t, td.IamAdmin, respData)
@@ -298,9 +298,9 @@ func TestPathRoleSet_UpdateTokenRoleSet(t *testing.T) {
 		t.Fatalf("expected role set to have been created")
 	}
 	verifyReadData(t, respData, map[string]interface{}{
-		"secret_type":             SecretTypeAccessToken,
-		"service_account_project": td.Project,
-		"bindings":                expectedBinds,
+		"secret_type": SecretTypeAccessToken,
+		"project":     td.Project,
+		"bindings":    expectedBinds,
 		"token_scopes": []string{
 			"https://www.googleapis.com/auth/compute",
 			"https://www.googleapis.com/auth/compute.readonly",
@@ -571,9 +571,9 @@ func getServiceAccount(t *testing.T, iamAdmin *iam.Service, readData map[string]
 		t.Fatalf("expected role set to have service account email in returned read")
 	}
 
-	proj, ok := readData["service_account_project"]
+	proj, ok := readData["project"]
 	if !ok {
-		t.Fatalf("expected role set to have service account email in returned read")
+		t.Fatalf("expected role set to have service project in returned read")
 	}
 
 	saName := fmt.Sprintf(gcputil.ServiceAccountTemplate, proj, emailRaw.(string))
