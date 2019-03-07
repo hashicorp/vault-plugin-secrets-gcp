@@ -88,7 +88,7 @@ func parseBindingObjList(topList *ast.ObjectList) (map[string]StringSet, error) 
 
 		resourceList := item.Val.(*ast.ObjectType).List
 		for _, rolesItem := range resourceList.Items {
-			key := rolesItem.Keys[0].Token.Text
+			key := rolesItem.Keys[0].Token.Value().(string)
 			switch key {
 			case "roles":
 				parseRoles(rolesItem, bindings[resourceName], merr)
