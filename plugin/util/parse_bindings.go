@@ -70,11 +70,14 @@ func parseBindingObjList(topList *ast.ObjectList) (map[string]StringSet, error) 
 
 	for _, item := range topList.Items {
 		if len(item.Keys) != 2 {
-			merr = multierror.Append(merr, fmt.Errorf("invalid resource item does not have ID on line %d", item.Assign.Line))
+			merr = multierror.Append(merr, fmt.Errorf("invalid GCP resource on line %d", item.Assign.Line))
 			continue
 		}
-
 		keyRaw := item.Keys[0].Token.Value()
+		if keyRaw == nil {
+			merr = multierror.Append(merr, fmt.Errorf("invalid nil value for GCP resource on line %d", item.Assign.Line))
+			continue
+		}
 		key, ok := keyRaw.(string)
 		if !ok {
 			merr = multierror.Append(merr, fmt.Errorf("invalid resource item %v is not a string on line %d", keyRaw, item.Assign.Line))
@@ -86,7 +89,7 @@ func parseBindingObjList(topList *ast.ObjectList) (map[string]StringSet, error) 
 		}
 
 		resourceName := item.Keys[1].Token.Value().(string)
-		_, ok := bindings[resourceName]
+		_, ok = bindings[resourceName]
 		if !ok {
 			bindings[resourceName] = make(StringSet)
 		}
