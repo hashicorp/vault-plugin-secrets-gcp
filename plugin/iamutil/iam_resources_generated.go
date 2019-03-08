@@ -780,6 +780,239 @@ var generatedIamResources = map[string]map[string]map[string]IamRestResource{
 			},
 		},
 	},
+	"projects/locations/autoscalingPolicies": {
+		"dataproc": {
+			"v1beta2": IamRestResource{
+				Name:                      "autoscalingPolicies",
+				TypeKey:                   "projects/locations/autoscalingPolicies",
+				Service:                   "dataproc",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://dataproc.googleapis.com/",
+					Path:       "v1beta2/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://dataproc.googleapis.com/",
+					Path:          "v1beta2/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
+	"projects/locations/datasets": {
+		"healthcare": {
+			"v1alpha": IamRestResource{
+				Name:                      "datasets",
+				TypeKey:                   "projects/locations/datasets",
+				Service:                   "healthcare",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://healthcare.googleapis.com/",
+					Path:       "v1alpha/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://healthcare.googleapis.com/",
+					Path:          "v1alpha/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1alpha2": IamRestResource{
+				Name:                      "datasets",
+				TypeKey:                   "projects/locations/datasets",
+				Service:                   "healthcare",
+				IsPreferredVersion:        true,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://healthcare.googleapis.com/",
+					Path:       "v1alpha2/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://healthcare.googleapis.com/",
+					Path:          "v1alpha2/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
+	"projects/locations/datasets/annotationStores": {
+		"healthcare": {
+			"v1alpha": IamRestResource{
+				Name:                      "annotationStores",
+				TypeKey:                   "projects/locations/datasets/annotationStores",
+				Service:                   "healthcare",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "POST",
+					BaseURL:    "https://healthcare.googleapis.com/",
+					Path:       "v1alpha/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://healthcare.googleapis.com/",
+					Path:          "v1alpha/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1alpha2": IamRestResource{
+				Name:                      "annotationStores",
+				TypeKey:                   "projects/locations/datasets/annotationStores",
+				Service:                   "healthcare",
+				IsPreferredVersion:        true,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "POST",
+					BaseURL:    "https://healthcare.googleapis.com/",
+					Path:       "v1alpha2/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://healthcare.googleapis.com/",
+					Path:          "v1alpha2/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
+	"projects/locations/datasets/dicomStores": {
+		"healthcare": {
+			"v1alpha": IamRestResource{
+				Name:                      "dicomStores",
+				TypeKey:                   "projects/locations/datasets/dicomStores",
+				Service:                   "healthcare",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://healthcare.googleapis.com/",
+					Path:       "v1alpha/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://healthcare.googleapis.com/",
+					Path:          "v1alpha/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1alpha2": IamRestResource{
+				Name:                      "dicomStores",
+				TypeKey:                   "projects/locations/datasets/dicomStores",
+				Service:                   "healthcare",
+				IsPreferredVersion:        true,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://healthcare.googleapis.com/",
+					Path:       "v1alpha2/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://healthcare.googleapis.com/",
+					Path:          "v1alpha2/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
+	"projects/locations/datasets/fhirStores": {
+		"healthcare": {
+			"v1alpha": IamRestResource{
+				Name:                      "fhirStores",
+				TypeKey:                   "projects/locations/datasets/fhirStores",
+				Service:                   "healthcare",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "POST",
+					BaseURL:    "https://healthcare.googleapis.com/",
+					Path:       "v1alpha/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://healthcare.googleapis.com/",
+					Path:          "v1alpha/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1alpha2": IamRestResource{
+				Name:                      "fhirStores",
+				TypeKey:                   "projects/locations/datasets/fhirStores",
+				Service:                   "healthcare",
+				IsPreferredVersion:        true,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://healthcare.googleapis.com/",
+					Path:       "v1alpha2/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://healthcare.googleapis.com/",
+					Path:          "v1alpha2/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
+	"projects/locations/datasets/fhirStores/securityLabels": {
+		"healthcare": {
+			"v1alpha": IamRestResource{
+				Name:                      "securityLabels",
+				TypeKey:                   "projects/locations/datasets/fhirStores/securityLabels",
+				Service:                   "healthcare",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "POST",
+					BaseURL:    "https://healthcare.googleapis.com/",
+					Path:       "v1alpha/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://healthcare.googleapis.com/",
+					Path:          "v1alpha/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1alpha2": IamRestResource{
+				Name:                      "securityLabels",
+				TypeKey:                   "projects/locations/datasets/fhirStores/securityLabels",
+				Service:                   "healthcare",
+				IsPreferredVersion:        true,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://healthcare.googleapis.com/",
+					Path:       "v1alpha2/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://healthcare.googleapis.com/",
+					Path:          "v1alpha2/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
 	"projects/locations/functions": {
 		"cloudfunctions": {
 			"v1": IamRestResource{
@@ -1107,6 +1340,29 @@ var generatedIamResources = map[string]map[string]map[string]IamRestResource{
 					HttpMethod:    "POST",
 					BaseURL:       "https://containeranalysis.googleapis.com/",
 					Path:          "v1beta1/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
+	"projects/regions/autoscalingPolicies": {
+		"dataproc": {
+			"v1beta2": IamRestResource{
+				Name:                      "autoscalingPolicies",
+				TypeKey:                   "projects/regions/autoscalingPolicies",
+				Service:                   "dataproc",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "POST",
+					BaseURL:    "https://dataproc.googleapis.com/",
+					Path:       "v1beta2/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://dataproc.googleapis.com/",
+					Path:          "v1beta2/{+resource}:setIamPolicy",
 					RequestFormat: `{"policy": %s}`,
 				},
 			},
