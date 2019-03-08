@@ -74,7 +74,12 @@ func parseBindingObjList(topList *ast.ObjectList) (map[string]StringSet, error) 
 			continue
 		}
 
-		key := item.Keys[0].Token.Value().(string)
+		keyRaw := item.Keys[0].Token.Value()
+		key, ok := keyRaw.(string)
+		if !ok {
+			merr = multierror.Append(merr, fmt.Errorf("invalid resource item %v is not a string on line %d", keyRaw, item.Assign.Line))
+			continue
+		}
 		if key != "resource" {
 			merr = multierror.Append(merr, fmt.Errorf("invalid key '%s' (line %d)", key, item.Assign.Line))
 			continue
@@ -90,8 +95,14 @@ func parseBindingObjList(topList *ast.ObjectList) (map[string]StringSet, error) 
 		for _, rolesItem := range resourceList.Items {
 			if len(rolesItem.Keys) == 0 || rolesItem.Keys[0].Token.Value() == nil {
 				merr = multierror.Append(merr, fmt.Errorf("invalid nil item under key %q in resource %q (line %d)", key, resourceName, rolesItem.Assign.Line))
+				continue
 			}
-			roleKey := rolesItem.Keys[0].Token.Value().(string)
+			roleKeyRaw := rolesItem.Keys[0].Token.Value()
+			roleKey, ok := roleKeyRaw.(string)
+			if !ok {
+				merr = multierror.Append(merr, fmt.Errorf("expected string for item %v under %q in resource %q (line %d)", roleKeyRaw, key, resourceName, rolesItem.Assign.Line))
+				continue
+			}
 			switch roleKey {
 			case "roles":
 				parseRoles(rolesItem, bindings[resourceName], merr)
