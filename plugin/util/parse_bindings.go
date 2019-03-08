@@ -88,12 +88,15 @@ func parseBindingObjList(topList *ast.ObjectList) (map[string]StringSet, error) 
 
 		resourceList := item.Val.(*ast.ObjectType).List
 		for _, rolesItem := range resourceList.Items {
-			key := rolesItem.Keys[0].Token.Value().(string)
-			switch key {
+			if len(rolesItem.Keys) == 0 || rolesItem.Keys[0].Token.Value() == nil {
+				merr = multierror.Append(merr, fmt.Errorf("invalid nil item under key %q in resource %q (line %d)", key, resourceName, rolesItem.Assign.Line))
+			}
+			roleKey := rolesItem.Keys[0].Token.Value().(string)
+			switch roleKey {
 			case "roles":
 				parseRoles(rolesItem, bindings[resourceName], merr)
 			default:
-				merr = multierror.Append(merr, fmt.Errorf("invalid key '%s' in resource '%s' (line %d)", key, resourceName, item.Assign.Line))
+				merr = multierror.Append(merr, fmt.Errorf("invalid key %q in resource %q (line %d)", roleKey, resourceName, rolesItem.Assign.Line))
 				continue
 			}
 		}
