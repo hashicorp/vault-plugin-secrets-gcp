@@ -152,6 +152,10 @@ func parseRolesObject(rolesObj *ast.ObjectItem, parsedRoles StringSet) error {
 }
 
 func parseRole(parent *ast.ObjectItem, roleNode ast.Node) (string, error) {
+	if roleNode == nil {
+		return "", fmt.Errorf(`unexpected empty role item (line %d)`, parent.Assign.Line)
+	}
+
 	roleLitType, ok := roleNode.(*ast.LiteralType)
 	if !ok || roleLitType == nil {
 		return "", fmt.Errorf(`unexpected nil item in roles list (line %d)`, parent.Assign.Line)
