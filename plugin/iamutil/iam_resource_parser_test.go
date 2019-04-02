@@ -6,14 +6,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/errwrap"
 	"net/url"
+
+	"github.com/hashicorp/errwrap"
 )
 
 func TestEnabledIamResources_RelativeName(t *testing.T) {
 	enabledApis := GetEnabledIamResources()
 
 	for resourceType, services := range generatedIamResources {
+		if resourceType == "" {
+			continue
+		}
+
 		testRelName := getFakeId(resourceType)
 
 		var needsService = len(services) > 1
@@ -28,13 +33,16 @@ func TestEnabledIamResources_RelativeName(t *testing.T) {
 		resource, err := enabledApis.Parse(testRelName)
 		if !needsService && !needsVersion {
 			if err != nil {
-				t.Errorf("failed to get resource for relative resource name %s (type: %s): %v", testRelName, resourceType, err)
+				t.Errorf("failed to get resource for relative resource name %q (type: %q): %s", testRelName, resourceType, err)
 			}
-			if err = verifyResource(resourceType, resource.(*parsedIamResource)); err != nil {
-				t.Errorf("could not verify resource for relative resource name %s: %v", testRelName, err)
+
+			if resource != nil {
+				if err = verifyResource(resourceType, resource.(*parsedIamResource)); err != nil {
+					t.Errorf("could not verify resource for relative resource name %q: %sv", testRelName, err)
+				}
 			}
 		} else if resource != nil || err == nil {
-			t.Errorf("expected error for using relative resource name %s (type: %s), got resource:\n %v\n", testRelName, resourceType, resource)
+			t.Errorf("expected error for using relative resource name %q (type: %q), got resource:\n %v\n", testRelName, resourceType, resource)
 			continue
 		}
 	}
@@ -44,6 +52,10 @@ func TestEnabledIamResources_FullName(t *testing.T) {
 	enabledApis := GetEnabledIamResources()
 
 	for resourceType, services := range generatedIamResources {
+		if resourceType == "" {
+			continue
+		}
+
 		for service, versions := range services {
 			testFullName := fmt.Sprintf("//%s.googleapis.com/%s", service, getFakeId(resourceType))
 			resource, err := enabledApis.Parse(testFullName)
