@@ -28,18 +28,16 @@ testcompile: fmtcheck generate
 		go test -v -c -tags='$(BUILD_TAGS)' $$pkg -parallel=4 ; \
 	done
 
-# test runs all tests
-test: fmtcheck generate
-	@if [ "$(TEST)" = "./..." ]; then \
-		echo "ERROR: Set TEST to a specific package"; \
-		exit 1; \
-	fi
-	VAULT_ACC=1 go test -tags='$(BUILD_TAGS)' $(TEST) -v $(TESTARGS) -timeout 45m
+test:
+	@go test -short -parallel=40 ./...
+
+test-acc:
+	@go test -parallel=40 ./...
 
 # generate runs `go generate` to build the dynamically generated
 # source files.
 generate:
-	go generate $(go list ./... | grep -v /vendor/)
+	@go generate $(go list ./... | grep -v /vendor/)
 
 # bootstrap the build by downloading additional tools
 bootstrap:

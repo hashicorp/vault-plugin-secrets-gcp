@@ -5,8 +5,7 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/vault/helper/logging"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/logical"
 )
 
@@ -15,21 +14,20 @@ const (
 	maxLeaseTTLHr     = 12
 )
 
-func getTestBackend(t *testing.T) (logical.Backend, logical.Storage) {
-	b := Backend()
+func getTestBackend(tb testing.TB) (logical.Backend, logical.Storage) {
+	tb.Helper()
 
-	config := &logical.BackendConfig{
-		Logger: logging.NewVaultLogger(log.Trace),
-		System: &logical.StaticSystemView{
-			DefaultLeaseTTLVal: defaultLeaseTTLHr * time.Hour,
-			MaxLeaseTTLVal:     maxLeaseTTLHr * time.Hour,
-		},
-		StorageView: &logical.InmemStorage{},
+	config := logical.TestBackendConfig()
+	config.StorageView = new(logical.InmemStorage)
+	config.Logger = hclog.NewNullLogger()
+	config.System = &logical.StaticSystemView{
+		DefaultLeaseTTLVal: defaultLeaseTTLHr * time.Hour,
+		MaxLeaseTTLVal:     maxLeaseTTLHr * time.Hour,
 	}
-	err := b.Setup(context.Background(), config)
+
+	b, err := Factory(context.Background(), config)
 	if err != nil {
-		t.Fatalf("unable to create backend: %v", err)
+		tb.Fatal(err)
 	}
-
-	return b, config.StorageView
+	return b.(*backend), config.StorageView
 }

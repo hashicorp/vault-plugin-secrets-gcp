@@ -9,6 +9,8 @@ import (
 )
 
 func TestConfig(t *testing.T) {
+	t.Parallel()
+
 	b, reqStorage := getTestBackend(t)
 
 	testConfigRead(t, b, reqStorage, nil)
