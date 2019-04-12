@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
-	"github.com/hashicorp/vault/helper/strutil"
+	"github.com/hashicorp/vault/sdk/helper/strutil"
 	"google.golang.org/api/iam/v1"
 )
 
