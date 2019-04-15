@@ -10,8 +10,8 @@ require (
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/hashicorp/hcl v1.0.0
 	github.com/hashicorp/vault-plugin-auth-gcp v0.5.0
-	github.com/hashicorp/vault/api v1.0.0
-	github.com/hashicorp/vault/sdk v0.1.5
+	github.com/hashicorp/vault/api v1.0.1
+	github.com/hashicorp/vault/sdk v0.1.8
 	github.com/mitchellh/mapstructure v1.1.2
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a
 	google.golang.org/api v0.3.2
