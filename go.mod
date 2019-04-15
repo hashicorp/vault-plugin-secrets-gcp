@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/go-hclog v0.8.0
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/hashicorp/hcl v1.0.0
-	github.com/hashicorp/vault-plugin-auth-gcp v0.5.0
+	github.com/hashicorp/vault-plugin-auth-gcp v0.5.1
 	github.com/hashicorp/vault/api v1.0.1
 	github.com/hashicorp/vault/sdk v0.1.8
 	github.com/mitchellh/mapstructure v1.1.2
