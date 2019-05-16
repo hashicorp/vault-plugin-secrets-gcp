@@ -14,7 +14,10 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
+	"log"
 )
+
+const maxTokenTestCalls = 10
 
 var testRoles = util.StringSet{
 	// PERMISSIONS for roles/iam.roleViewer:
@@ -265,6 +268,18 @@ func testRevokeSecretKey(t *testing.T, td *testData, sec *logical.Secret) {
 	}
 }
 
+func retryTestFunc(f func() error, retries int) error {
+	var err error
+	for i := 0; i < retries; i++ {
+		if err = f(); err == nil {
+			return nil
+		}
+		log.Printf("[DEBUG] test check failed with error %v (attempt %d), sleeping one second before trying again", err, i)
+		time.Sleep(time.Second)
+	}
+	return err
+}
+
 func checkSecretPermissions(t *testing.T, td *testData, callClient *http.Client) {
 	iamAdmin, err := iam.New(callClient)
 	if err != nil {
@@ -272,18 +287,15 @@ func checkSecretPermissions(t *testing.T, td *testData, callClient *http.Client)
 	}
 
 	// Should succeed: List roles
-	_, err = iamAdmin.Projects.Roles.List(fmt.Sprintf("projects/%s", td.Project)).Do()
+	err = retryTestFunc(func() error {
+		_, err = iamAdmin.Projects.Roles.List(fmt.Sprintf("projects/%s", td.Project)).Do()
+		return err
+	}, maxTokenTestCalls)
 	if err != nil {
-		gErr, ok := err.(*googleapi.Error)
-		if !ok {
-			t.Fatalf("could not verify secret has permissions - got error %v", err)
-		}
-		if gErr.Code == 403 {
-			t.Fatalf("expected call using secret to be authorized, got 403: %v", err)
-		}
+		t.Fatalf("expected call using authorized secret to succeed, instead got error: %v", err)
 	}
 
-	// Should fail: List service accounts
+	// Should fail (immediately): list service accounts
 	_, err = iamAdmin.Projects.ServiceAccounts.List(fmt.Sprintf("projects/%s", td.Project)).Do()
 	if err != nil {
 		gErr, ok := err.(*googleapi.Error)
