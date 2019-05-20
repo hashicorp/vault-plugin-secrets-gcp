@@ -690,8 +690,12 @@ func cleanup(t *testing.T, td *testData, rsName string, roles util.StringSet) {
 	for _, sa := range resp.Accounts {
 		if sa.DisplayName == fmt.Sprintf(serviceAccountDisplayNameTmpl, rsName) {
 			memberStrs.Add("serviceAccount:" + sa.Email)
-			t.Logf("[WARNING] had to clean up service account %s, should have been deleted (did test fail?)", sa.Name)
+			t.Logf("[WARNING] found test service account %s that should have been deleted (did test fail?)", sa.Name)
 			if _, err := td.IamAdmin.Projects.ServiceAccounts.Delete(sa.Name).Do(); err != nil {
+				if isGoogleApi404Error(err) {
+					// Most likely IAM finished deletion (propagation) after list call
+					continue
+				}
 				t.Logf("[WARNING] Auto-delete failed - manually clean up service account %s: %v", sa.Name, err)
 			}
 		}
