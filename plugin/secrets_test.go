@@ -118,7 +118,7 @@ func TestSecrets_GenerateKey(t *testing.T) {
 	if k != nil {
 		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
 	}
-	if err == nil || !isGoogleApi404Error(err) {
+	if err == nil || !isGoogleAccountKeyNotFoundErr(err) {
 		t.Fatalf("expected 404 error from getting deleted key, instead got error: %v", err)
 	}
 

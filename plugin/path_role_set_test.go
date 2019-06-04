@@ -385,7 +385,7 @@ func TestPathRoleSet_RotateTokenRoleSet(t *testing.T) {
 	result, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(oldK.Name).Do()
 	if err == nil && result != nil {
 		t.Fatalf("old key was supposed to be deleted but get succeded")
-	} else if err != nil && !isGoogleApi404Error(err) {
+	} else if err != nil && !isGoogleAccountKeyNotFoundErr(err) {
 		t.Fatalf("got an error while trying to confirm service account key was deleted: %v", err)
 	}
 
@@ -578,10 +578,14 @@ func getServiceAccount(t *testing.T, iamAdmin *iam.Service, readData map[string]
 
 	saName := fmt.Sprintf(gcputil.ServiceAccountTemplate, proj, emailRaw.(string))
 	sa, err := iamAdmin.Projects.ServiceAccounts.Get(saName).Do()
-	if err != nil && !isGoogleApi404Error(err) {
-		t.Fatalf("could not verify role set service account '%s' exists: %v", saName, err)
+	if err != nil {
+		if isGoogleAccountNotFoundErr(err) {
+			t.Fatalf("expected role set service account '%s' exists", saName)
+		} else {
+			t.Fatalf("unexpected error while trying to get role set service account '%s': %v", saName, err)
+		}
 	}
-	if (err != nil && isGoogleApi404Error(err)) || sa == nil {
+	if sa == nil {
 		t.Fatalf("expected role set service account '%s' exists", saName)
 	}
 	return sa
@@ -589,7 +593,7 @@ func getServiceAccount(t *testing.T, iamAdmin *iam.Service, readData map[string]
 
 func verifyServiceAccountDeleted(t *testing.T, iamAdmin *iam.Service, saName string) {
 	_, err := iamAdmin.Projects.ServiceAccounts.Get(saName).Do()
-	if err == nil || !isGoogleApi404Error(err) {
+	if err == nil || !isGoogleAccountNotFoundErr(err)  {
 		t.Fatalf("expected service account '%s' to have been deleted", saName)
 	}
 }
@@ -692,7 +696,7 @@ func cleanup(t *testing.T, td *testData, rsName string, roles util.StringSet) {
 			memberStrs.Add("serviceAccount:" + sa.Email)
 			t.Logf("[WARNING] found test service account %s that should have been deleted (did test fail?)", sa.Name)
 			if _, err := td.IamAdmin.Projects.ServiceAccounts.Delete(sa.Name).Do(); err != nil {
-				if isGoogleApi404Error(err) {
+				if isGoogleAccountNotFoundErr(err) {
 					// Most likely IAM finished deletion (propagation) after list call
 					continue
 				}
