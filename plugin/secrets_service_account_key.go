@@ -59,9 +59,9 @@ func pathSecretServiceAccountKey(b *backend) *framework.Path {
 			},
 		},
 		ExistenceCheck: b.pathRoleSetExistenceCheck,
-		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.ReadOperation:   b.pathServiceAccountKey,
-			logical.UpdateOperation: b.pathServiceAccountKey,
+		Operations: map[logical.Operation]framework.OperationHandler{
+			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathServiceAccountKey},
+			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathServiceAccountKey},
 		},
 		HelpSynopsis:    pathServiceAccountKeySyn,
 		HelpDescription: pathServiceAccountKeyDesc,

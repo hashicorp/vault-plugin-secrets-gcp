@@ -47,11 +47,19 @@ func pathsRoleSet(b *backend) []*framework.Path {
 				},
 			},
 			ExistenceCheck: b.pathRoleSetExistenceCheck,
-			Callbacks: map[logical.Operation]framework.OperationFunc{
-				logical.DeleteOperation: b.pathRoleSetDelete,
-				logical.ReadOperation:   b.pathRoleSetRead,
-				logical.CreateOperation: b.pathRoleSetCreateUpdate,
-				logical.UpdateOperation: b.pathRoleSetCreateUpdate,
+			Operations: map[logical.Operation]framework.OperationHandler{
+				logical.DeleteOperation: &framework.PathOperation{
+					Callback: b.pathRoleSetDelete,
+				},
+				logical.ReadOperation: &framework.PathOperation{
+					Callback: b.pathRoleSetRead,
+				},
+				logical.CreateOperation: &framework.PathOperation{
+					Callback: b.pathRoleSetCreateUpdate,
+				},
+				logical.UpdateOperation: &framework.PathOperation{
+					Callback: b.pathRoleSetCreateUpdate,
+				},
 			},
 			HelpSynopsis:    pathRoleSetHelpSyn,
 			HelpDescription: pathRoleSetHelpDesc,
@@ -66,8 +74,10 @@ func pathsRoleSet(b *backend) []*framework.Path {
 				},
 			},
 			ExistenceCheck: b.pathRoleSetExistenceCheck,
-			Callbacks: map[logical.Operation]framework.OperationFunc{
-				logical.UpdateOperation: b.pathRoleSetRotateAccount,
+			Operations: map[logical.Operation]framework.OperationHandler{
+				logical.UpdateOperation: &framework.PathOperation{
+					Callback: b.pathRoleSetRotateAccount,
+				},
 			},
 			HelpSynopsis:    pathRoleSetRotateHelpSyn,
 			HelpDescription: pathRoleSetRotateHelpDesc,
@@ -82,8 +92,10 @@ func pathsRoleSet(b *backend) []*framework.Path {
 				},
 			},
 			ExistenceCheck: b.pathRoleSetExistenceCheck,
-			Callbacks: map[logical.Operation]framework.OperationFunc{
-				logical.UpdateOperation: b.pathRoleSetRotateKey,
+			Operations: map[logical.Operation]framework.OperationHandler{
+				logical.UpdateOperation: &framework.PathOperation{
+					Callback: b.pathRoleSetRotateKey,
+				},
 			},
 			HelpSynopsis:    pathRoleSetRotateKeyHelpSyn,
 			HelpDescription: pathRoleSetRotateKeyHelpDesc,
@@ -91,8 +103,10 @@ func pathsRoleSet(b *backend) []*framework.Path {
 		// Paths for listing role sets
 		{
 			Pattern: "rolesets/?",
-			Callbacks: map[logical.Operation]framework.OperationFunc{
-				logical.ListOperation: b.pathRoleSetList,
+			Operations: map[logical.Operation]framework.OperationHandler{
+				logical.ListOperation: &framework.PathOperation{
+					Callback: b.pathRoleSetList,
+				},
 			},
 
 			HelpSynopsis:    pathListRoleSetHelpSyn,
@@ -100,8 +114,10 @@ func pathsRoleSet(b *backend) []*framework.Path {
 		},
 		{
 			Pattern: "roleset/?",
-			Callbacks: map[logical.Operation]framework.OperationFunc{
-				logical.ListOperation: b.pathRoleSetList,
+			Operations: map[logical.Operation]framework.OperationHandler{
+				logical.ListOperation: &framework.PathOperation{
+					Callback: b.pathRoleSetList,
+				},
 			},
 
 			HelpSynopsis:    pathListRoleSetHelpSyn,
