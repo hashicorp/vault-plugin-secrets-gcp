@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"google.golang.org/api/option"
 	"io/ioutil"
 	"log"
 	"os"
@@ -127,7 +128,7 @@ func getIamClient(creds string) (*iam.Service, error) {
 	}
 
 	httpC := oauth2.NewClient(context.Background(), tknSrc)
-	return iam.New(httpC)
+	return iam.NewService(context.Background(), option.WithHTTPClient(httpC))
 }
 
 func getIamPermissions(iamAdmin *iam.Service, resource string) ([]string, error) {

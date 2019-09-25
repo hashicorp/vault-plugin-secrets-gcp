@@ -2,6 +2,7 @@ package gcpsecrets
 
 import (
 	"context"
+	"google.golang.org/api/option"
 	"net/http"
 	"strings"
 	"sync"
@@ -93,7 +94,7 @@ func (b *backend) IAMClient(s logical.Storage) (*iam.Service, error) {
 	}
 
 	client, err := b.cache.Fetch("iam", cacheTime, func() (interface{}, error) {
-		client, err := iam.New(httpClient)
+		client, err := iam.NewService(context.Background(), option.WithHTTPClient(httpClient))
 		if err != nil {
 			return nil, errwrap.Wrapf("failed to create IAM client: {{err}}", err)
 		}

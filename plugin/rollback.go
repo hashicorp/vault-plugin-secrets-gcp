@@ -273,7 +273,7 @@ func isGoogleAccountKeyNotFoundErr(err error) bool {
 	return isGoogleApiErrorWithCodes(err, 403, 404)
 }
 
-func isGoogleApiErrorWithCodes(err error, validErrCodes... int) bool {
+func isGoogleApiErrorWithCodes(err error, validErrCodes ...int) bool {
 	if err == nil {
 		return false
 	}

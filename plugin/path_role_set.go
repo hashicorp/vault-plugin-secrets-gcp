@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"google.golang.org/api/option"
 
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
@@ -217,7 +218,7 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 		return nil, err
 	}
 
-	iamAdmin, err := iam.New(httpC)
+	iamAdmin, err := iam.NewService(ctx, option.WithHTTPClient(httpC))
 	if err != nil {
 		return nil, err
 	}
