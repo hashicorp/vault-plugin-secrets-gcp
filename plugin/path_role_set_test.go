@@ -3,7 +3,6 @@ package gcpsecrets
 import (
 	"context"
 	"fmt"
-	"google.golang.org/api/option"
 	"net/http"
 	"strings"
 	"testing"
@@ -14,6 +13,7 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/option"
 )
 
 const testProjectResourceTemplate = "//cloudresourcemanager.googleapis.com/projects/%s"

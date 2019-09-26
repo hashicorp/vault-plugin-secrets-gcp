@@ -3,7 +3,6 @@ package iamutil
 import (
 	"context"
 	"fmt"
-	"google.golang.org/api/option"
 	"net/http"
 	"testing"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"github.com/hashicorp/vault/sdk/helper/strutil"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/option"
 )
 
 func TestIamHandle_ServiceAccount(t *testing.T) {

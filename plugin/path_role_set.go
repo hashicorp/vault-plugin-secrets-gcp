@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"google.golang.org/api/option"
 
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
@@ -13,6 +12,7 @@ import (
 	"github.com/hashicorp/vault/sdk/helper/useragent"
 	"github.com/hashicorp/vault/sdk/logical"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/option"
 )
 
 const (

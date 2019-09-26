@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"google.golang.org/api/option"
+	"log"
 	"net/http"
 	"testing"
 	"time"
@@ -15,7 +15,7 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
-	"log"
+	"google.golang.org/api/option"
 )
 
 const maxTokenTestCalls = 10

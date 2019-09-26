@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"google.golang.org/api/option"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/option"
 )
 
 var defaultScopes = []string{
