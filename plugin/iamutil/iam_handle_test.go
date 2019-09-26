@@ -11,11 +11,12 @@ import (
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"github.com/hashicorp/vault/sdk/helper/strutil"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/option"
 )
 
 func TestIamHandle_ServiceAccount(t *testing.T) {
 	createServiceAccount := func(t *testing.T, httpC *http.Client) *parsedIamResource {
-		iamAdmin, err := iam.New(httpC)
+		iamAdmin, err := iam.NewService(context.Background(), option.WithHTTPClient(httpC))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -49,7 +50,7 @@ func TestIamHandle_ServiceAccount(t *testing.T) {
 		saName := fmt.Sprintf("projects/%s/serviceAccounts/%s",
 			r.relativeId.IdTuples["projects"],
 			r.relativeId.IdTuples["serviceAccounts"])
-		iamAdmin, err := iam.New(httpC)
+		iamAdmin, err := iam.NewService(context.Background(), option.WithHTTPClient(httpC))
 		if err != nil {
 			t.Logf("[WARNING] unable to delete test service account %s: %v", saName, err)
 			return

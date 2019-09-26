@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/option"
 )
 
 var defaultScopes = []string{
@@ -127,7 +128,7 @@ func getIamClient(creds string) (*iam.Service, error) {
 	}
 
 	httpC := oauth2.NewClient(context.Background(), tknSrc)
-	return iam.New(httpC)
+	return iam.NewService(context.Background(), option.WithHTTPClient(httpC))
 }
 
 func getIamPermissions(iamAdmin *iam.Service, resource string) ([]string, error) {

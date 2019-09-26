@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/option"
 )
 
 const testProjectResourceTemplate = "//cloudresourcemanager.googleapis.com/projects/%s"
@@ -593,7 +594,7 @@ func getServiceAccount(t *testing.T, iamAdmin *iam.Service, readData map[string]
 
 func verifyServiceAccountDeleted(t *testing.T, iamAdmin *iam.Service, saName string) {
 	_, err := iamAdmin.Projects.ServiceAccounts.Get(saName).Do()
-	if err == nil || !isGoogleAccountNotFoundErr(err)  {
+	if err == nil || !isGoogleAccountNotFoundErr(err) {
 		t.Fatalf("expected service account '%s' to have been deleted", saName)
 	}
 }
@@ -664,7 +665,7 @@ func setupTest(t *testing.T) *testData {
 		t.Fatal(err)
 	}
 
-	iamAdmin, err := iam.New(httpC)
+	iamAdmin, err := iam.NewService(context.Background(), option.WithHTTPClient(httpC))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -694,10 +695,10 @@ func cleanup(t *testing.T, td *testData, rsName string, roles util.StringSet) {
 	for _, sa := range resp.Accounts {
 		if sa.DisplayName == fmt.Sprintf(serviceAccountDisplayNameTmpl, rsName) {
 			memberStrs.Add("serviceAccount:" + sa.Email)
-			t.Logf("[WARNING] found test service account %s that should have been deleted (did test fail?)", sa.Name)
+			t.Logf("[WARNING] found test service account %s that should have been deleted, did test fail? Manually deleting...", sa.Name)
 			if _, err := td.IamAdmin.Projects.ServiceAccounts.Delete(sa.Name).Do(); err != nil {
 				if isGoogleAccountNotFoundErr(err) {
-					// Most likely IAM finished deletion (propagation) after list call
+					t.Logf("[WARNING] Disregard previous warning - manual delete returned 404, probably IAM eventual consistency")
 					continue
 				}
 				t.Logf("[WARNING] Auto-delete failed - manually clean up service account %s: %v", sa.Name, err)

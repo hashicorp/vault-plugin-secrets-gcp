@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"net/http"
 	"testing"
 	"time"
@@ -14,7 +15,7 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
-	"log"
+	"google.golang.org/api/option"
 )
 
 const maxTokenTestCalls = 10
@@ -280,8 +281,8 @@ func retryTestFunc(f func() error, retries int) error {
 	return err
 }
 
-func checkSecretPermissions(t *testing.T, td *testData, callClient *http.Client) {
-	iamAdmin, err := iam.New(callClient)
+func checkSecretPermissions(t *testing.T, td *testData, httpC *http.Client) {
+	iamAdmin, err := iam.NewService(context.Background(), option.WithHTTPClient(httpC))
 	if err != nil {
 		t.Fatalf("could not construct new IAM Admin Service client from given token: %v", err)
 	}
