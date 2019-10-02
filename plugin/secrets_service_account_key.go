@@ -78,11 +78,11 @@ func (b *backend) pathServiceAccountKey(ctx context.Context, req *logical.Reques
 		return nil, err
 	}
 	if rs == nil {
-		return logical.ErrorResponse(fmt.Sprintf("role set '%s' does not exists", rsName)), nil
+		return logical.ErrorResponse("role set '%s' does not exists", rsName), nil
 	}
 
 	if rs.SecretType != SecretTypeKey {
-		return logical.ErrorResponse(fmt.Sprintf("role set '%s' cannot generate service account keys (has secret type %s)", rsName, rs.SecretType)), nil
+		return logical.ErrorResponse("role set '%s' cannot generate service account keys (has secret type %s)", rsName, rs.SecretType), nil
 	}
 
 	return b.getSecretKey(ctx, req.Storage, rs, keyType, keyAlg)
@@ -129,12 +129,12 @@ func (b *backend) verifySecretServiceKeyExists(ctx context.Context, req *logical
 	// Verify role set was not deleted.
 	rs, err := getRoleSet(rsName.(string), ctx, req.Storage)
 	if err != nil {
-		return logical.ErrorResponse(fmt.Sprintf("could not find role set '%v' for secret", rsName)), nil
+		return logical.ErrorResponse("could not find role set '%v' for secret", rsName), nil
 	}
 
 	// Verify role set bindings have not changed since secret was generated.
 	if rs.bindingHash() != bindingSum.(string) {
-		return logical.ErrorResponse(fmt.Sprintf("role set '%v' bindings were updated since secret was generated, cannot renew", rsName)), nil
+		return logical.ErrorResponse("role set '%v' bindings were updated since secret was generated, cannot renew", rsName), nil
 	}
 
 	// Verify service account key still exists.
@@ -143,7 +143,7 @@ func (b *backend) verifySecretServiceKeyExists(ctx context.Context, req *logical
 		return logical.ErrorResponse("could not confirm key still exists in GCP"), nil
 	}
 	if k, err := iamAdmin.Projects.ServiceAccounts.Keys.Get(keyName.(string)).Do(); err != nil || k == nil {
-		return logical.ErrorResponse(fmt.Sprintf("could not confirm key still exists in GCP: %v", err)), nil
+		return logical.ErrorResponse("could not confirm key still exists in GCP: %v", err), nil
 	}
 	return nil, nil
 }
@@ -161,7 +161,7 @@ func (b *backend) secretKeyRevoke(ctx context.Context, req *logical.Request, d *
 
 	_, err = iamAdmin.Projects.ServiceAccounts.Keys.Delete(keyNameRaw.(string)).Do()
 	if err != nil && !isGoogleAccountKeyNotFoundErr(err) {
-		return logical.ErrorResponse(fmt.Sprintf("unable to delete service account key: %v", err)), nil
+		return logical.ErrorResponse("unable to delete service account key: %v", err), nil
 	}
 
 	return nil, nil
@@ -183,7 +183,7 @@ func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleS
 
 	account, err := rs.getServiceAccount(iamC)
 	if err != nil {
-		return logical.ErrorResponse(fmt.Sprintf("roleset service account was removed - role set must be updated (write to roleset/%s/rotate) before generating new secrets", rs.Name)), nil
+		return logical.ErrorResponse("roleset service account was removed - role set must be updated (write to roleset/%s/rotate) before generating new secrets", rs.Name), nil
 	}
 
 	key, err := iamC.Projects.ServiceAccounts.Keys.Create(

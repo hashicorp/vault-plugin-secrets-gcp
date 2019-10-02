@@ -2,7 +2,6 @@ package gcpsecrets
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
@@ -72,7 +71,7 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 	if ok {
 		_, err := gcputil.Credentials(credentialsRaw.(string))
 		if err != nil {
-			return logical.ErrorResponse(fmt.Sprintf("invalid credentials JSON file: %v", err)), nil
+			return logical.ErrorResponse("invalid credentials JSON file: %v", err), nil
 		}
 		cfg.CredentialsRaw = credentialsRaw.(string)
 	}
