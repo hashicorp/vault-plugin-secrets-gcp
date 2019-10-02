@@ -204,6 +204,7 @@ func (b *backend) deleteServiceAccount(ctx context.Context, iamAdmin *iam.Servic
 	if account == nil || account.EmailOrId == "" {
 		return nil
 	}
+	b.Logger().Debug("deleting Service Account", "name", account.ResourceName())
 
 	_, err := iamAdmin.Projects.ServiceAccounts.Delete(account.ResourceName()).Do()
 	if err != nil && !isGoogleAccountNotFoundErr(err) {
@@ -216,6 +217,7 @@ func (b *backend) deleteTokenGenKey(ctx context.Context, iamAdmin *iam.Service, 
 	if tgen == nil || tgen.KeyName == "" {
 		return nil
 	}
+	b.Logger().Debug("deleting Service Account Key", "name", tgen.KeyName)
 
 	_, err := iamAdmin.Projects.ServiceAccounts.Keys.Delete(tgen.KeyName).Do()
 	if err != nil && !isGoogleAccountKeyNotFoundErr(err) {
@@ -225,6 +227,7 @@ func (b *backend) deleteTokenGenKey(ctx context.Context, iamAdmin *iam.Service, 
 }
 
 func (b *backend) removeBindings(ctx context.Context, iamHandle *iamutil.IamHandle, email string, bindings ResourceBindings) (allErr *multierror.Error) {
+	b.Logger().Debug("deleting bindings", "service_account", email, "bindings", bindings.asOutput())
 	for resName, roles := range bindings {
 		resource, err := b.iamResources.Parse(resName)
 		if err != nil {
@@ -257,11 +260,13 @@ func (b *backend) removeBindings(ctx context.Context, iamHandle *iamutil.IamHand
 // We can ignore errors if deletion fails as WAL rollback
 // will not be done if the object is still in use in the roleset
 // or was not actually created.
-func tryDeleteWALs(ctx context.Context, s logical.Storage, walIds ...string) {
+func tryDeleteWALs(ctx context.Context, s logical.Storage, walIds []string) {
 	for _, walId := range walIds {
-		// ignore errors - if not deleted and still used by
-		// roleset, will be ignored
-		framework.DeleteWAL(ctx, s, walId)
+		if walId == "" {
+			continue
+		}
+		// ignore errors - if not deleted and still used by roleset, WAL will be ignored
+		_ = framework.DeleteWAL(ctx, s, walId)
 	}
 }
 

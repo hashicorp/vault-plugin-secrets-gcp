@@ -68,6 +68,42 @@ func TestPathRoleSet_Basic(t *testing.T) {
 	verifyProjectBindingsRemoved(t, td, sa.Email, roles)
 }
 
+func TestPathRoleSet_EmptyBindings(t *testing.T) {
+	rsName := "test-basicrs"
+	roles := util.StringSet{
+		"roles/viewer": struct{}{},
+	}
+
+	td := setupTest(t)
+	defer cleanup(t, td, rsName, roles)
+
+	// Create roleset with empty bindings
+	testRoleSetCreate(t, td, rsName,
+		map[string]interface{}{
+			"project":      td.Project,
+			"bindings":     "",
+			"token_scopes": []string{iam.CloudPlatformScope},
+		})
+
+	// Verify role set
+	respData := testRoleSetRead(t, td, rsName)
+	if respData == nil {
+		t.Fatalf("expected role set to have been created")
+	}
+	verifyReadData(t, respData, map[string]interface{}{
+		"secret_type": SecretTypeAccessToken, // default
+		"project":     td.Project,
+		"bindings":    ResourceBindings{},
+	})
+
+	// Verify service account exists and doesn't have given role on project
+	sa := getServiceAccount(t, td.IamAdmin, respData)
+	verifyProjectBindingsRemoved(t, td, sa.Email, roles)
+
+	// 4. Delete role set
+	testRoleSetDelete(t, td, rsName, sa.Name)
+}
+
 func TestPathRoleSet_UpdateKeyRoleSet(t *testing.T) {
 	rsName := "test-updatekeyrs"
 	initRoles := util.StringSet{

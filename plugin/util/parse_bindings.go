@@ -31,6 +31,10 @@ func BindingsHCL(bindings map[string]StringSet) (string, error) {
 }
 
 func ParseBindings(bindingsStr string) (map[string]StringSet, error) {
+	if bindingsStr == "" {
+		return map[string]StringSet{}, nil
+	}
+
 	// Try to base64 decode
 	decoder := base64.NewDecoder(base64.StdEncoding, strings.NewReader(bindingsStr))
 	decoded, b64err := ioutil.ReadAll(decoder)
