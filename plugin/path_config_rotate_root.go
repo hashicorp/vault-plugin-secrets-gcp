@@ -37,7 +37,9 @@ func (b *backend) pathConfigRotateRootWrite(ctx context.Context, req *logical.Re
 		return nil, fmt.Errorf("no configuration")
 	}
 	if cfg.CredentialsRaw == "" {
-		return nil, fmt.Errorf("configuration does not have credentials")
+		return nil, fmt.Errorf("configuration does not have credentials - this " +
+			"endpoint only works with user-provided JSON credentials explicitly " +
+			"provided via the config/ endpoint")
 	}
 
 	// Parse the credential JSON to extract the email (we need it for the API
