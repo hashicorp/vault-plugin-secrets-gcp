@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"google.golang.org/api/option"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -126,7 +127,7 @@ func TestConfigRotateRootUpdate(t *testing.T) {
 		client := oauth2.NewClient(clientCtx, creds.TokenSource)
 
 		// Create IAM client
-		iamAdmin, err := iam.New(client)
+		iamAdmin, err := iam.NewService(ctx, option.WithHTTPClient(client))
 		if err != nil {
 			t.Fatal(err)
 		}
