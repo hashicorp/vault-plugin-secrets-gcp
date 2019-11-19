@@ -58,8 +58,8 @@ func (b *backend) pathConfigRotateRootWrite(ctx context.Context, req *logical.Re
 	saName := "projects/-/serviceAccounts/" + creds.ClientEmail
 	newKey, err := iamAdmin.Projects.ServiceAccounts.Keys.
 		Create(saName, &iam.CreateServiceAccountKeyRequest{
-			KeyAlgorithm:   "KEY_ALG_RSA_2048",
-			PrivateKeyType: "TYPE_GOOGLE_CREDENTIALS_FILE",
+			KeyAlgorithm:   keyAlgorithmRSA2k,
+			PrivateKeyType: privateKeyTypeJson,
 		}).
 		Context(ctx).
 		Do()
@@ -89,6 +89,9 @@ func (b *backend) pathConfigRotateRootWrite(ctx context.Context, req *logical.Re
 		return nil, errwrap.Wrapf("failed to save new configuration: {{err}}", err)
 	}
 
+	// Clear caches to pick up the new credentials
+	b.ClearCaches()
+
 	// Delete the old service account key
 	oldKeyName := fmt.Sprintf("projects/%s/serviceAccounts/%s/keys/%s",
 		creds.ProjectId,
@@ -100,9 +103,6 @@ func (b *backend) pathConfigRotateRootWrite(ctx context.Context, req *logical.Re
 		Do(); err != nil {
 		return nil, errwrap.Wrapf("failed to delete old service account key: {{err}}", err)
 	}
-
-	// Clear caches to pick up the new credentials
-	b.ClearCaches()
 
 	// We did it!
 	return &logical.Response{
