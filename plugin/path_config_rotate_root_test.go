@@ -99,6 +99,10 @@ func TestConfigRotateRootUpdate(t *testing.T) {
 	t.Run("rotate", func(t *testing.T) {
 		t.Parallel()
 
+		if testing.Short() {
+			t.Skip("skipping integration test (short)")
+		}
+
 		ctx := context.Background()
 		b, storage := getTestBackend(t)
 
