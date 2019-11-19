@@ -101,7 +101,10 @@ func (b *backend) pathConfigRotateRootWrite(ctx context.Context, req *logical.Re
 		Delete(oldKeyName).
 		Context(ctx).
 		Do(); err != nil {
-		return nil, errwrap.Wrapf("failed to delete old service account key: {{err}}", err)
+		return nil, errwrap.Wrapf(fmt.Sprintf(
+			"failed to delete old service account key (%q) - the new service "+
+				"account key (%q) is active, but the old one still exists: {{err}}",
+			creds.PrivateKeyId, newCreds.PrivateKeyId), err)
 	}
 
 	// We did it!
