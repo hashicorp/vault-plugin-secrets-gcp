@@ -91,6 +91,7 @@ github.com/hashicorp/golang-lru v0.5.1 h1:0hERBMJE1eitiLkihrMvRVBYAkpHzc/J3QdDN+
 github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/hashicorp/hcl v1.0.0 h1:0Anlzjpi4vEasTeNFn2mLJgTSwt0+6sfsiTG8qcWGx4=
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
+github.com/hashicorp/vault v1.3.0 h1:MaMv38qb6DNH1uuNLHaebioueemmCrftQdOiUnlNrPU=
 github.com/hashicorp/vault-plugin-auth-gcp v0.5.1 h1:8DR00s+Wmc21i3sfzvsqW88VMdf6NI2ue+onGoHshww=
 github.com/hashicorp/vault-plugin-auth-gcp v0.5.1/go.mod h1:eLj92eX8MPI4vY1jaazVLF2sVbSAJ3LRHLRhF/pUmlI=
 github.com/hashicorp/vault/api v1.0.1 h1:YQI4SgOlkmbEKZI8ZClo6fm9oXlBHJUlrbEtFiRPrng=
@@ -99,6 +100,7 @@ github.com/hashicorp/vault/api v1.0.5-0.20190814205728-e9c5cd8aca98 h1:LUVHA+Z7z
 github.com/hashicorp/vault/api v1.0.5-0.20190814205728-e9c5cd8aca98/go.mod h1:t4IAg1Is4bLUtTq8cGgeUh0I8oDRBXPk2bM1Jvg/nWA=
 github.com/hashicorp/vault/sdk v0.1.8 h1:pfF3KwA1yPlfpmcumNsFM4uo91WMasX5gTuIkItu9r0=
 github.com/hashicorp/vault/sdk v0.1.8/go.mod h1:tHZfc6St71twLizWNHvnnbiGFo1aq0eD2jGPLtP8kAU=
+github.com/hashicorp/vault/sdk v0.1.13 h1:mOEPeOhT7jl0J4AMl1E705+BcmeRs1VmKNb9F0sMLy8=
 github.com/hashicorp/vault/sdk v0.1.14-0.20190814205504-1cad00d1133b h1:uC3aN7xIG8gPNm9cbNY05OJ44cYfAv5Rn+QLSBsFq1s=
 github.com/hashicorp/vault/sdk v0.1.14-0.20190814205504-1cad00d1133b/go.mod h1:B+hVj7TpuQY1Y/GPbCpffmgd+tSEwvhkWnjtSYCaS2M=
 github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb/go.mod h1:+NfK9FKeTrX5uv1uIXGdwYDTeHna2qgaIlx54MXqjAM=
