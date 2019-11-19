@@ -131,8 +131,8 @@ func TestConfigRotateRootUpdate(t *testing.T) {
 		saName := "projects/-/serviceAccounts/" + parsedCreds.ClientEmail
 		newKey, err := iamAdmin.Projects.ServiceAccounts.Keys.
 			Create(saName, &iam.CreateServiceAccountKeyRequest{
-				KeyAlgorithm:   "KEY_ALG_RSA_2048",
-				PrivateKeyType: "TYPE_GOOGLE_CREDENTIALS_FILE",
+				KeyAlgorithm:   keyAlgorithmRSA2k,
+				PrivateKeyType: privateKeyTypeJson,
 			}).
 			Context(ctx).
 			Do()
