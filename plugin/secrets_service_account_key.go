@@ -201,22 +201,6 @@ func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleS
 		return logical.ErrorResponse(err.Error()), nil
 	}
 
-	if ttl == 0 {
-		ttl = int(cfg.TTL.Seconds())
-	}
-	if ttl == 0 {
-		ttl = int(b.System().DefaultLeaseTTL().Seconds())
-	}
-
-	maxTTL := int(cfg.MaxTTL.Seconds())
-	if maxTTL <= 0 {
-		maxTTL = int(b.System().MaxLeaseTTL().Seconds())
-	}
-
-	if ttl > maxTTL {
-		ttl = maxTTL
-	}
-
 	secretD := map[string]interface{}{
 		"private_key_data": key.PrivateKeyData,
 		"key_algorithm":    key.KeyAlgorithm,
@@ -229,9 +213,12 @@ func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleS
 	}
 
 	resp := b.Secret(SecretTypeKey).Response(secretD, internalD)
-	resp.Secret.TTL = time.Duration(ttl) * time.Second
-	resp.Secret.MaxTTL = time.Duration(maxTTL) * time.Second
 	resp.Secret.Renewable = true
+
+	if ttl > 0 {
+		resp.Secret.TTL = time.Duration(ttl) * time.Second
+	}
+
 	return resp, nil
 }
 
