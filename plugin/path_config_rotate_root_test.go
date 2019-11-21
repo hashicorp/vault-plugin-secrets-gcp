@@ -142,9 +142,7 @@ func TestConfigRotateRootUpdate(t *testing.T) {
 		}
 
 		// If we made it this far, schedule a cleanup of the key we just created.
-		defer func() {
-			tryCleanupKey(t, iamAdmin, newKey.Name)
-		}()
+		defer tryCleanupKey(t, iamAdmin, newKey.Name)
 
 		// Set config to the key
 		entry, err := logical.StorageEntryJSON("config", &config{
@@ -172,13 +170,11 @@ func TestConfigRotateRootUpdate(t *testing.T) {
 			t.Errorf("missing private_key_id")
 		}
 
-		defer func() {
 			// Make sure we delete the stored key, whether it was rotated or not (retry will not error)
-			tryCleanupKey(t, iamAdmin, fmt.Sprintf(gcputil.ServiceAccountKeyTemplate,
+		defer tryCleanupKey(t, iamAdmin, fmt.Sprintf(gcputil.ServiceAccountKeyTemplate,
 				newCreds.ProjectId,
 				newCreds.ClientEmail,
 				privateKeyId))
-		}()
 
 		if privateKeyId == newCreds.PrivateKeyId {
 			t.Errorf("creds were not rotated")
