@@ -1,4 +1,4 @@
-# Vault Plugin: Google Cloud Platform Secrets Backend
+# Vault Plugin: Google Cloud Platform Secrets Backend [![CircleCI](https://circleci.com/gh/hashicorp/vault-plugin-secrets-gcp.svg?style=svg)](https://circleci.com/gh/hashicorp/vault-plugin-secrets-gcp)
 
 This is a backend plugin to be used with [Hashicorp Vault](https://www.github.com/hashicorp/vault).
 This plugin generates either one-time (non-renewable) OAuth2 access tokens or
