@@ -26,7 +26,7 @@ jobs:
           name: "Run Tests"
           command: |
             cd $GOPATH/src/github.com/hashicorp/vault-plugin-secrets-gcp
-            go test -v ./...
+            make test
       - run:
           name: "Run Build"
           command: |
