@@ -4,18 +4,14 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"google.golang.org/api/option"
-	"io/ioutil"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault/sdk/logical"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/iam/v1"
 )
 
@@ -108,23 +104,11 @@ func TestConfigRotateRootUpdate(t *testing.T) {
 		b, storage := getTestBackend(t)
 
 		// Get user-supplied credentials
-		credsPath := os.Getenv("GOOGLE_CREDENTIALS")
-		credsBytes, err := ioutil.ReadFile(credsPath)
+		_, creds := util.GetTestCredentials(t)
+		client, err := gcputil.GetHttpClient(creds, iam.CloudPlatformScope)
 		if err != nil {
 			t.Fatal(err)
 		}
-		creds, err := google.CredentialsFromJSON(ctx, credsBytes, iam.CloudPlatformScope)
-		if err != nil {
-			t.Fatal(err)
-		}
-		parsedCreds, err := gcputil.Credentials(string(credsBytes))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		// Create http client
-		clientCtx := context.WithValue(ctx, oauth2.HTTPClient, cleanhttp.DefaultClient())
-		client := oauth2.NewClient(clientCtx, creds.TokenSource)
 
 		// Create IAM client
 		iamAdmin, err := iam.NewService(ctx, option.WithHTTPClient(client))
@@ -132,8 +116,8 @@ func TestConfigRotateRootUpdate(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Create a new key, since this endpoint revokes the old key
-		saName := "projects/-/serviceAccounts/" + parsedCreds.ClientEmail
+		// Create a new key, since this endpoint will revoke the key given.
+		saName := "projects/-/serviceAccounts/" + creds.ClientEmail
 		newKey, err := iamAdmin.Projects.ServiceAccounts.Keys.
 			Create(saName, &iam.CreateServiceAccountKeyRequest{
 				KeyAlgorithm:   keyAlgorithmRSA2k,
@@ -157,14 +141,8 @@ func TestConfigRotateRootUpdate(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// If we made it this far, schedule a cleanup of the new key
-		defer func() {
-			newKeyName := fmt.Sprintf("projects/%s/serviceAccounts/%s/keys/%s",
-				newCreds.ProjectId,
-				newCreds.ClientEmail,
-				newCreds.PrivateKeyId)
-			iamAdmin.Projects.ServiceAccounts.Keys.Delete(newKeyName)
-		}()
+		// If we made it this far, schedule a cleanup of the key we just created.
+		defer tryCleanupKey(t, iamAdmin, newKey.Name)
 
 		// Set config to the key
 		entry, err := logical.StorageEntryJSON("config", &config{
@@ -192,8 +170,21 @@ func TestConfigRotateRootUpdate(t *testing.T) {
 			t.Errorf("missing private_key_id")
 		}
 
+			// Make sure we delete the stored key, whether it was rotated or not (retry will not error)
+		defer tryCleanupKey(t, iamAdmin, fmt.Sprintf(gcputil.ServiceAccountKeyTemplate,
+				newCreds.ProjectId,
+				newCreds.ClientEmail,
+				privateKeyId))
+
 		if privateKeyId == newCreds.PrivateKeyId {
 			t.Errorf("creds were not rotated")
 		}
 	})
+}
+
+func tryCleanupKey(t *testing.T, iamAdmin *iam.Service, keyName string) {
+	_, err := iamAdmin.Projects.ServiceAccounts.Keys.Delete(keyName).Do()
+	if err != nil && !isGoogleAccountKeyNotFoundErr(err) {
+		t.Logf("WARNING: failed to delete key created for test, clean up manually: %v", err)
+	}
 }

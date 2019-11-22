@@ -1,4 +1,4 @@
-# Vault Plugin: Google Cloud Platform Secrets Backend
+# Vault Plugin: Google Cloud Platform Secrets Backend [![CircleCI](https://circleci.com/gh/hashicorp/vault-plugin-secrets-gcp.svg?style=svg)](https://circleci.com/gh/hashicorp/vault-plugin-secrets-gcp)
 
 This is a backend plugin to be used with [Hashicorp Vault](https://www.github.com/hashicorp/vault).
 This plugin generates either one-time (non-renewable) OAuth2 access tokens or
@@ -175,10 +175,15 @@ permissions listed below. The following steps assume you have
         --iam-account "vault-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
     ```
 
-1. Export the credentials to an environment variable:
-
+1. Export the credentials to an environment variable. You can set the env variable to either 
+   the path or the JSON itself, i.e.
+   
     ```text
-    $ export GOOGLE_CREDENTIALS="$(cat vault-tester.json)"
+    $ export GOOGLE_CREDENTIALS="path/to/vault-tester.json"
+    ```
+    
+    ```text
+    $ export GOOGLE_CREDENTIALS="$(cat path/to/vault-tester.json)"
     ```
 
 1. Run the acceptance tests:
