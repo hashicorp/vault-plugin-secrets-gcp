@@ -170,11 +170,11 @@ func TestConfigRotateRootUpdate(t *testing.T) {
 			t.Errorf("missing private_key_id")
 		}
 
-			// Make sure we delete the stored key, whether it was rotated or not (retry will not error)
+		// Make sure we delete the stored key, whether it was rotated or not (retry will not error)
 		defer tryCleanupKey(t, iamAdmin, fmt.Sprintf(gcputil.ServiceAccountKeyTemplate,
-				newCreds.ProjectId,
-				newCreds.ClientEmail,
-				privateKeyId))
+			newCreds.ProjectId,
+			newCreds.ClientEmail,
+			privateKeyId))
 
 		if privateKeyId == newCreds.PrivateKeyId {
 			t.Errorf("creds were not rotated")
