@@ -5,16 +5,12 @@ import (
 	"fmt"
 	"github.com/hashicorp/vault/sdk/framework"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
-	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"github.com/hashicorp/vault/sdk/helper/useragent"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/mitchellh/mapstructure"
-	"google.golang.org/api/googleapi"
-	"google.golang.org/api/iam/v1"
 )
 
 const (
@@ -105,8 +101,8 @@ func (b *backend) serviceAccountKeyRollback(ctx context.Context, req *logical.Re
 
 	// If roleset is not nil, get key in use.
 	if rs != nil {
-		if rs.SecretType == SecretTypeAccessToken {
-			// Don't clean keys if roleset generates key secrets.
+		if rs.SecretType != SecretTypeAccessToken {
+			// Don't clean keys if roleset doesn't create access_tokens (i.e. creates keys).
 			return nil
 		}
 
@@ -216,59 +212,6 @@ func (b *backend) serviceAccountPolicyRollback(ctx context.Context, req *logical
 	return err
 }
 
-func (b *backend) deleteServiceAccount(ctx context.Context, iamAdmin *iam.Service, account gcputil.ServiceAccountId) error {
-	if account.EmailOrId == "" {
-		return nil
-	}
-
-	_, err := iamAdmin.Projects.ServiceAccounts.Delete(account.ResourceName()).Do()
-	if err != nil && !isGoogleAccountNotFoundErr(err) {
-		return errwrap.Wrapf("unable to delete service account: {{err}}", err)
-	}
-	return nil
-}
-
-func (b *backend) deleteTokenGenKey(ctx context.Context, iamAdmin *iam.Service, tgen *TokenGenerator) error {
-	if tgen == nil || tgen.KeyName == "" {
-		return nil
-	}
-
-	_, err := iamAdmin.Projects.ServiceAccounts.Keys.Delete(tgen.KeyName).Do()
-	if err != nil && !isGoogleAccountKeyNotFoundErr(err) {
-		return errwrap.Wrapf("unable to delete service account key: {{err}}", err)
-	}
-	return nil
-}
-
-func (b *backend) removeBindings(ctx context.Context, iamHandle *iamutil.IamHandle, email string, bindings ResourceBindings) (allErr *multierror.Error) {
-	for resName, roles := range bindings {
-		resource, err := b.iamResources.Parse(resName)
-		if err != nil {
-			allErr = multierror.Append(allErr, errwrap.Wrapf(fmt.Sprintf("unable to delete role binding for resource '%s': {{err}}", resName), err))
-			continue
-		}
-
-		p, err := iamHandle.GetIamPolicy(ctx, resource)
-		if err != nil {
-			allErr = multierror.Append(allErr, errwrap.Wrapf(fmt.Sprintf("unable to delete role binding for resource '%s': {{err}}", resName), err))
-			continue
-		}
-
-		changed, newP := p.RemoveBindings(&iamutil.PolicyDelta{
-			Email: email,
-			Roles: roles,
-		})
-		if !changed {
-			continue
-		}
-		if _, err = iamHandle.SetIamPolicy(ctx, resource, newP); err != nil {
-			allErr = multierror.Append(allErr, errwrap.Wrapf(fmt.Sprintf("unable to delete role binding for resource '%s': {{err}}", resName), err))
-			continue
-		}
-	}
-	return
-}
-
 // This tries to clean up WALs that are no longer needed.
 // We can ignore errors if deletion fails as WAL rollback will no-op if the object is still in use or no longer exists.
 // This simply attempts to reduce the number of GCP calls we will trigger in rollbacks.
@@ -280,30 +223,4 @@ func (b *backend) tryDeleteWALs(ctx context.Context, s logical.Storage, walIds .
 			b.Logger().Error("unable to delete unneeded WAL %s, ignoring error since WAL will no-op: %v", walId, err)
 		}
 	}
-}
-
-func isGoogleAccountNotFoundErr(err error) bool {
-	return isGoogleApiErrorWithCodes(err, 404)
-}
-
-func isGoogleAccountKeyNotFoundErr(err error) bool {
-	return isGoogleApiErrorWithCodes(err, 403, 404)
-}
-
-func isGoogleApiErrorWithCodes(err error, validErrCodes ...int) bool {
-	if err == nil {
-		return false
-	}
-	gErr, ok := err.(*googleapi.Error)
-	if !ok {
-		return false
-	}
-
-	for _, code := range validErrCodes {
-		if gErr.Code == code {
-			return true
-		}
-	}
-
-	return false
 }
