@@ -174,12 +174,8 @@ func (b *backend) secretKeyRevoke(ctx context.Context, req *logical.Request, d *
 }
 
 func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleSet, keyType, keyAlgorithm string, ttl int) (*logical.Response, error) {
-	cfg, err := getConfig(ctx, s)
-	if err != nil {
-		return nil, errwrap.Wrapf("could not read backend config: {{err}}", err)
-	}
-	if cfg == nil {
-		cfg = &config{}
+	if rs.AccountId == nil {
+		return nil, fmt.Errorf("unable to create secret (service account key), roleset has nil account ID")
 	}
 
 	iamC, err := b.IAMAdminClient(s)
@@ -187,13 +183,8 @@ func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleS
 		return nil, errwrap.Wrapf("could not create IAM Admin client: {{err}}", err)
 	}
 
-	account, err := b.getServiceAccount(iamC, rs.AccountId)
-	if err != nil {
-		return logical.ErrorResponse(fmt.Sprintf("roleset service account was removed - role set must be updated (write to roleset/%s/rotate) before generating new secrets", rs.Name)), nil
-	}
-
 	key, err := iamC.Projects.ServiceAccounts.Keys.Create(
-		account.Name, &iam.CreateServiceAccountKeyRequest{
+		rs.AccountId.ResourceName(), &iam.CreateServiceAccountKeyRequest{
 			KeyAlgorithm:   keyAlgorithm,
 			PrivateKeyType: keyType,
 		}).Do()
