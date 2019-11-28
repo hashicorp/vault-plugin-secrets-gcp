@@ -187,7 +187,7 @@ func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleS
 		return nil, errwrap.Wrapf("could not create IAM Admin client: {{err}}", err)
 	}
 
-	account, err := rs.getServiceAccount(iamC)
+	account, err := b.getServiceAccount(iamC, rs.AccountId)
 	if err != nil {
 		return logical.ErrorResponse(fmt.Sprintf("roleset service account was removed - role set must be updated (write to roleset/%s/rotate) before generating new secrets", rs.Name)), nil
 	}
