@@ -117,8 +117,8 @@ func (b *backend) getServiceAccount(iamAdmin *iam.Service, accountId *gcputil.Se
 	return account, nil
 }
 
-// saveRoleSetWithNewTokenKey rotates the role set service account, including its name and any keys or bindings
-// associated with it.
+// saveRoleSetWithNewAccount rotates the role set service account. This includes creating a new service account with
+// a new name and deleting the old service account, updating keys or bindings as required.
 func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, req *logical.Request, rs *RoleSet, project string, newBinds ResourceBindings, scopes []string) (warnings []string, err error) {
 	b.Logger().Debug("updating roleset with new account")
 
