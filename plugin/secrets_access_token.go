@@ -3,7 +3,6 @@ package gcpsecrets
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"time"
 
 	"github.com/hashicorp/errwrap"
@@ -13,49 +12,12 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-func pathSecretAccessToken(b *backend) *framework.Path {
-	return &framework.Path{
-		Pattern: fmt.Sprintf("token/%s", framework.GenericNameRegex("roleset")),
-		Fields: map[string]*framework.FieldSchema{
-			"roleset": {
-				Type:        framework.TypeString,
-				Description: "Required. Name of the role set.",
-			},
-		},
-		ExistenceCheck: b.pathRoleSetExistenceCheck,
-		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathAccessToken},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathAccessToken},
-		},
-		HelpSynopsis:    pathTokenHelpSyn,
-		HelpDescription: pathTokenHelpDesc,
-	}
-}
-
-func (b *backend) pathAccessToken(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	rsName := d.Get("roleset").(string)
-
-	rs, err := getRoleSet(rsName, ctx, req.Storage)
-	if err != nil {
-		return nil, err
-	}
-	if rs == nil {
-		return logical.ErrorResponse("role set '%s' does not exists", rsName), nil
+func (b *backend) secretAccessTokenResponse(ctx context.Context, s logical.Storage, tokenGen *TokenGenerator) (*logical.Response, error) {
+	if tokenGen == nil || tokenGen.KeyName == "" {
+		return logical.ErrorResponse("invalid token generator has no service account key"), nil
 	}
 
-	if rs.SecretType != SecretTypeAccessToken {
-		return logical.ErrorResponse("role set '%s' cannot generate access tokens (has secret type %s)", rsName, rs.SecretType), nil
-	}
-
-	return b.secretAccessTokenResponse(ctx, req.Storage, rs)
-}
-
-func (b *backend) secretAccessTokenResponse(ctx context.Context, s logical.Storage, rs *RoleSet) (*logical.Response, error) {
-	if rs.TokenGen == nil || rs.TokenGen.KeyName == "" {
-		return logical.ErrorResponse("invalid role set has no service account key, must be updated (path roleset/%s/rotate-key) before generating new secrets", rs.Name), nil
-	}
-
-	token, err := rs.TokenGen.getAccessToken(ctx)
+	token, err := tokenGen.getAccessToken(ctx)
 	if err != nil {
 		return logical.ErrorResponse("unable to generate token - make sure your roleset service account and key are still valid: %v", err), nil
 	}
@@ -109,9 +71,10 @@ Please see backend documentation for more information:
 https://www.vaultproject.io/docs/secrets/gcp/index.html
 `
 
-// EVERYTHING USING THIS SECRET TYPE IS CURRENTLY DEPRECATED.
-// We keep it to allow for clean up of access_token secrets/leases that may have be left over
-// by older versions of Vault.
+// THIS SECRET TYPE IS DEPRECATED - future secret requests returns a response with no framework.Secret
+// We are keeping them as part of the created framework.Secret
+// to allow for clean up of access_token secrets and leases
+// from older versions of Vault.
 const SecretTypeAccessToken = "access_token"
 
 func secretAccessToken(b *backend) *framework.Secret {
