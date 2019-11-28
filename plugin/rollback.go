@@ -3,13 +3,13 @@ package gcpsecrets
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/vault/sdk/framework"
 
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
-	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/useragent"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/mitchellh/mapstructure"
@@ -81,7 +81,7 @@ func (b *backend) serviceAccountRollback(ctx context.Context, req *logical.Reque
 		return err
 	}
 
-	return b.deleteServiceAccount(ctx, iamC, &entry.Id)
+	return b.deleteServiceAccount(ctx, iamC, entry.Id)
 }
 
 func (b *backend) serviceAccountKeyRollback(ctx context.Context, req *logical.Request, data interface{}) error {
@@ -216,8 +216,8 @@ func (b *backend) serviceAccountPolicyRollback(ctx context.Context, req *logical
 	return err
 }
 
-func (b *backend) deleteServiceAccount(ctx context.Context, iamAdmin *iam.Service, account *gcputil.ServiceAccountId) error {
-	if account == nil || account.EmailOrId == "" {
+func (b *backend) deleteServiceAccount(ctx context.Context, iamAdmin *iam.Service, account gcputil.ServiceAccountId) error {
+	if account.EmailOrId == "" {
 		return nil
 	}
 
@@ -270,14 +270,15 @@ func (b *backend) removeBindings(ctx context.Context, iamHandle *iamutil.IamHand
 }
 
 // This tries to clean up WALs that are no longer needed.
-// We can ignore errors if deletion fails as WAL rollback
-// will not be done if the object is still in use in the roleset
-// or was not actually created.
-func tryDeleteWALs(ctx context.Context, s logical.Storage, walIds ...string) {
+// We can ignore errors if deletion fails as WAL rollback will no-op if the object is still in use or no longer exists.
+// This simply attempts to reduce the number of GCP calls we will trigger in rollbacks.
+func (b *backend) tryDeleteWALs(ctx context.Context, s logical.Storage, walIds ...string) {
 	for _, walId := range walIds {
-		// ignore errors - if not deleted and still used by
-		// roleset, will be ignored
-		framework.DeleteWAL(ctx, s, walId)
+		// ignore errors, WALs that are not needed will just no-op
+		err := framework.DeleteWAL(ctx, s, walId)
+		if err != nil {
+			b.Logger().Error("unable to delete unneeded WAL %s, ignoring error since WAL will no-op: %v", walId, err)
+		}
 	}
 }
 
