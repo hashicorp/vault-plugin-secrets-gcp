@@ -2,10 +2,11 @@ package gcpsecrets
 
 import (
 	"context"
+	"github.com/hashicorp/go-hclog"
+	"os"
 	"testing"
 	"time"
 
-	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
@@ -19,7 +20,9 @@ func getTestBackend(tb testing.TB) (logical.Backend, logical.Storage) {
 
 	config := logical.TestBackendConfig()
 	config.StorageView = new(logical.InmemStorage)
-	config.Logger = hclog.NewNullLogger()
+	if os.Getenv("VAULT_LOG") == "" {
+		config.Logger = hclog.NewNullLogger()
+	}
 	config.System = &logical.StaticSystemView{
 		DefaultLeaseTTLVal: defaultLeaseTTLHr * time.Hour,
 		MaxLeaseTTLVal:     maxLeaseTTLHr * time.Hour,
