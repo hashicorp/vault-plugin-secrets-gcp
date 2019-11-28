@@ -105,8 +105,8 @@ func (b *backend) serviceAccountKeyRollback(ctx context.Context, req *logical.Re
 
 	// If roleset is not nil, get key in use.
 	if rs != nil {
-		if rs.SecretType == SecretTypeAccessToken {
-			// Don't clean keys if roleset generates key secrets.
+		if rs.SecretType != SecretTypeAccessToken {
+			// Don't clean keys if roleset doesn't create access_tokens (i.e. creates keys).
 			return nil
 		}
 
