@@ -254,12 +254,12 @@ func (b *backend) addWalsForRoleSetResources(ctx context.Context, req *logical.R
 	}
 	walIds = append(walIds, walId)
 
-	for resName, roleSet := range boundResources.bindings {
+	for resource, roles := range boundResources.bindings {
 		walId, err := framework.PutWAL(ctx, req.Storage, walTypeIamPolicy, &walIamPolicy{
 			RoleSet:   rolesetName,
 			AccountId: boundResources.accountId,
-			Resource:  resName,
-			Roles:     roleSet.ToSlice(),
+			Resource:  resource,
+			Roles:     roles.ToSlice(),
 		})
 		if err != nil {
 			return walIds, errwrap.Wrapf("unable to create WAL entry to clean up service account bindings: {{err}}", err)
