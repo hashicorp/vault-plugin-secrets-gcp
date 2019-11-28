@@ -157,7 +157,11 @@ func (b *backend) pathRoleSetRead(ctx context.Context, req *logical.Request, d *
 }
 
 func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d *framework.FieldData) (resp *logical.Response, err error) {
-	rsName := d.Get("name").(string)
+	nameRaw, ok := d.GetOk("name")
+	if !ok {
+		return logical.ErrorResponse("name is required"), nil
+	}
+	rsName := nameRaw.(string)
 
 	b.rolesetLock.Lock()
 	defer b.rolesetLock.Unlock()
@@ -185,11 +189,11 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 	}
 
 	// Try to clean up resources.
-	if cleanupErr := b.tryDeleteRoleSetResources(ctx, req, resources, walIds); cleanupErr != nil {
-		b.Logger().Warn(
-			"unable to clean up unused GCP resources from deleted roleset. WALs exist to clean up but ignoring error",
-			"roleset", rsName, "errors", cleanupErr)
-		return &logical.Response{Warnings: []string{cleanupErr.Error()}}, nil
+	if warnings := b.tryDeleteRoleSetResources(ctx, req, resources, walIds); len(warnings) > 0 {
+		b.Logger().Debug(
+			"unable to delete GCP resources for deleted roleset but WALs exist to clean up, ignoring errors",
+			"roleset", rsName, "errors", warnings)
+		return &logical.Response{Warnings: warnings}, nil
 	}
 
 	b.Logger().Debug("successfully deleted roleset and GCP resources", "name", rsName)
@@ -199,6 +203,9 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	var warnings []string
 	name := d.Get("name").(string)
+
+	b.rolesetLock.Lock()
+	defer b.rolesetLock.Unlock()
 
 	b.rolesetLock.Lock()
 	defer b.rolesetLock.Unlock()
@@ -339,6 +346,9 @@ func (b *backend) pathRoleSetRotateAccount(ctx context.Context, req *logical.Req
 	b.rolesetLock.Lock()
 	defer b.rolesetLock.Unlock()
 
+	b.rolesetLock.Lock()
+	defer b.rolesetLock.Unlock()
+
 	rs, err := getRoleSet(name, ctx, req.Storage)
 	if err != nil {
 		return nil, err
@@ -363,6 +373,9 @@ func (b *backend) pathRoleSetRotateAccount(ctx context.Context, req *logical.Req
 
 func (b *backend) pathRoleSetRotateKey(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	name := d.Get("name").(string)
+
+	b.rolesetLock.Lock()
+	defer b.rolesetLock.Unlock()
 
 	b.rolesetLock.Lock()
 	defer b.rolesetLock.Unlock()
