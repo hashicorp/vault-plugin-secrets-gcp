@@ -29,9 +29,32 @@ var testRoles = util.StringSet{
 	"roles/iam.roleViewer": struct{}{},
 }
 
-func TestSecrets_GenerateAccessToken(t *testing.T) {
-	secretType := SecretTypeAccessToken
+// Test deprecated path still works
+func TestSecrets_getRoleSetAccessToken(t *testing.T) {
 	rsName := "test-gentoken"
+	testGetRoleSetAccessToken(t, rsName, fmt.Sprintf("roleset/%s/token", rsName))
+}
+
+// Test deprecated path still works
+func TestSecrets_getRoleSetKey(t *testing.T) {
+	rsName := "test-genkey"
+	testGetRoleSetKey(t, rsName, fmt.Sprintf("roleset/%s/key", rsName))
+}
+
+// Test deprecated path still works
+func TestSecretsDeprecated_getRoleSetAccessToken(t *testing.T) {
+	rsName := "test-gentoken"
+	testGetRoleSetAccessToken(t, rsName, fmt.Sprintf("token/%s", rsName))
+}
+
+// Test deprecated path still works
+func TestSecretsDeprecated_getRoleSetKey(t *testing.T) {
+	rsName := "test-genkey"
+	testGetRoleSetKey(t, rsName, fmt.Sprintf("key/%s", rsName))
+}
+
+func testGetRoleSetAccessToken(t *testing.T, rsName, path string) {
+	secretType := SecretTypeAccessToken
 
 	td := setupTest(t)
 	defer cleanup(t, td, rsName, testRoles)
@@ -56,7 +79,7 @@ func TestSecrets_GenerateAccessToken(t *testing.T) {
 	// expect error for trying to read key from token roleset
 	testGetKeyFail(t, td, rsName)
 
-	token := testGetToken(t, td, rsName)
+	token := testGetToken(t, path, td)
 
 	callC := oauth2.NewClient(
 		context.Background(),
@@ -69,9 +92,8 @@ func TestSecrets_GenerateAccessToken(t *testing.T) {
 	verifyProjectBindingsRemoved(t, td, sa.Email, testRoles)
 }
 
-func TestSecrets_GenerateKey(t *testing.T) {
+func testGetRoleSetKey(t *testing.T, rsName, path string) {
 	secretType := SecretTypeKey
-	rsName := "test-genkey"
 
 	td := setupTest(t)
 	defer cleanup(t, td, rsName, testRoles)
@@ -95,7 +117,7 @@ func TestSecrets_GenerateKey(t *testing.T) {
 	// expect error for trying to read token from key roleset
 	testGetTokenFail(t, td, rsName)
 
-	creds, secret := testGetKey(t, td, rsName)
+	creds, secret := testGetKey(t, path, td)
 
 	// Confirm calls with key work
 	keyHttpC := oauth2.NewClient(context.Background(), creds.TokenSource)
@@ -115,12 +137,11 @@ func TestSecrets_GenerateKey(t *testing.T) {
 	testRevokeSecretKey(t, td, secret)
 
 	k, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
-
-	if k != nil {
-		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
-	}
 	if err == nil || !isGoogleAccountKeyNotFoundErr(err) {
 		t.Fatalf("expected 404 error from getting deleted key, instead got error: %v", err)
+	}
+	if k != nil {
+		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
 	}
 
 	// Cleanup: Delete role set
@@ -168,10 +189,10 @@ func testGetKeyFail(t *testing.T, td *testData, rsName string) {
 	}
 }
 
-func testGetToken(t *testing.T, td *testData, rsName string) (token string) {
+func testGetToken(t *testing.T, path string, td *testData) (token string) {
 	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.ReadOperation,
-		Path:      fmt.Sprintf("token/%s", rsName),
+		Path:      path,
 		Storage:   td.S,
 	})
 
@@ -211,10 +232,10 @@ func testGetToken(t *testing.T, td *testData, rsName string) (token string) {
 	return tokenRaw.(string)
 }
 
-func testGetKey(t *testing.T, td *testData, rsName string) (*google.Credentials, *logical.Secret) {
+func testGetKey(t *testing.T, path string, td *testData) (*google.Credentials, *logical.Secret) {
 	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.ReadOperation,
-		Path:      fmt.Sprintf("key/%s", rsName),
+		Path:      path,
 		Storage:   td.S,
 	})
 

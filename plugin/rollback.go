@@ -14,9 +14,10 @@ import (
 )
 
 const (
-	walTypeAccount    = "account"
-	walTypeAccountKey = "account_key"
-	walTypeIamPolicy  = "iam_policy"
+	walTypeAccount       = "account"
+	walTypeAccountKey    = "account_key"
+	walTypeIamPolicy     = "iam_policy"
+	walTypeIamPolicyDiff = "iam_policy_diff"
 )
 
 func (b *backend) walRollback(ctx context.Context, req *logical.Request, kind string, data interface{}) error {
@@ -27,6 +28,8 @@ func (b *backend) walRollback(ctx context.Context, req *logical.Request, kind st
 		return b.serviceAccountKeyRollback(ctx, req, data)
 	case walTypeIamPolicy:
 		return b.serviceAccountPolicyRollback(ctx, req, data)
+	case walTypeIamPolicyDiff:
+		return b.serviceAccountPolicyDiffRollback(ctx, req, data)
 	default:
 		return fmt.Errorf("unknown type to rollback")
 	}
@@ -39,6 +42,7 @@ type walAccount struct {
 
 type walAccountKey struct {
 	RoleSet            string
+	StaticAccount      string
 	ServiceAccountName string
 	KeyName            string
 }
@@ -50,6 +54,14 @@ type walIamPolicy struct {
 	Roles     []string
 }
 
+type walIamPolicyStaticAccount struct {
+	StaticAccount string
+	AccountId     gcputil.ServiceAccountId
+	Resource      string
+	RolesAdded    []string
+	RolesRemoved  []string
+}
+
 func (b *backend) serviceAccountRollback(ctx context.Context, req *logical.Request, data interface{}) error {
 	b.rolesetLock.Lock()
 	defer b.rolesetLock.Unlock()
@@ -59,13 +71,13 @@ func (b *backend) serviceAccountRollback(ctx context.Context, req *logical.Reque
 		return err
 	}
 
-	// If account is still being used, WAL entry was not
-	// deleted properly after a successful operation.
-	// Remove WAL entry.
 	rs, err := getRoleSet(entry.RoleSet, ctx, req.Storage)
 	if err != nil {
 		return err
 	}
+
+	// If account is still being used, WAL entry was not deleted properly after a successful operation.
+	// Remove WAL entry.
 	if rs != nil && entry.Id.ResourceName() == rs.AccountId.ResourceName() {
 		// Still being used - don't delete this service account.
 		return nil
@@ -89,26 +101,46 @@ func (b *backend) serviceAccountKeyRollback(ctx context.Context, req *logical.Re
 		return err
 	}
 
-	b.Logger().Debug("checking roleset listed in WAL is access_token roleset")
-
+	b.Logger().Debug("checking parent listed in WAL generates access_token secret")
 	var keyInUse string
 
-	// Get roleset for entry
-	rs, err := getRoleSet(entry.RoleSet, ctx, req.Storage)
-	if err != nil {
-		return err
-	}
-
-	// If roleset is not nil, get key in use.
-	if rs != nil {
-		if rs.SecretType != SecretTypeAccessToken {
-			// Don't clean keys if roleset doesn't create access_tokens (i.e. creates keys).
-			return nil
+	switch {
+	case entry.RoleSet != "":
+		rs, err := getRoleSet(entry.RoleSet, ctx, req.Storage)
+		if err != nil {
+			return err
 		}
 
-		if rs.TokenGen != nil {
-			keyInUse = rs.TokenGen.KeyName
+		// If roleset is not nil, get key in use.
+		if rs != nil {
+			if rs.SecretType != SecretTypeAccessToken {
+				// Remove WAL entry - we don't clean keys if roleset generates key secrets.
+				return nil
+			}
+
+			if rs.TokenGen != nil {
+				keyInUse = rs.TokenGen.KeyName
+			}
 		}
+	case entry.StaticAccount != "":
+		sa, err := b.getStaticAccount(entry.StaticAccount, ctx, req.Storage)
+		if err != nil {
+			return err
+		}
+
+		// If roleset is not nil, get key in use.
+		if sa != nil {
+			if sa.SecretType != SecretTypeAccessToken {
+				// Remove WAL entry - we don't clean keys if roleset generates key secrets.
+				return nil
+			}
+			if sa.TokenGen != nil {
+				keyInUse = sa.TokenGen.KeyName
+			}
+		}
+	default:
+		b.Logger().Error("removing invalid walAccountKey with empty RoleSet and empty StaticAccount - may need manual cleanup: %v", entry)
+		return nil
 	}
 
 	iamC, err := b.IAMAdminClient(req.Storage)
@@ -163,19 +195,21 @@ func (b *backend) serviceAccountPolicyRollback(ctx context.Context, req *logical
 		return err
 	}
 
+	var rolesInUse util.StringSet
+
 	// Try to verify service account not being used by roleset
 	rs, err := getRoleSet(entry.RoleSet, ctx, req.Storage)
 	if err != nil {
 		return err
 	}
+	if rs.AccountId != nil && rs.AccountId.ResourceName() == entry.AccountId.ResourceName() {
+		rolesInUse = rs.Bindings[entry.Resource]
+	}
 
 	// Take out any bindings still being used by this role set from roles being removed.
 	rolesToRemove := util.ToSet(entry.Roles)
-	if rs != nil && rs.AccountId.ResourceName() == entry.AccountId.ResourceName() {
-		currRoles, ok := rs.Bindings[entry.Resource]
-		if ok {
-			rolesToRemove = rolesToRemove.Sub(currRoles)
-		}
+	if len(rolesInUse) > 0 {
+		rolesToRemove = rolesToRemove.Sub(rolesInUse)
 	}
 
 	r, err := b.iamResources.Parse(entry.Resource)
@@ -189,10 +223,6 @@ func (b *backend) serviceAccountPolicyRollback(ctx context.Context, req *logical
 	}
 
 	iamHandle := iamutil.GetIamHandle(httpC, useragent.String())
-	if err != nil {
-		return err
-	}
-
 	p, err := iamHandle.GetIamPolicy(ctx, r)
 	if err != nil {
 		return err
@@ -203,7 +233,67 @@ func (b *backend) serviceAccountPolicyRollback(ctx context.Context, req *logical
 			Email: entry.AccountId.EmailOrId,
 			Roles: rolesToRemove,
 		})
+	if !changed {
+		return nil
+	}
 
+	_, err = iamHandle.SetIamPolicy(ctx, r, newP)
+	return err
+}
+
+func (b *backend) serviceAccountPolicyDiffRollback(ctx context.Context, req *logical.Request, data interface{}) error {
+	b.rolesetLock.Lock()
+	defer b.rolesetLock.Unlock()
+
+	var entry walIamPolicyStaticAccount
+	if err := mapstructure.Decode(data, &entry); err != nil {
+		return err
+	}
+
+	var rolesInUse util.StringSet
+
+	// Try to verify service account not being used by roleset
+	sa, err := b.getStaticAccount(entry.StaticAccount, ctx, req.Storage)
+	if err != nil {
+		return err
+	}
+	if sa.ResourceName() == entry.AccountId.ResourceName() {
+		rolesInUse = sa.Bindings[entry.Resource]
+	}
+
+	// We added roles that are not actually in use
+	addedRolesToRemove := util.ToSet(entry.RolesAdded).Sub(rolesInUse)
+
+	// We removed roles that are still saved
+	removedRolesToAdd := util.ToSet(entry.RolesRemoved).Intersection(rolesInUse)
+
+	r, err := b.iamResources.Parse(entry.Resource)
+	if err != nil {
+		return err
+	}
+
+	httpC, err := b.HTTPClient(req.Storage)
+	if err != nil {
+		return err
+	}
+
+	iamHandle := iamutil.GetIamHandle(httpC, useragent.String())
+	p, err := iamHandle.GetIamPolicy(ctx, r)
+	if err != nil {
+		return err
+	}
+
+	changed, newP := p.ChangeBindings(
+		// toAdd
+		&iamutil.PolicyDelta{
+			Email: entry.AccountId.EmailOrId,
+			Roles: removedRolesToAdd,
+		},
+		// toRemove
+		&iamutil.PolicyDelta{
+			Email: entry.AccountId.EmailOrId,
+			Roles: addedRolesToRemove,
+		})
 	if !changed {
 		return nil
 	}
