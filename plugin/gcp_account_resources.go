@@ -50,6 +50,18 @@ func (rb ResourceBindings) asOutput() map[string][]string {
 	return out
 }
 
+func (rb ResourceBindings) sub(toRemove ResourceBindings) ResourceBindings {
+	subbed := make(ResourceBindings)
+	for r, iamRoles := range rb {
+		toRemoveIamRoles, ok := toRemove[r]
+		if ok {
+			iamRoles = iamRoles.Sub(toRemoveIamRoles)
+		}
+		subbed[r] = iamRoles
+	}
+	return subbed
+}
+
 func getStringHash(bindingsRaw string) string {
 	ssum := sha256.Sum256([]byte(bindingsRaw)[:])
 	return base64.StdEncoding.EncodeToString(ssum[:])
@@ -79,7 +91,7 @@ func (b *backend) createNewTokenGen(ctx context.Context, req *logical.Request, p
 }
 
 func (b *backend) createIamBindings(ctx context.Context, req *logical.Request, saEmail string, binds ResourceBindings) error {
-	b.Logger().Debug("creating IAM bindings", "account_email", saEmail)
+	b.Logger().Debug("creating IAM bindings", "account_email", saEmail, "bindings", binds)
 	httpC, err := b.HTTPClient(req.Storage)
 	if err != nil {
 		return err
@@ -145,17 +157,12 @@ func (b *backend) tryDeleteGcpAccountResources(ctx context.Context, req *logical
 		return nil
 	}
 
-	httpC, err := b.HTTPClient(req.Storage)
-	if err != nil {
-		return []string{err.Error()}
-	}
+	b.Logger().Debug("try to delete GCP account resources", "bound resources", boundResources, "remove service account", removeServiceAccount)
 
 	iamAdmin, err := b.IAMAdminClient(req.Storage)
 	if err != nil {
 		return []string{err.Error()}
 	}
-
-	iamHandle := iamutil.GetIamHandle(httpC, useragent.String())
 
 	warnings := make([]string, 0)
 	if boundResources.tokenGen != nil {
@@ -165,7 +172,7 @@ func (b *backend) tryDeleteGcpAccountResources(ctx context.Context, req *logical
 		}
 	}
 
-	if merr := b.removeBindings(ctx, iamHandle, boundResources.accountId.EmailOrId, boundResources.bindings); merr != nil {
+	if merr := b.removeBindings(ctx, req, boundResources.accountId.EmailOrId, boundResources.bindings); merr != nil {
 		for _, err := range merr.Errors {
 			w := fmt.Sprintf("unable to delete IAM policy bindings for service account %q (WAL entry to clean-up later has been added): %v", boundResources.accountId.EmailOrId, err)
 			warnings = append(warnings, w)
@@ -199,7 +206,14 @@ func (b *backend) deleteTokenGenKey(ctx context.Context, iamAdmin *iam.Service, 
 	return nil
 }
 
-func (b *backend) removeBindings(ctx context.Context, iamHandle *iamutil.IamHandle, email string, bindings ResourceBindings) (allErr *multierror.Error) {
+func (b *backend) removeBindings(ctx context.Context, req *logical.Request, email string, bindings ResourceBindings) (allErr *multierror.Error) {
+	httpC, err := b.HTTPClient(req.Storage)
+	if err != nil {
+		return &multierror.Error{Errors: []error{err}}
+	}
+
+	iamHandle := iamutil.GetIamHandle(httpC, useragent.String())
+
 	for resName, roles := range bindings {
 		resource, err := b.iamResources.Parse(resName)
 		if err != nil {
