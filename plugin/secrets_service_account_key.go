@@ -44,7 +44,7 @@ func pathSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("key/%s", framework.GenericNameRegex("roleset")),
 		Fields: map[string]*framework.FieldSchema{
-			"roleset": {
+			"name": {
 				Type:        framework.TypeString,
 				Description: "Required. Name of the role set.",
 			},
