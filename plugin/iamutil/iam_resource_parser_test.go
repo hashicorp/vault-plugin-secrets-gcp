@@ -183,6 +183,7 @@ func verifyHttpMethod(typeKey string, m *RestMethod) error {
 	case http.MethodGet:
 	case http.MethodPost:
 	case http.MethodPut:
+	case http.MethodPatch:
 		return nil
 	default:
 		return fmt.Errorf("unexpected HttpMethod %s", m.HttpMethod)

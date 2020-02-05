@@ -15,6 +15,7 @@ import (
 type IamResource interface {
 	GetIamPolicyRequest() (*http.Request, error)
 	SetIamPolicyRequest(*Policy) (req *http.Request, err error)
+	IsBigqueryResource() bool
 }
 
 // parsedIamResource implements IamResource.
@@ -61,11 +62,15 @@ type RestMethod struct {
 }
 
 func (r *parsedIamResource) SetIamPolicyRequest(p *Policy) (req *http.Request, err error) {
-	jsonP, err := json.Marshal(p)
+	var jsonP []byte
+	if r.IsBigqueryResource() {
+		jsonP, err = json.Marshal(p.AsDataset())
+	} else {
+		jsonP, err = json.Marshal(p)
+	}
 	if err != nil {
 		return nil, err
 	}
-
 	reqJson := fmt.Sprintf(r.config.SetMethod.RequestFormat, jsonP)
 	if !json.Valid([]byte(reqJson)) {
 		return nil, fmt.Errorf("request format from generated IAM config invalid JSON: %s", reqJson)

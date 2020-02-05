@@ -27,8 +27,16 @@ func (h *IamHandle) GetIamPolicy(ctx context.Context, r IamResource) (*Policy, e
 		return nil, errwrap.Wrapf("unable to construct GetIamPolicy request: {{err}}", err)
 	}
 	var p Policy
-	if err := h.doRequest(ctx, req, &p); err != nil {
-		return nil, errwrap.Wrapf("unable to get policy: {{err}}", err)
+	if r.IsBigqueryResource() {
+		var dataset Dataset
+		if err := h.doRequest(ctx, req, &dataset); err != nil {
+			return nil, errwrap.Wrapf("unable to get BigQuery Dataset ACL: {{err}}", err)
+		}
+		p = dataset.AsPolicy()
+	} else {
+		if err := h.doRequest(ctx, req, &p); err != nil {
+			return nil, errwrap.Wrapf("unable to get policy: {{err}}", err)
+		}
 	}
 	return &p, nil
 }
@@ -39,8 +47,16 @@ func (h *IamHandle) SetIamPolicy(ctx context.Context, r IamResource, p *Policy) 
 		return nil, errwrap.Wrapf("unable to construct SetIamPolicy request: {{err}}", err)
 	}
 	var out Policy
-	if err := h.doRequest(ctx, req, &out); err != nil {
-		return nil, errwrap.Wrapf("unable to set policy: {{err}}", err)
+	if r.IsBigqueryResource() {
+		var dataset Dataset
+		if err := h.doRequest(ctx, req, &dataset); err != nil {
+			return nil, errwrap.Wrapf("unable to set BigQuery Dataset ACL: {{err}}", err)
+		}
+		out = dataset.AsPolicy()
+	} else {
+		if err := h.doRequest(ctx, req, &out); err != nil {
+			return nil, errwrap.Wrapf("unable to set policy: {{err}}", err)
+		}
 	}
 	return &out, nil
 }

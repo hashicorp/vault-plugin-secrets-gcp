@@ -236,6 +236,13 @@ func generateConfig() error {
 		return err
 	}
 
+	// Inject BigQuery here since it doesn't have a IAM setter/getter
+	config["projects/datasets"] = map[string]map[string]iamutil.IamRestResource{
+		"bigquery": {
+			"v2": bqResource(),
+		},
+	}
+
 	if err := writeConfig(config); err != nil {
 		return err
 	}
@@ -243,7 +250,33 @@ func generateConfig() error {
 	return nil
 }
 
+func bqResource() iamutil.IamRestResource {
+	return iamutil.IamRestResource{
+		Name:                      "datasets",
+		TypeKey:                   "projects/datasets",
+		Service:                   "bigquery",
+		IsPreferredVersion:        true,
+		Parameters:                []string{"resource"},
+		CollectionReplacementKeys: map[string]string{},
+		GetMethod: iamutil.RestMethod{
+			HttpMethod: "GET",
+			BaseURL:    "https://bigquery.googleapis.com",
+			Path:       "bigquery/v2/{+resource}",
+		},
+		SetMethod: iamutil.RestMethod{
+			HttpMethod: "PATCH",
+			BaseURL:    "https://bigquery.googleapis.com",
+			// NOTE: the bigquery portion of the path needs to be in
+			// the version since googleapis removes it from the
+			// BaseURL when resolving
+			Path:          "bigquery/v2/{+resource}",
+			RequestFormat: "%s",
+		},
+	}
+}
+
 func writeConfig(config iamutil.GeneratedResources) error {
+
 	tpl, err := template.ParseFiles(fmt.Sprintf("internal/%s", templateFile))
 	if err != nil {
 		return err
