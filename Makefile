@@ -51,5 +51,12 @@ fmtcheck:
 fmt:
 	gofmt -w $(GOFMT_FILES)
 
+update-resources:
+	pushd $(CURDIR)/plugin/iamutil && \
+	go build -o generate ./internal && \
+	./generate && \
+	rm generate && \
+	popd
+	
 
-.PHONY: bin default generate test vet bootstrap fmt fmtcheck
+.PHONY: bin default generate test vet bootstrap fmt fmtcheck update-resources

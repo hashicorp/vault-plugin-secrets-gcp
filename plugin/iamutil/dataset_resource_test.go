@@ -22,12 +22,12 @@ func TestPolicyToDataset(t *testing.T) {
 }
 
 func TestDatasetToPolicy(t *testing.T) {
-	expectedPolicy, dataset := getTestFixtures()
+	expectedPolicy, ds := getTestFixtures()
 	expectedPolicyBytes, err := json.Marshal(expectedPolicy)
 	if err != nil {
 		t.Fatal(err)
 	}
-	actualPolicy := dataset.AsPolicy()
+	actualPolicy := ds.AsPolicy()
 	actualPolicyBytes, err := json.Marshal(actualPolicy)
 	if err != nil {
 		t.Fatal(err)
@@ -55,7 +55,7 @@ func getTestFixtures() (*Policy, *Dataset) {
 			},
 		},
 	}
-	dataset := &Dataset{
+	ds := &Dataset{
 		Access: []*AccessBinding{
 			&AccessBinding{
 				Role:        "roles/bigquery.dataViewer",
@@ -71,5 +71,5 @@ func getTestFixtures() (*Policy, *Dataset) {
 			},
 		},
 	}
-	return policy, dataset
+	return policy, ds
 }

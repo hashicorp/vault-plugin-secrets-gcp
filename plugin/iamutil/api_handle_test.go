@@ -14,8 +14,8 @@ import (
 	"google.golang.org/api/option"
 )
 
-func TestIamHandle_ServiceAccount(t *testing.T) {
-	createServiceAccount := func(t *testing.T, httpC *http.Client) *parsedIamResource {
+func TestIamResource_ServiceAccount(t *testing.T) {
+	createServiceAccount := func(t *testing.T, httpC *http.Client) *IamResource {
 		iamAdmin, err := iam.NewService(context.Background(), option.WithHTTPClient(httpC))
 		if err != nil {
 			t.Fatal(err)
@@ -38,15 +38,15 @@ func TestIamHandle_ServiceAccount(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		rConfig := generatedIamResources["projects/serviceAccounts"]["iam"]["v1"]
+		rConfig := generatedResources["projects/serviceAccounts"]["iam"]["v1"]
 
-		return &parsedIamResource{
+		return &IamResource{
 			relativeId: relId,
 			config:     &rConfig,
 		}
 	}
 
-	deleteServiceAccount := func(t *testing.T, httpC *http.Client, r *parsedIamResource) {
+	deleteServiceAccount := func(t *testing.T, httpC *http.Client, r *IamResource) {
 		saName := fmt.Sprintf("projects/%s/serviceAccounts/%s",
 			r.relativeId.IdTuples["projects"],
 			r.relativeId.IdTuples["serviceAccounts"])
@@ -64,8 +64,8 @@ func TestIamHandle_ServiceAccount(t *testing.T) {
 }
 
 func verifyIamResource_GetSetPolicy(t *testing.T, resourceType string,
-	getF func(*testing.T, *http.Client) *parsedIamResource,
-	cleanupF func(*testing.T, *http.Client, *parsedIamResource)) {
+	getF func(*testing.T, *http.Client) *IamResource,
+	cleanupF func(*testing.T, *http.Client, *IamResource)) {
 
 	_, creds := util.GetTestCredentials(t)
 	httpC, err := gcputil.GetHttpClient(creds, iam.CloudPlatformScope)
@@ -76,9 +76,9 @@ func verifyIamResource_GetSetPolicy(t *testing.T, resourceType string,
 	r := getF(t, httpC)
 	defer cleanupF(t, httpC, r)
 
-	h := GetIamHandle(httpC, "")
+	h := GetApiHandle(httpC, "")
 
-	p, err := h.GetIamPolicy(context.Background(), r)
+	p, err := r.GetIamPolicy(context.Background(), h)
 	if err != nil {
 		t.Fatalf("could not get IAM Policy for resource type '%s': %v", resourceType, err)
 	}
@@ -92,12 +92,12 @@ func verifyIamResource_GetSetPolicy(t *testing.T, resourceType string,
 		t.Fatalf("could not get IAM Policy for resource type '%s': %v", resourceType, err)
 	}
 
-	changedP, err := h.SetIamPolicy(context.Background(), r, newP)
+	changedP, err := r.SetIamPolicy(context.Background(), h, newP)
 	if err != nil {
 		t.Fatalf("could not set IAM Policy for resource type '%s': %v", resourceType, err)
 	}
 
-	actualP, err := h.GetIamPolicy(context.Background(), r)
+	actualP, err := r.GetIamPolicy(context.Background(), h)
 	if err != nil {
 		t.Fatalf("could not get updated IAM Policy for resource type '%s': %v", resourceType, err)
 	}
