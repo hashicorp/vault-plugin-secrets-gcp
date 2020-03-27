@@ -66,7 +66,7 @@ func TestIamResource(t *testing.T) {
 		Etag: "atag",
 		Bindings: []*Binding{
 			{
-				Members: []string{"user:myuser@google.com", "serviceAccount:myserviceaccount@iam.gserviceaccounts.com"},
+				Members: []string{"user:myuser@google.com", "serviceAccount:myserviceaccount@iam.gserviceaccount.com"},
 				Role:    "roles/arole",
 			},
 			{
@@ -226,7 +226,7 @@ func TestConditionalIamResource(t *testing.T) {
 		Version: 3,
 		Bindings: []*Binding{
 			{
-				Members: []string{"user:myuser@google.com", "serviceAccount:myserviceaccount@iam.gserviceaccounts.com"},
+				Members: []string{"user:myuser@google.com", "serviceAccount:myserviceaccount@iam.gserviceaccount.com"},
 				Role:    "roles/arole",
 				Condition: &Condition{
 					Title:       "test",

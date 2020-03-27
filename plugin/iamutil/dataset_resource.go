@@ -3,6 +3,7 @@ package iamutil
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
@@ -13,12 +14,14 @@ import (
 // instead it has an access array with bindings on the dataset
 // object. https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#Dataset
 type AccessBinding struct {
-	Role        string `json:"role,omitempty"`
-	UserByEmail string `json:"userByEmail,omitempty"`
+	Role         string `json:"role,omitempty"`
+	UserByEmail  string `json:"userByEmail,omitempty"`
+	GroupByEmail string `json:"groupByEmail,omitempty"`
 }
 
 type Dataset struct {
 	Access []*AccessBinding `json:"access,omitempty"`
+	Etag   string           `json:"etag,omitempty"`
 }
 
 // NOTE: DatasetResource implements IamResource.
@@ -42,13 +45,17 @@ func (r *DatasetResource) GetIamPolicy(ctx context.Context, h *ApiHandle) (*Poli
 	if err := h.DoGetRequest(ctx, r, &dataset); err != nil {
 		return nil, errwrap.Wrapf("unable to get BigQuery Dataset ACL: {{err}}", err)
 	}
-	p := dataset.AsPolicy()
-	return &p, nil
+	p := datasetAsPolicy(&dataset)
+	return p, nil
 }
 
 func (r *DatasetResource) SetIamPolicy(ctx context.Context, h *ApiHandle, p *Policy) (*Policy, error) {
 	var jsonP []byte
-	jsonP, err := json.Marshal(p.AsDataset())
+	ds, err := policyAsDataset(p)
+	if err != nil {
+		return nil, err
+	}
+	jsonP, err = json.Marshal(ds)
 	if err != nil {
 		return nil, err
 	}
@@ -61,56 +68,77 @@ func (r *DatasetResource) SetIamPolicy(ctx context.Context, h *ApiHandle, p *Pol
 	if err := h.DoSetRequest(ctx, r, strings.NewReader(reqJson), &dataset); err != nil {
 		return nil, errwrap.Wrapf("unable to set BigQuery Dataset ACL: {{err}}", err)
 	}
-	policy := dataset.AsPolicy()
+	policy := datasetAsPolicy(&dataset)
 
-	return &policy, nil
+	return policy, nil
 }
 
-func (p *Policy) AsDataset() Dataset {
-	ds := Dataset{}
+func policyAsDataset(p *Policy) (*Dataset, error) {
+	ds := &Dataset{
+		Etag: p.Etag,
+	}
+
 	if p == nil {
-		return ds
+		return nil, errwrap.Wrap(errors.New("Policy cannot be nil"), nil)
 	}
 	for _, binding := range p.Bindings {
+		if binding.Condition != nil {
+			return nil, errwrap.Wrap(errors.New("Bigquery Datasets do not support conditional IAM"), nil)
+		}
 		for _, member := range binding.Members {
-			var email string
+			var email, iamType string
 			memberSplit := strings.Split(member, ":")
 			if len(memberSplit) == 2 {
+				iamType = memberSplit[0]
 				email = memberSplit[1]
 			} else {
 				email = member
 			}
 
 			if email != "" {
-				ds.Access = append(ds.Access, &AccessBinding{
-					Role:        binding.Role,
-					UserByEmail: email,
-				})
+				binding := &AccessBinding{Role: binding.Role}
+				if iamType == "group" {
+					binding.GroupByEmail = email
+				} else {
+					binding.UserByEmail = email
+				}
+				ds.Access = append(ds.Access, binding)
 			}
 		}
 	}
-	return ds
+	return ds, nil
 }
 
-func (ds *Dataset) AsPolicy() Policy {
-	policy := Policy{}
+func datasetAsPolicy(ds *Dataset) *Policy {
+	policy := &Policy{
+		Etag: ds.Etag,
+	}
 	if ds == nil {
 		return policy
 	}
 	bindingMap := make(map[string]*Binding)
 	for _, accessBinding := range ds.Access {
-		email := fmt.Sprintf("serviceAccount:%s", accessBinding.UserByEmail)
+		var iamMember string
+
+		//NOTE: Can either have GroupByEmail or UserByEmail but not both
+		if accessBinding.GroupByEmail != "" {
+			iamMember = fmt.Sprintf("group:%s", accessBinding.GroupByEmail)
+		} else if strings.HasSuffix(accessBinding.UserByEmail, "gserviceaccount.com") {
+			iamMember = fmt.Sprintf("serviceAccount:%s", accessBinding.UserByEmail)
+		} else {
+			iamMember = fmt.Sprintf("user:%s", accessBinding.UserByEmail)
+		}
 		if binding, ok := bindingMap[accessBinding.Role]; ok {
-			binding.Members = append(binding.Members, email)
+			binding.Members = append(binding.Members, iamMember)
 		} else {
 			bindingMap[accessBinding.Role] = &Binding{
 				Role:    accessBinding.Role,
-				Members: []string{email},
+				Members: []string{iamMember},
 			}
 		}
 	}
-	for k := range bindingMap {
-		policy.Bindings = append(policy.Bindings, bindingMap[k])
+	for _, v := range bindingMap {
+		policy.Bindings = append(policy.Bindings, v)
 	}
 	return policy
 }
