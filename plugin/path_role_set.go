@@ -2,7 +2,6 @@ package gcpsecrets
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/hashicorp/errwrap"
@@ -118,13 +117,8 @@ func pathRoleSetRotateKey(b *backend) *framework.Path {
 
 func (b *backend) pathRoleSetExistenceCheck(rolesetFieldName string) framework.ExistenceFunc {
 	return func(ctx context.Context, req *logical.Request, d *framework.FieldData) (bool, error) {
-		// check for either name or roleset
-		nameRaw, ok := d.GetOk(rolesetFieldName)
-		if !ok {
-			return false, errors.New("roleset name is required")
-		}
-
-		rs, err := getRoleSet(nameRaw.(string), ctx, req.Storage)
+		rsName := d.Get(rolesetFieldName).(string)
+		rs, err := getRoleSet(rsName, ctx, req.Storage)
 		if err != nil {
 			return false, err
 		}
@@ -134,12 +128,8 @@ func (b *backend) pathRoleSetExistenceCheck(rolesetFieldName string) framework.E
 }
 
 func (b *backend) pathRoleSetRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	nameRaw, ok := d.GetOk("name")
-	if !ok {
-		return logical.ErrorResponse("name is required"), nil
-	}
-
-	rs, err := getRoleSet(nameRaw.(string), ctx, req.Storage)
+	name := d.Get("name").(string)
+	rs, err := getRoleSet(name, ctx, req.Storage)
 	if err != nil {
 		return nil, err
 	}
@@ -167,11 +157,7 @@ func (b *backend) pathRoleSetRead(ctx context.Context, req *logical.Request, d *
 }
 
 func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d *framework.FieldData) (resp *logical.Response, err error) {
-	nameRaw, ok := d.GetOk("name")
-	if !ok {
-		return logical.ErrorResponse("name is required"), nil
-	}
-	rsName := nameRaw.(string)
+	rsName := d.Get("name").(string)
 
 	b.rolesetLock.Lock()
 	defer b.rolesetLock.Unlock()
@@ -199,11 +185,11 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 	}
 
 	// Try to clean up resources.
-	if warnings := b.tryDeleteRoleSetResources(ctx, req, resources, walIds); len(warnings) > 0 {
-		b.Logger().Debug(
-			"unable to delete GCP resources for deleted roleset but WALs exist to clean up, ignoring errors",
-			"roleset", rsName, "errors", warnings)
-		return &logical.Response{Warnings: warnings}, nil
+	if cleanupErr := b.tryDeleteRoleSetResources(ctx, req, resources, walIds); cleanupErr != nil {
+		b.Logger().Warn(
+			"unable to clean up unused GCP resources from deleted roleset. WALs exist to clean up but ignoring error",
+			"roleset", rsName, "errors", cleanupErr)
+		return &logical.Response{Warnings: []string{cleanupErr.Error()}}, nil
 	}
 
 	b.Logger().Debug("successfully deleted roleset and GCP resources", "name", rsName)
@@ -212,11 +198,7 @@ func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d
 
 func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	var warnings []string
-	nameRaw, ok := d.GetOk("name")
-	if !ok {
-		return logical.ErrorResponse("name is required"), nil
-	}
-	name := nameRaw.(string)
+	name := d.Get("name").(string)
 
 	b.rolesetLock.Lock()
 	defer b.rolesetLock.Unlock()
@@ -349,11 +331,7 @@ func (b *backend) pathRoleSetList(ctx context.Context, req *logical.Request, d *
 }
 
 func (b *backend) pathRoleSetRotateAccount(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	nameRaw, ok := d.GetOk("name")
-	if !ok {
-		return logical.ErrorResponse("name is required"), nil
-	}
-	name := nameRaw.(string)
+	name := d.Get("name").(string)
 
 	b.rolesetLock.Lock()
 	defer b.rolesetLock.Unlock()
@@ -381,11 +359,7 @@ func (b *backend) pathRoleSetRotateAccount(ctx context.Context, req *logical.Req
 }
 
 func (b *backend) pathRoleSetRotateKey(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	nameRaw, ok := d.GetOk("name")
-	if !ok {
-		return logical.ErrorResponse("name is required"), nil
-	}
-	name := nameRaw.(string)
+	name := d.Get("name").(string)
 
 	b.rolesetLock.Lock()
 	defer b.rolesetLock.Unlock()

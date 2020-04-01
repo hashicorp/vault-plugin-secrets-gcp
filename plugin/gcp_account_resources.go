@@ -36,7 +36,7 @@ type (
 )
 
 func (rb ResourceBindings) asOutput() map[string][]string {
-	out := make(map[string][]string)
+	out := make(map[string][]string, len(rb))
 	for k, v := range rb {
 		out[k] = v.ToSlice()
 	}
@@ -44,7 +44,7 @@ func (rb ResourceBindings) asOutput() map[string][]string {
 }
 
 func getStringHash(bindingsRaw string) string {
-	ssum := sha256.Sum256([]byte(bindingsRaw)[:])
+	ssum := sha256.Sum256([]byte(bindingsRaw))
 	return base64.StdEncoding.EncodeToString(ssum[:])
 }
 
