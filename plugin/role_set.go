@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"time"
+
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/go-multierror"
@@ -12,8 +15,6 @@ import (
 	"github.com/hashicorp/vault/sdk/helper/useragent"
 	"github.com/hashicorp/vault/sdk/logical"
 	"google.golang.org/api/iam/v1"
-	"regexp"
-	"time"
 )
 
 var serviceAccountRegex = regexp.MustCompile("[^a-zA-Z0-9-]+")

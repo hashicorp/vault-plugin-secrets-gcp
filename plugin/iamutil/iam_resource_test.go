@@ -2,9 +2,10 @@ package iamutil
 
 import (
 	"encoding/json"
-	"github.com/hashicorp/go-gcp-common/gcputil"
 	"io/ioutil"
 	"testing"
+
+	"github.com/hashicorp/go-gcp-common/gcputil"
 )
 
 func TestParsedIamResource(t *testing.T) {

@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
-	"google.golang.org/api/option"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
+	"google.golang.org/api/option"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault/sdk/logical"

@@ -3,11 +3,12 @@ package iamutil
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/go-gcp-common/gcputil"
-	"google.golang.org/api/googleapi"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/hashicorp/go-gcp-common/gcputil"
+	"google.golang.org/api/googleapi"
 )
 
 // IamResource handles constructing HTTP requests for getting and

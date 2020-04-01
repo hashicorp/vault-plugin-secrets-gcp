@@ -2,10 +2,11 @@ package gcpsecrets
 
 import (
 	"context"
-	"github.com/hashicorp/go-hclog"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/vault/sdk/logical"
 )
