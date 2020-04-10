@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
-	"strings"
 )
 
 // NOTE: BigQuery does not conform to the typical REST for IAM policies
@@ -79,11 +80,11 @@ func policyAsDataset(p *Policy) (*Dataset, error) {
 	}
 
 	if p == nil {
-		return nil, errwrap.Wrap(errors.New("Policy cannot be nil"), nil)
+		return nil, errors.New("Policy cannot be nil")
 	}
 	for _, binding := range p.Bindings {
 		if binding.Condition != nil {
-			return nil, errwrap.Wrap(errors.New("Bigquery Datasets do not support conditional IAM"), nil)
+			return nil, errors.New("Bigquery Datasets do not support conditional IAM")
 		}
 		for _, member := range binding.Members {
 			var email, iamType string
