@@ -75,13 +75,11 @@ func (r *DatasetResource) SetIamPolicy(ctx context.Context, h *ApiHandle, p *Pol
 }
 
 func policyAsDataset(p *Policy) (*Dataset, error) {
-	ds := &Dataset{
-		Etag: p.Etag,
-	}
-
 	if p == nil {
 		return nil, errors.New("Policy cannot be nil")
 	}
+
+	ds := &Dataset{Etag: p.Etag}
 	for _, binding := range p.Bindings {
 		if binding.Condition != nil {
 			return nil, errors.New("Bigquery Datasets do not support conditional IAM")
@@ -111,12 +109,11 @@ func policyAsDataset(p *Policy) (*Dataset, error) {
 }
 
 func datasetAsPolicy(ds *Dataset) *Policy {
-	policy := &Policy{
-		Etag: ds.Etag,
-	}
 	if ds == nil {
-		return policy
+		return &Policy{}
 	}
+
+	policy := &Policy{Etag: ds.Etag}
 	bindingMap := make(map[string]*Binding)
 	for _, accessBinding := range ds.Access {
 		var iamMember string

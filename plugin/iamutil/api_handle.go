@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/errwrap"
-	"google.golang.org/api/googleapi"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/hashicorp/errwrap"
+	"google.golang.org/api/googleapi"
 )
 
 type ApiHandle struct {
@@ -98,7 +99,9 @@ func constructRequest(r Resource, restMethod *RestMethod, data io.Reader) (*http
 			relName := ""
 			tkns := strings.Split(config.TypeKey, "/")
 			for _, colId := range tkns {
-				relName += fmt.Sprintf("%s/%s/", colId, relId.IdTuples[colId])
+				if colName, ok := relId.IdTuples[colId]; ok {
+					relName += fmt.Sprintf("%s/%s/", colId, colName)
+				}
 			}
 			replacementMap["resource"] = strings.Trim(relName, "/")
 		}

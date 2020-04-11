@@ -3,10 +3,11 @@ package iamutil
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/go-gcp-common/gcputil"
 	"io/ioutil"
 	"strings"
 	"testing"
+
+	"github.com/hashicorp/go-gcp-common/gcputil"
 )
 
 func TestIamResource(t *testing.T) {
@@ -83,7 +84,7 @@ func TestIamResource(t *testing.T) {
 
 	reqJson := fmt.Sprintf(r.config.SetMethod.RequestFormat, jsonP)
 	if !json.Valid([]byte(reqJson)) {
-		t.Fatalf("Could not formate expected policy: %v", err)
+		t.Fatalf("Could not format expected policy: %v", err)
 	}
 
 	setR, err := constructRequest(r, &r.config.SetMethod, strings.NewReader(reqJson))
@@ -248,7 +249,7 @@ func TestConditionalIamResource(t *testing.T) {
 
 	reqJson := fmt.Sprintf(r.config.SetMethod.RequestFormat, jsonP)
 	if !json.Valid([]byte(reqJson)) {
-		t.Fatalf("Could not formate expected policy: %v", err)
+		t.Fatalf("Could not format expected policy: %v", err)
 	}
 
 	setR, err := constructRequest(r, &r.config.SetMethod, strings.NewReader(reqJson))

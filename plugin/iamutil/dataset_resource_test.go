@@ -3,12 +3,13 @@ package iamutil
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/go-gcp-common/gcputil"
 	"io/ioutil"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/hashicorp/go-gcp-common/gcputil"
 )
 
 func TestPolicyToDataset(t *testing.T) {
