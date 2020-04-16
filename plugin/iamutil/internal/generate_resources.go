@@ -21,7 +21,7 @@ import (
 
 const (
 	templateFile = "resource_config_template"
-	outputFile   = "iam_resources_generated.go"
+	outputFile   = "resources_generated.go"
 )
 
 var sanizitedCollectionIds = map[string]string{
@@ -86,7 +86,7 @@ func checkResource(name string, fullPath string, resource *discovery.RestResourc
 		return fmt.Errorf("unable to get schema for setIamPolicy request, could not find policy in schema '%s'", setM.Request.Ref)
 	}
 
-	r := iamutil.IamRestResource{
+	r := iamutil.RestResource{
 		Name:               name,
 		TypeKey:            typeKey,
 		Service:            doc.Name,
@@ -157,6 +157,9 @@ func parseTypeKeyFromPattern(pattern string) string {
 	typeKey := ""
 	re := regexp.MustCompile("^[a-zA-Z]*[a-z]$")
 	ptn := strings.Trim(pattern, "^$/")
+	// In a few resources, the Discovery API hardcodes "global" which if set
+	// as the TypeKey breaks the common pattern in tests.
+	ptn = strings.ReplaceAll(ptn, "global/", "")
 	tkns := strings.Split(ptn, "/")
 	for _, tkn := range tkns {
 		if re.MatchString(tkn) {
@@ -181,13 +184,13 @@ func getPolicyReplacementString(sch *discovery.JsonSchema) string {
 	return ""
 }
 
-func addToConfig(resourceKey, service, version string, r iamutil.IamRestResource, config iamutil.GeneratedResources) {
+func addToConfig(resourceKey, service, version string, r iamutil.RestResource, config iamutil.GeneratedResources) {
 	log.Printf("adding [%s %s %s]", resourceKey, service, version)
 	if _, ok := config[resourceKey]; !ok {
-		config[resourceKey] = make(map[string]map[string]iamutil.IamRestResource)
+		config[resourceKey] = make(map[string]map[string]iamutil.RestResource)
 	}
 	if _, ok := config[resourceKey][service]; !ok {
-		config[resourceKey][service] = make(map[string]iamutil.IamRestResource)
+		config[resourceKey][service] = make(map[string]iamutil.RestResource)
 	}
 	config[resourceKey][service][version] = r
 }
@@ -236,6 +239,11 @@ func generateConfig() error {
 		return err
 	}
 
+	// Inject overrides that use ACLs instead of IAM policies
+	for k, v := range resourceOverrides {
+		config[k] = v
+	}
+
 	if err := writeConfig(config); err != nil {
 		return err
 	}
@@ -244,6 +252,7 @@ func generateConfig() error {
 }
 
 func writeConfig(config iamutil.GeneratedResources) error {
+
 	tpl, err := template.ParseFiles(fmt.Sprintf("internal/%s", templateFile))
 	if err != nil {
 		return err

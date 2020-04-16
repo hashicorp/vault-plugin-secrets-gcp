@@ -2,13 +2,16 @@ package iamutil
 
 import (
 	"encoding/json"
-	"github.com/hashicorp/go-gcp-common/gcputil"
+	"fmt"
 	"io/ioutil"
+	"strings"
 	"testing"
+
+	"github.com/hashicorp/go-gcp-common/gcputil"
 )
 
-func TestParsedIamResource(t *testing.T) {
-	r := &parsedIamResource{
+func TestIamResource(t *testing.T) {
+	r := &IamResource{
 		relativeId: &gcputil.RelativeResourceName{
 			Name:    "b",
 			TypeKey: "f/b",
@@ -18,7 +21,7 @@ func TestParsedIamResource(t *testing.T) {
 			},
 			OrderedCollectionIds: []string{"f", "b"},
 		},
-		config: &IamRestResource{
+		config: &RestResource{
 			Name:               "b",
 			TypeKey:            "f/b",
 			Service:            "agcpservice",
@@ -44,7 +47,7 @@ func TestParsedIamResource(t *testing.T) {
 		},
 	}
 
-	getR, err := r.GetIamPolicyRequest()
+	getR, err := constructRequest(r, &r.config.GetMethod, nil)
 	if err != nil {
 		t.Fatalf("Could not construct GetIamPolicyRequest: %v", err)
 	}
@@ -64,7 +67,7 @@ func TestParsedIamResource(t *testing.T) {
 		Etag: "atag",
 		Bindings: []*Binding{
 			{
-				Members: []string{"user:myuser@google.com", "serviceAccount:myserviceaccount@iam.gserviceaccounts.com"},
+				Members: []string{"user:myuser@google.com", "serviceAccount:myserviceaccount@iam.gserviceaccount.com"},
 				Role:    "roles/arole",
 			},
 			{
@@ -73,7 +76,18 @@ func TestParsedIamResource(t *testing.T) {
 			},
 		},
 	}
-	setR, err := r.SetIamPolicyRequest(expectedP)
+
+	jsonP, err := json.Marshal(expectedP)
+	if err != nil {
+		t.Fatalf("Could not json marshal expected policy: %v", err)
+	}
+
+	reqJson := fmt.Sprintf(r.config.SetMethod.RequestFormat, jsonP)
+	if !json.Valid([]byte(reqJson)) {
+		t.Fatalf("Could not format expected policy: %v", err)
+	}
+
+	setR, err := constructRequest(r, &r.config.SetMethod, strings.NewReader(reqJson))
 	if err != nil {
 		t.Fatalf("Could not construct SetIamPolicyRequest: %v", err)
 	}
@@ -126,7 +140,7 @@ func TestParsedIamResource(t *testing.T) {
 }
 
 func TestConditionalIamResource(t *testing.T) {
-	r := &parsedIamResource{
+	r := &IamResource{
 		relativeId: &gcputil.RelativeResourceName{
 			Name:    "projects",
 			TypeKey: "cloudresourcemanager/projects",
@@ -135,7 +149,7 @@ func TestConditionalIamResource(t *testing.T) {
 			},
 			OrderedCollectionIds: []string{"cloudresourcemanager", "projects"},
 		},
-		config: &IamRestResource{
+		config: &RestResource{
 			Name:               "projects",
 			TypeKey:            "cloudresourcemanager/projects",
 			Service:            "cloudresourcemanager",
@@ -157,7 +171,7 @@ func TestConditionalIamResource(t *testing.T) {
 		},
 	}
 
-	getR, err := r.GetIamPolicyRequest()
+	getR, err := constructRequest(r, &r.config.GetMethod, nil)
 	if err != nil {
 		t.Fatalf("Could not construct GetIamPolicyRequest: %v", err)
 	}
@@ -213,12 +227,12 @@ func TestConditionalIamResource(t *testing.T) {
 		Version: 3,
 		Bindings: []*Binding{
 			{
-				Members: []string{"user:myuser@google.com", "serviceAccount:myserviceaccount@iam.gserviceaccounts.com"},
+				Members: []string{"user:myuser@google.com", "serviceAccount:myserviceaccount@iam.gserviceaccount.com"},
 				Role:    "roles/arole",
 				Condition: &Condition{
 					Title:       "test",
 					Description: "",
-					Expression: "a==b",
+					Expression:  "a==b",
 				},
 			},
 			{
@@ -227,7 +241,18 @@ func TestConditionalIamResource(t *testing.T) {
 			},
 		},
 	}
-	setR, err := r.SetIamPolicyRequest(expectedP)
+
+	jsonP, err := json.Marshal(expectedP)
+	if err != nil {
+		t.Fatalf("Could not json marshal expected policy: %v", err)
+	}
+
+	reqJson := fmt.Sprintf(r.config.SetMethod.RequestFormat, jsonP)
+	if !json.Valid([]byte(reqJson)) {
+		t.Fatalf("Could not format expected policy: %v", err)
+	}
+
+	setR, err := constructRequest(r, &r.config.SetMethod, strings.NewReader(reqJson))
 	if err != nil {
 		t.Fatalf("Could not construct SetIamPolicyRequest: %v", err)
 	}
