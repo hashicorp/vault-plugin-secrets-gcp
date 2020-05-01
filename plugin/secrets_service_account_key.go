@@ -58,7 +58,7 @@ func pathSecretServiceAccountKey(b *backend) *framework.Path {
 				Description: fmt.Sprintf(`Private key type for service account key - defaults to %s"`, privateKeyTypeJson),
 				Default:     privateKeyTypeJson,
 			},
-			"ttl": &framework.FieldSchema{
+			"ttl": {
 				Type:        framework.TypeDurationSecond,
 				Description: "Lifetime of the service account key",
 			},
@@ -78,6 +78,14 @@ func (b *backend) pathServiceAccountKey(ctx context.Context, req *logical.Reques
 	keyType := d.Get("key_type").(string)
 	keyAlg := d.Get("key_algorithm").(string)
 	ttl := d.Get("ttl").(int)
+
+	if ttl == 0 {
+		conf, err := getConfig(ctx, req.Storage)
+		if err != nil {
+			return logical.ErrorResponse(fmt.Sprintf("error reading config: %s", err)), nil
+		}
+		ttl = int(conf.TTL.Seconds())
+	}
 
 	rs, err := getRoleSet(rsName, ctx, req.Storage)
 	if err != nil {
