@@ -672,14 +672,12 @@ func setupTest(t *testing.T, ttl, maxTTL string) *testData {
 	}
 
 	b, reqStorage := getTestBackend(t)
-	cfgData := map[string]interface{}{
+
+	testConfigUpdate(t, b, reqStorage, map[string]interface{}{
 		"credentials": credsJson,
 		"ttl":         ttl,
-	}
-	if maxTTL != "" {
-		cfgData["max_ttl"] = maxTTL
-	}
-	testConfigUpdate(t, b, reqStorage, cfgData)
+		"max_ttl":     maxTTL,
+	})
 
 	return &testData{
 		B:          b,
