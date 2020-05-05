@@ -79,14 +79,6 @@ func (b *backend) pathServiceAccountKey(ctx context.Context, req *logical.Reques
 	keyAlg := d.Get("key_algorithm").(string)
 	ttl := d.Get("ttl").(int)
 
-	if ttl == 0 {
-		conf, err := getConfig(ctx, req.Storage)
-		if err != nil {
-			return logical.ErrorResponse(fmt.Sprintf("error reading config: %s", err)), nil
-		}
-		ttl = int(conf.TTL.Seconds())
-	}
-
 	rs, err := getRoleSet(rsName, ctx, req.Storage)
 	if err != nil {
 		return nil, err
@@ -223,6 +215,10 @@ func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleS
 	resp := b.Secret(SecretTypeKey).Response(secretD, internalD)
 	resp.Secret.Renewable = true
 
+	resp.Secret.MaxTTL = cfg.MaxTTL
+	resp.Secret.TTL = cfg.TTL
+
+	// If the request came with a TTL value, overwrite the config default
 	if ttl > 0 {
 		resp.Secret.TTL = time.Duration(ttl) * time.Second
 	}

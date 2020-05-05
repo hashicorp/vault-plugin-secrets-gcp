@@ -24,7 +24,7 @@ func TestPathRoleSet_Basic(t *testing.T) {
 		"roles/viewer": struct{}{},
 	}
 
-	td := setupTest(t, "0s")
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -80,7 +80,7 @@ func TestPathRoleSet_UpdateKeyRoleSet(t *testing.T) {
 	}
 
 	// Initial test set up - backend, initial config, test resources in project
-	td := setupTest(t, "0s")
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, initRoles.Union(updatedRoles))
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -180,7 +180,7 @@ func TestPathRoleSet_RotateKeyRoleSet(t *testing.T) {
 	}
 
 	// Initial test set up - backend, initial config, test resources in project
-	td := setupTest(t, "0s")
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -240,7 +240,7 @@ func TestPathRoleSet_UpdateTokenRoleSet(t *testing.T) {
 	}
 
 	// Initial test set up - backend, initial config, test resources in project
-	td := setupTest(t, "0s")
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, initRoles.Union(updatedRoles))
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -334,7 +334,7 @@ func TestPathRoleSet_RotateTokenRoleSet(t *testing.T) {
 	}
 
 	// Initial test set up - backend, initial config, test resources in project
-	td := setupTest(t, "0s")
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -658,7 +658,7 @@ type testData struct {
 	IamAdmin   *iam.Service
 }
 
-func setupTest(t *testing.T, ttl string) *testData {
+func setupTest(t *testing.T, ttl, maxTTL string) *testData {
 	proj := util.GetTestProject(t)
 	credsJson, creds := util.GetTestCredentials(t)
 	httpC, err := gcputil.GetHttpClient(creds, iam.CloudPlatformScope)
@@ -672,10 +672,14 @@ func setupTest(t *testing.T, ttl string) *testData {
 	}
 
 	b, reqStorage := getTestBackend(t)
-	testConfigUpdate(t, b, reqStorage, map[string]interface{}{
+	cfgData := map[string]interface{}{
 		"credentials": credsJson,
 		"ttl":         ttl,
-	})
+	}
+	if maxTTL != "" {
+		cfgData["max_ttl"] = maxTTL
+	}
+	testConfigUpdate(t, b, reqStorage, cfgData)
 
 	return &testData{
 		B:          b,
