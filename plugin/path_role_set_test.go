@@ -24,7 +24,7 @@ func TestPathRoleSet_Basic(t *testing.T) {
 		"roles/viewer": struct{}{},
 	}
 
-	td := setupTest(t)
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -53,6 +53,7 @@ func TestPathRoleSet_Basic(t *testing.T) {
 	if respData == nil {
 		t.Fatalf("expected role set to have been created")
 	}
+
 	verifyReadData(t, respData, map[string]interface{}{
 		"secret_type": SecretTypeAccessToken, // default
 		"project":     td.Project,
@@ -79,7 +80,7 @@ func TestPathRoleSet_UpdateKeyRoleSet(t *testing.T) {
 	}
 
 	// Initial test set up - backend, initial config, test resources in project
-	td := setupTest(t)
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, initRoles.Union(updatedRoles))
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -179,7 +180,7 @@ func TestPathRoleSet_RotateKeyRoleSet(t *testing.T) {
 	}
 
 	// Initial test set up - backend, initial config, test resources in project
-	td := setupTest(t)
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -239,7 +240,7 @@ func TestPathRoleSet_UpdateTokenRoleSet(t *testing.T) {
 	}
 
 	// Initial test set up - backend, initial config, test resources in project
-	td := setupTest(t)
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, initRoles.Union(updatedRoles))
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -333,7 +334,7 @@ func TestPathRoleSet_RotateTokenRoleSet(t *testing.T) {
 	}
 
 	// Initial test set up - backend, initial config, test resources in project
-	td := setupTest(t)
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -657,7 +658,7 @@ type testData struct {
 	IamAdmin   *iam.Service
 }
 
-func setupTest(t *testing.T) *testData {
+func setupTest(t *testing.T, ttl, maxTTL string) *testData {
 	proj := util.GetTestProject(t)
 	credsJson, creds := util.GetTestCredentials(t)
 	httpC, err := gcputil.GetHttpClient(creds, iam.CloudPlatformScope)
@@ -671,8 +672,11 @@ func setupTest(t *testing.T) *testData {
 	}
 
 	b, reqStorage := getTestBackend(t)
+
 	testConfigUpdate(t, b, reqStorage, map[string]interface{}{
 		"credentials": credsJson,
+		"ttl":         ttl,
+		"max_ttl":     maxTTL,
 	})
 
 	return &testData{
