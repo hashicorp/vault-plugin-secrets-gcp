@@ -22,8 +22,9 @@ import (
 )
 
 const (
-	serviceAccountMaxLen          = 30
-	serviceAccountDisplayNameTmpl = "Service account for Vault secrets backend role set %s"
+	serviceAccountMaxLen            = 30
+	serviceAccountDisplayNameMaxLen = 100
+	serviceAccountDisplayNameTmpl   = "Service account for Vault secrets backend role set %s"
 )
 
 type RoleSet struct {
@@ -304,7 +305,7 @@ func (rs *RoleSet) addWALsForCurrentAccount(ctx context.Context, s logical.Stora
 func (rs *RoleSet) newServiceAccount(ctx context.Context, s logical.Storage, iamAdmin *iam.Service, project string) (string, error) {
 	saEmailPrefix := roleSetServiceAccountName(rs.Name)
 	projectName := fmt.Sprintf("projects/%s", project)
-	displayName := fmt.Sprintf(serviceAccountDisplayNameTmpl, rs.Name)
+	displayName := roleSetServiceAccountDisplayName(rs.Name)
 
 	walId, err := framework.PutWAL(ctx, s, walTypeAccount, &walAccount{
 		RoleSet: rs.Name,
@@ -413,6 +414,18 @@ func roleSetServiceAccountName(rsName string) (name string) {
 		name = fmt.Sprintf("vault%s-%s", rsName[:len(rsName)-toTrunc], intSuffix)
 	}
 	return name
+}
+
+func roleSetServiceAccountDisplayName(name string) string {
+	hashLen := 8
+	fullDisplayName := fmt.Sprintf(serviceAccountDisplayNameTmpl, name)
+	displayName := fullDisplayName
+	if len(fullDisplayName) > serviceAccountDisplayNameMaxLen {
+		truncIndex := serviceAccountDisplayNameMaxLen - hashLen
+		h := fmt.Sprintf("%x", sha256.Sum256([]byte(fullDisplayName[truncIndex:])))
+		displayName = fullDisplayName[:truncIndex] + h[:hashLen]
+	}
+	return displayName
 }
 
 func getStringHash(bindingsRaw string) string {
