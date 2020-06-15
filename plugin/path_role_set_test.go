@@ -229,6 +229,92 @@ func TestPathRoleSet_RotateKeyRoleSet(t *testing.T) {
 	verifyProjectBindingsRemoved(t, td, newSa.Email, roles)
 }
 
+func TestPathRoleSet_UpdateTokenRoleSetScopes(t *testing.T) {
+	rsName := "test-updatetokenrsscopes"
+	roles := util.StringSet{
+		"roles/viewer": struct{}{},
+	}
+
+	// Initial test set up - backend, initial config, test resources in project
+	td := setupTest(t, "0s", "2h")
+	defer cleanup(t, td, rsName, roles)
+
+	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
+
+	// Create role set
+	expectedBinds := ResourceBindings{projRes: roles}
+	bindsRaw, err := util.BindingsHCL(expectedBinds)
+	if err != nil {
+		t.Fatalf("unable to convert resource bindings to HCL string: %v", err)
+	}
+	testRoleSetCreate(t, td, rsName,
+		map[string]interface{}{
+			"project":      td.Project,
+			"secret_type":  SecretTypeAccessToken,
+			"bindings":     bindsRaw,
+			"token_scopes": []string{"https://www.googleapis.com/auth/cloud-platform"},
+		})
+
+	// Verify
+	respData := testRoleSetRead(t, td, rsName)
+	if respData == nil {
+		t.Fatalf("expected role set to have been created")
+	}
+	verifyReadData(t, respData, map[string]interface{}{
+		"secret_type":  SecretTypeAccessToken,
+		"project":      td.Project,
+		"bindings":     expectedBinds,
+		"token_scopes": []string{"https://www.googleapis.com/auth/cloud-platform"},
+	})
+
+	initSa := getServiceAccount(t, td.IamAdmin, respData)
+	verifyProjectBinding(t, td, initSa.Email, roles)
+
+	initK := verifyRoleSetTokenKey(t, td, rsName)
+	if !strings.HasPrefix(initK.Name, initSa.Name) {
+		t.Fatalf("expected token key to have been generated under initial service account")
+	}
+
+	// Update role set
+	testRoleSetUpdate(t, td, rsName,
+		map[string]interface{}{
+			"token_scopes": []string{
+				"https://www.googleapis.com/auth/compute",
+				"https://www.googleapis.com/auth/compute.readonly",
+			},
+		})
+
+	// Verify
+	respData = testRoleSetRead(t, td, rsName)
+	if respData == nil {
+		t.Fatalf("expected role set to have been created")
+	}
+	verifyReadData(t, respData, map[string]interface{}{
+		"secret_type": SecretTypeAccessToken,
+		"project":     td.Project,
+		"bindings":    expectedBinds,
+		"token_scopes": []string{
+			"https://www.googleapis.com/auth/compute",
+			"https://www.googleapis.com/auth/compute.readonly",
+		},
+	})
+	newSa := getServiceAccount(t, td.IamAdmin, respData)
+	verifyProjectBinding(t, td, newSa.Email, roles)
+	newK := verifyRoleSetTokenKey(t, td, rsName)
+	if !strings.HasPrefix(newK.Name, newSa.Name) {
+		t.Fatalf("expected token key to have been generated under same service account")
+	}
+
+	// Verify service account didn't change
+	if newSa.Name != initSa.Name {
+		t.Fatalf("expected role set not to have new service account after update")
+	}
+
+	// 4. Delete role set
+	testRoleSetDelete(t, td, rsName, newSa.Name)
+	verifyProjectBindingsRemoved(t, td, newSa.Email, roles)
+}
+
 func TestPathRoleSet_UpdateTokenRoleSet(t *testing.T) {
 	rsName := "test-updatetokenrs"
 	initRoles := util.StringSet{
