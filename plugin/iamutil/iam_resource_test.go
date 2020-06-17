@@ -218,7 +218,7 @@ func TestConditionalIamResource(t *testing.T) {
 				Condition: &Condition{
 					Title:       "test",
 					Description: "",
-					Expression: "a==b",
+					Expression:  "a==b",
 				},
 			},
 			{
