@@ -88,6 +88,10 @@ func verifyIamResource_GetSetPolicy(t *testing.T, resourceType string,
 		Email: creds.ClientEmail,
 	})
 
+	if p.Version != newP.Version {
+		t.Fatalf("expected policy version %d after adding bindings, got %d", p.Version, newP.Version)
+	}
+
 	if err != nil {
 		t.Fatalf("could not get IAM Policy for resource type '%s': %v", resourceType, err)
 	}
