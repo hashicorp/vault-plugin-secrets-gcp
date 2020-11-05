@@ -343,10 +343,10 @@ func (b *backend) tryDeleteRoleSetResources(ctx context.Context, req *logical.Re
 	}
 
 	// If resources were deleted, we don't need the WAL rollbacks we created for these resources.
-	if merr.Len() == 0 {
+	if merr == nil || merr.Len() == 0 {
 		b.tryDeleteWALs(ctx, req.Storage, walIds...)
 	}
-	return merr
+	return merr.ErrorOrNil()
 }
 
 // generateAccountNameForRoleSet returns a new random name for a Vault service account based off roleset name and time.

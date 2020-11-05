@@ -6,7 +6,6 @@ EXTERNAL_TOOLS=\
 	github.com/kardianos/govendor
 BUILD_TAGS?=${TOOL}
 GOFMT_FILES?=$$(find . -name '*.go' | grep -v vendor)
-TEST_ARGS?=./...
 # bin generates the releaseable binaries for this plugin
 bin: fmtcheck generate
 	@CGO_ENABLED=0 BUILD_TAGS='$(BUILD_TAGS)' sh -c "'$(CURDIR)/scripts/build.sh'"
@@ -29,10 +28,10 @@ testcompile: fmtcheck generate
 	done
 
 test:
-	@go test -short -parallel=40 ./... $(TESTARGS)
+	@go test -v -short -parallel=40 ./... $(TESTARGS)
 
 test-acc:
-	@go test -parallel=40 ./... $(TESTARGS)
+	@go test -v -parallel=40 ./... $(TESTARGS)
 # generate runs `go generate` to build the dynamically generated
 # source files.
 generate:
@@ -57,6 +56,6 @@ update-resources:
 	./generate && \
 	rm generate && \
 	popd
-	
+
 
 .PHONY: bin default generate test vet bootstrap fmt fmtcheck update-resources
