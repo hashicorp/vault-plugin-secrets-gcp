@@ -114,7 +114,7 @@ func (b *backend) getServiceAccount(iamAdmin *iam.Service, accountId *gcputil.Se
 	if err != nil {
 		return nil, errwrap.Wrapf(fmt.Sprintf("could not find service account %q: {{err}}", accountId.ResourceName()), err)
 	} else if account == nil {
-		return nil, fmt.Errorf("couldn't fetch service account %q: {{err}}", accountId.ResourceName(), err)
+		return nil, fmt.Errorf("couldn't fetch service account %q: {{err}}", accountId.ResourceName())
 	}
 
 	return account, nil
