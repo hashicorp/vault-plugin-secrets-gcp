@@ -24,7 +24,7 @@ func TestPathRoleSet_Basic(t *testing.T) {
 		"roles/viewer": struct{}{},
 	}
 
-	td := setupTest(t)
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -53,6 +53,7 @@ func TestPathRoleSet_Basic(t *testing.T) {
 	if respData == nil {
 		t.Fatalf("expected role set to have been created")
 	}
+
 	verifyReadData(t, respData, map[string]interface{}{
 		"secret_type": SecretTypeAccessToken, // default
 		"project":     td.Project,
@@ -79,7 +80,7 @@ func TestPathRoleSet_UpdateKeyRoleSet(t *testing.T) {
 	}
 
 	// Initial test set up - backend, initial config, test resources in project
-	td := setupTest(t)
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, initRoles.Union(updatedRoles))
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -179,7 +180,7 @@ func TestPathRoleSet_RotateKeyRoleSet(t *testing.T) {
 	}
 
 	// Initial test set up - backend, initial config, test resources in project
-	td := setupTest(t)
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -228,6 +229,92 @@ func TestPathRoleSet_RotateKeyRoleSet(t *testing.T) {
 	verifyProjectBindingsRemoved(t, td, newSa.Email, roles)
 }
 
+func TestPathRoleSet_UpdateTokenRoleSetScopes(t *testing.T) {
+	rsName := "test-updatetokenrsscopes"
+	roles := util.StringSet{
+		"roles/viewer": struct{}{},
+	}
+
+	// Initial test set up - backend, initial config, test resources in project
+	td := setupTest(t, "0s", "2h")
+	defer cleanup(t, td, rsName, roles)
+
+	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
+
+	// Create role set
+	expectedBinds := ResourceBindings{projRes: roles}
+	bindsRaw, err := util.BindingsHCL(expectedBinds)
+	if err != nil {
+		t.Fatalf("unable to convert resource bindings to HCL string: %v", err)
+	}
+	testRoleSetCreate(t, td, rsName,
+		map[string]interface{}{
+			"project":      td.Project,
+			"secret_type":  SecretTypeAccessToken,
+			"bindings":     bindsRaw,
+			"token_scopes": []string{"https://www.googleapis.com/auth/cloud-platform"},
+		})
+
+	// Verify
+	respData := testRoleSetRead(t, td, rsName)
+	if respData == nil {
+		t.Fatalf("expected role set to have been created")
+	}
+	verifyReadData(t, respData, map[string]interface{}{
+		"secret_type":  SecretTypeAccessToken,
+		"project":      td.Project,
+		"bindings":     expectedBinds,
+		"token_scopes": []string{"https://www.googleapis.com/auth/cloud-platform"},
+	})
+
+	initSa := getServiceAccount(t, td.IamAdmin, respData)
+	verifyProjectBinding(t, td, initSa.Email, roles)
+
+	initK := verifyRoleSetTokenKey(t, td, rsName)
+	if !strings.HasPrefix(initK.Name, initSa.Name) {
+		t.Fatalf("expected token key to have been generated under initial service account")
+	}
+
+	// Update role set
+	testRoleSetUpdate(t, td, rsName,
+		map[string]interface{}{
+			"token_scopes": []string{
+				"https://www.googleapis.com/auth/compute",
+				"https://www.googleapis.com/auth/compute.readonly",
+			},
+		})
+
+	// Verify
+	respData = testRoleSetRead(t, td, rsName)
+	if respData == nil {
+		t.Fatalf("expected role set to have been created")
+	}
+	verifyReadData(t, respData, map[string]interface{}{
+		"secret_type": SecretTypeAccessToken,
+		"project":     td.Project,
+		"bindings":    expectedBinds,
+		"token_scopes": []string{
+			"https://www.googleapis.com/auth/compute",
+			"https://www.googleapis.com/auth/compute.readonly",
+		},
+	})
+	newSa := getServiceAccount(t, td.IamAdmin, respData)
+	verifyProjectBinding(t, td, newSa.Email, roles)
+	newK := verifyRoleSetTokenKey(t, td, rsName)
+	if !strings.HasPrefix(newK.Name, newSa.Name) {
+		t.Fatalf("expected token key to have been generated under same service account")
+	}
+
+	// Verify service account didn't change
+	if newSa.Name != initSa.Name {
+		t.Fatalf("expected role set not to have new service account after update")
+	}
+
+	// 4. Delete role set
+	testRoleSetDelete(t, td, rsName, newSa.Name)
+	verifyProjectBindingsRemoved(t, td, newSa.Email, roles)
+}
+
 func TestPathRoleSet_UpdateTokenRoleSet(t *testing.T) {
 	rsName := "test-updatetokenrs"
 	initRoles := util.StringSet{
@@ -239,7 +326,7 @@ func TestPathRoleSet_UpdateTokenRoleSet(t *testing.T) {
 	}
 
 	// Initial test set up - backend, initial config, test resources in project
-	td := setupTest(t)
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, initRoles.Union(updatedRoles))
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -333,7 +420,7 @@ func TestPathRoleSet_RotateTokenRoleSet(t *testing.T) {
 	}
 
 	// Initial test set up - backend, initial config, test resources in project
-	td := setupTest(t)
+	td := setupTest(t, "0s", "2h")
 	defer cleanup(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
@@ -657,7 +744,7 @@ type testData struct {
 	IamAdmin   *iam.Service
 }
 
-func setupTest(t *testing.T) *testData {
+func setupTest(t *testing.T, ttl, maxTTL string) *testData {
 	proj := util.GetTestProject(t)
 	credsJson, creds := util.GetTestCredentials(t)
 	httpC, err := gcputil.GetHttpClient(creds, iam.CloudPlatformScope)
@@ -671,8 +758,11 @@ func setupTest(t *testing.T) *testData {
 	}
 
 	b, reqStorage := getTestBackend(t)
+
 	testConfigUpdate(t, b, reqStorage, map[string]interface{}{
 		"credentials": credsJson,
+		"ttl":         ttl,
+		"max_ttl":     maxTTL,
 	})
 
 	return &testData{

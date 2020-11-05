@@ -11,10 +11,12 @@ import (
 	"github.com/hashicorp/errwrap"
 )
 
-func TestEnabledIamResources_RelativeName(t *testing.T) {
-	enabledApis := GetEnabledIamResources()
+var letters = "ABCDEFGHIJKLMNOP"
 
-	for resourceType, services := range generatedIamResources {
+func TestEnabledIamResources_RelativeName(t *testing.T) {
+	enabledApis := GetEnabledResources()
+
+	for resourceType, services := range generatedResources {
 		if resourceType == "" {
 			continue
 		}
@@ -37,7 +39,7 @@ func TestEnabledIamResources_RelativeName(t *testing.T) {
 			}
 
 			if resource != nil {
-				if err = verifyResource(resourceType, resource.(*parsedIamResource)); err != nil {
+				if err = verifyResource(resourceType, resource.(*IamResource)); err != nil {
 					t.Errorf("could not verify resource for relative resource name %q: %sv", testRelName, err)
 				}
 			}
@@ -49,9 +51,9 @@ func TestEnabledIamResources_RelativeName(t *testing.T) {
 }
 
 func TestEnabledIamResources_FullName(t *testing.T) {
-	enabledApis := GetEnabledIamResources()
+	enabledApis := GetEnabledResources()
 
-	for resourceType, services := range generatedIamResources {
+	for resourceType, services := range generatedResources {
 		if resourceType == "" {
 			continue
 		}
@@ -65,7 +67,7 @@ func TestEnabledIamResources_FullName(t *testing.T) {
 					t.Errorf("failed to get resource for full resource name %s (type: %s): %v", testFullName, resourceType, err)
 					continue
 				}
-				if err = verifyResource(resourceType, resource.(*parsedIamResource)); err != nil {
+				if err = verifyResource(resourceType, resource.(*IamResource)); err != nil {
 					t.Errorf("could not verify resource for relative resource name %s: %v", testFullName, err)
 					continue
 				}
@@ -77,7 +79,7 @@ func TestEnabledIamResources_FullName(t *testing.T) {
 	}
 }
 
-func constructSelfLink(relName string, cfg IamRestResource) (string, error) {
+func constructSelfLink(relName string, cfg RestResource) (string, error) {
 	reqUrl := cfg.GetMethod.BaseURL + cfg.GetMethod.Path
 
 	_, err := url.Parse(reqUrl)
@@ -102,9 +104,9 @@ func constructSelfLink(relName string, cfg IamRestResource) (string, error) {
 }
 
 func TestEnabledIamResources_SelfLink(t *testing.T) {
-	enabledApis := GetEnabledIamResources()
+	enabledApis := GetEnabledResources()
 
-	for resourceType, services := range generatedIamResources {
+	for resourceType, services := range generatedResources {
 		for _, versions := range services {
 			for _, cfg := range versions {
 				relName := getFakeId(resourceType)
@@ -123,8 +125,10 @@ func TestEnabledIamResources_SelfLink(t *testing.T) {
 					if err != nil {
 						t.Errorf("failed to get resource for self link %s (type: %s): %v", testSelfLink, resourceType, err)
 					}
-					if err = verifyResource(resourceType, resource.(*parsedIamResource)); err != nil {
-						t.Errorf("could not verify resource for self link %s: %v", testSelfLink, err)
+					if r, ok := resource.(*IamResource); ok {
+						if err = verifyResource(resourceType, r); err != nil {
+							t.Errorf("could not verify resource for self link %s: %v", testSelfLink, err)
+						}
 					}
 				} else if resource != nil || err == nil {
 					t.Errorf("expected error for using self link %s (type: %s), got resource:\n %v\n", testSelfLink, resourceType, resource)
@@ -135,7 +139,7 @@ func TestEnabledIamResources_SelfLink(t *testing.T) {
 	}
 }
 
-func expectVersionError(versions map[string]IamRestResource) bool {
+func expectVersionError(versions map[string]RestResource) bool {
 	if len(versions) == 1 {
 		return false
 	}
@@ -183,6 +187,7 @@ func verifyHttpMethod(typeKey string, m *RestMethod) error {
 	case http.MethodGet:
 	case http.MethodPost:
 	case http.MethodPut:
+	case http.MethodPatch:
 		return nil
 	default:
 		return fmt.Errorf("unexpected HttpMethod %s", m.HttpMethod)
@@ -192,7 +197,7 @@ func verifyHttpMethod(typeKey string, m *RestMethod) error {
 }
 
 func TestIamEnabledResources_ValidateGeneratedConfig(t *testing.T) {
-	for typeKey, services := range generatedIamResources {
+	for typeKey, services := range generatedResources {
 		for service, versions := range services {
 			for ver, cfg := range versions {
 				if cfg.Service != service {
@@ -215,17 +220,19 @@ func getFakeId(resourceType string) string {
 
 	fakeId := ""
 	for idx, cid := range collectionIds {
-		fakeId += fmt.Sprintf("%s/aFakeId%d/", cid, idx)
+		suffix := letters[idx]
+		fakeId += fmt.Sprintf("%s/aFakeId%s/", cid, string(suffix))
 	}
 	return strings.Trim(fakeId, "/")
 }
 
-func verifyResource(rType string, resource *parsedIamResource) error {
+func verifyResource(rType string, resource *IamResource) (err error) {
+	var req *http.Request
 	if resource.relativeId.TypeKey != rType {
 		return fmt.Errorf("expected resource type %s, actual resource has different type %s", rType, resource.relativeId.TypeKey)
 	}
 
-	req, err := resource.GetIamPolicyRequest()
+	req, err = constructRequest(resource, &resource.config.GetMethod, nil)
 	if err != nil {
 		return errwrap.Wrapf("unable to construct GetIamPolicyRequest: {{err}}", err)
 	}
@@ -233,7 +240,7 @@ func verifyResource(rType string, resource *parsedIamResource) error {
 		return err
 	}
 
-	req, err = resource.SetIamPolicyRequest(nil)
+	req, err = constructRequest(resource, &resource.config.SetMethod, strings.NewReader("{}"))
 	if err != nil {
 		return errwrap.Wrapf("unable to construct SetIamPolicyRequest: {{err}}", err)
 	}
@@ -246,7 +253,8 @@ func verifyResource(rType string, resource *parsedIamResource) error {
 func verifyConstructRequest(req *http.Request, resourceType string) error {
 	collectionIds := strings.Split(resourceType, "/")
 	for idx := range collectionIds {
-		rid := fmt.Sprintf("/aFakeId%d", idx)
+		suffix := letters[idx]
+		rid := fmt.Sprintf("/aFakeId%s", string(suffix))
 		if !strings.Contains(req.URL.Path, rid) {
 			return fmt.Errorf("expected expanded request URL %s to contain %s", req.URL.String(), rid)
 		}

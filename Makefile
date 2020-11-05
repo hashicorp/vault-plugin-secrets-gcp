@@ -29,10 +29,10 @@ testcompile: fmtcheck generate
 	done
 
 test:
-	@go test -short -parallel=40 ./...
+	@go test -short -parallel=40 ./... $(TESTARGS)
 
 test-acc:
-	@go test -parallel=40 $(TESTARGS)
+	@go test -parallel=40 ./... $(TESTARGS)
 # generate runs `go generate` to build the dynamically generated
 # source files.
 generate:
@@ -51,5 +51,12 @@ fmtcheck:
 fmt:
 	gofmt -w $(GOFMT_FILES)
 
+update-resources:
+	pushd $(CURDIR)/plugin/iamutil && \
+	go build -o generate ./internal && \
+	./generate && \
+	rm generate && \
+	popd
+	
 
-.PHONY: bin default generate test vet bootstrap fmt fmtcheck
+.PHONY: bin default generate test vet bootstrap fmt fmtcheck update-resources

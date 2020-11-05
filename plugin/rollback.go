@@ -183,7 +183,7 @@ func (b *backend) serviceAccountPolicyRollback(ctx context.Context, req *logical
 		}
 	}
 
-	r, err := b.iamResources.Parse(entry.Resource)
+	r, err := b.resources.Parse(entry.Resource)
 	if err != nil {
 		return err
 	}
@@ -193,12 +193,12 @@ func (b *backend) serviceAccountPolicyRollback(ctx context.Context, req *logical
 		return err
 	}
 
-	iamHandle := iamutil.GetIamHandle(httpC, useragent.String())
+	apiHandle := iamutil.GetApiHandle(httpC, useragent.String())
 	if err != nil {
 		return err
 	}
 
-	p, err := iamHandle.GetIamPolicy(ctx, r)
+	p, err := r.GetIamPolicy(ctx, apiHandle)
 	if err != nil {
 		return err
 	}
@@ -213,7 +213,7 @@ func (b *backend) serviceAccountPolicyRollback(ctx context.Context, req *logical
 		return nil
 	}
 
-	_, err = iamHandle.SetIamPolicy(ctx, r, newP)
+	_, err = r.SetIamPolicy(ctx, apiHandle, newP)
 	return err
 }
 
@@ -223,7 +223,7 @@ func (b *backend) deleteServiceAccount(ctx context.Context, iamAdmin *iam.Servic
 	}
 
 	_, err := iamAdmin.Projects.ServiceAccounts.Delete(account.ResourceName()).Do()
-	if err != nil && !isGoogleAccountNotFoundErr(err) {
+	if err != nil && (!isGoogleAccountNotFoundErr(err) || !isGoogleAccountUnauthorizedErr(err)) {
 		return errwrap.Wrapf("unable to delete service account: {{err}}", err)
 	}
 	return nil
@@ -241,15 +241,15 @@ func (b *backend) deleteTokenGenKey(ctx context.Context, iamAdmin *iam.Service, 
 	return nil
 }
 
-func (b *backend) removeBindings(ctx context.Context, iamHandle *iamutil.IamHandle, email string, bindings ResourceBindings) (allErr *multierror.Error) {
+func (b *backend) removeBindings(ctx context.Context, apiHandle *iamutil.ApiHandle, email string, bindings ResourceBindings) (allErr *multierror.Error) {
 	for resName, roles := range bindings {
-		resource, err := b.iamResources.Parse(resName)
+		resource, err := b.resources.Parse(resName)
 		if err != nil {
 			allErr = multierror.Append(allErr, errwrap.Wrapf(fmt.Sprintf("unable to delete role binding for resource '%s': {{err}}", resName), err))
 			continue
 		}
 
-		p, err := iamHandle.GetIamPolicy(ctx, resource)
+		p, err := resource.GetIamPolicy(ctx, apiHandle)
 		if err != nil {
 			allErr = multierror.Append(allErr, errwrap.Wrapf(fmt.Sprintf("unable to delete role binding for resource '%s': {{err}}", resName), err))
 			continue
@@ -262,7 +262,7 @@ func (b *backend) removeBindings(ctx context.Context, iamHandle *iamutil.IamHand
 		if !changed {
 			continue
 		}
-		if _, err = iamHandle.SetIamPolicy(ctx, resource, newP); err != nil {
+		if _, err = resource.SetIamPolicy(ctx, apiHandle, newP); err != nil {
 			allErr = multierror.Append(allErr, errwrap.Wrapf(fmt.Sprintf("unable to delete role binding for resource '%s': {{err}}", resName), err))
 			continue
 		}
@@ -285,6 +285,10 @@ func (b *backend) tryDeleteWALs(ctx context.Context, s logical.Storage, walIds .
 
 func isGoogleAccountNotFoundErr(err error) bool {
 	return isGoogleApiErrorWithCodes(err, 404)
+}
+
+func isGoogleAccountUnauthorizedErr(err error) bool {
+	return isGoogleApiErrorWithCodes(err, 403)
 }
 
 func isGoogleAccountKeyNotFoundErr(err error) bool {

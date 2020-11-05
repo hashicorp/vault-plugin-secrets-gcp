@@ -78,17 +78,17 @@ func (b *backend) createIamBindings(ctx context.Context, req *logical.Request, s
 	if err != nil {
 		return err
 	}
-	iamHandle := iamutil.GetIamHandle(httpC, useragent.String())
+	apiHandle := iamutil.GetApiHandle(httpC, useragent.String())
 
 	for resourceName, roles := range binds {
 		b.Logger().Debug("setting IAM binding", "resource", resourceName, "roles", roles)
-		resource, err := b.iamResources.Parse(resourceName)
+		resource, err := b.resources.Parse(resourceName)
 		if err != nil {
 			return err
 		}
 
 		b.Logger().Debug("getting IAM policy for resource name", "name", resourceName)
-		p, err := iamHandle.GetIamPolicy(ctx, resource)
+		p, err := resource.GetIamPolicy(ctx, apiHandle)
 		if err != nil {
 			return nil
 		}
@@ -103,7 +103,7 @@ func (b *backend) createIamBindings(ctx context.Context, req *logical.Request, s
 		}
 
 		b.Logger().Debug("setting IAM policy for resource name", "name", resourceName)
-		if _, err := iamHandle.SetIamPolicy(ctx, resource, newP); err != nil {
+		if _, err := resource.SetIamPolicy(ctx, apiHandle, newP); err != nil {
 			return errwrap.Wrapf(fmt.Sprintf("unable to set IAM policy for resource %q: {{err}}", resourceName), err)
 		}
 	}

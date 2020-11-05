@@ -58,7 +58,7 @@ func pathSecretServiceAccountKey(b *backend) *framework.Path {
 				Description: fmt.Sprintf(`Private key type for service account key - defaults to %s"`, privateKeyTypeJson),
 				Default:     privateKeyTypeJson,
 			},
-			"ttl": &framework.FieldSchema{
+			"ttl": {
 				Type:        framework.TypeDurationSecond,
 				Description: "Lifetime of the service account key",
 			},
@@ -174,6 +174,7 @@ func (b *backend) secretKeyRevoke(ctx context.Context, req *logical.Request, d *
 }
 
 func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleSet, keyType, keyAlgorithm string, ttl int) (*logical.Response, error) {
+	cfg, err := getConfig(ctx, s)
 	if rs.AccountId == nil {
 		return nil, fmt.Errorf("unable to create secret (service account key), roleset has nil account ID")
 	}
@@ -206,6 +207,10 @@ func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleS
 	resp := b.Secret(SecretTypeKey).Response(secretD, internalD)
 	resp.Secret.Renewable = true
 
+	resp.Secret.MaxTTL = cfg.MaxTTL
+	resp.Secret.TTL = cfg.TTL
+
+	// If the request came with a TTL value, overwrite the config default
 	if ttl > 0 {
 		resp.Secret.TTL = time.Duration(ttl) * time.Second
 	}

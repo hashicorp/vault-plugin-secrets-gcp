@@ -323,7 +323,7 @@ func (b *backend) tryDeleteRoleSetResources(ctx context.Context, req *logical.Re
 		return err
 	}
 
-	iamHandle := iamutil.GetIamHandle(httpC, useragent.String())
+	iamHandle := iamutil.GetApiHandle(httpC, useragent.String())
 
 	var merr *multierror.Error
 	if boundResources.tokenGen != nil {
