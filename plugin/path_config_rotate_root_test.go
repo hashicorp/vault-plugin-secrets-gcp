@@ -155,6 +155,7 @@ func TestConfigRotateRootUpdate(t *testing.T) {
 		if err := storage.Put(ctx, entry); err != nil {
 			t.Fatal(err)
 		}
+		b.ClearCaches()
 
 		// Rotate the key
 		resp, err := b.HandleRequest(ctx, &logical.Request{

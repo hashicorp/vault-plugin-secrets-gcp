@@ -16,7 +16,7 @@ const (
 	maxLeaseTTLHr     = 12
 )
 
-func getTestBackend(tb testing.TB) (logical.Backend, logical.Storage) {
+func getTestBackend(tb testing.TB) (*backend, logical.Storage) {
 	tb.Helper()
 
 	config := logical.TestBackendConfig()
