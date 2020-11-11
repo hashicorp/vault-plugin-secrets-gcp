@@ -95,6 +95,66 @@ func testGetRoleSetAccessToken(t *testing.T, rsName, path string) {
 func testGetRoleSetKey(t *testing.T, rsName, path string) {
 	secretType := SecretTypeKey
 
+	td := setupTest(t, "0s", "2h")
+	defer cleanup(t, td, rsName, testRoles)
+
+	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
+
+	// Create new role set
+	expectedBinds := ResourceBindings{projRes: testRoles}
+	bindsRaw, err := util.BindingsHCL(expectedBinds)
+	if err != nil {
+		t.Fatalf("unable to convert resource bindings to HCL string: %v", err)
+	}
+	testRoleSetCreate(t, td, rsName,
+		map[string]interface{}{
+			"secret_type": secretType,
+			"project":     td.Project,
+			"bindings":    bindsRaw,
+		})
+	sa := getRoleSetAccount(t, td, rsName)
+
+	// expect error for trying to read token from key roleset
+	testGetTokenFail(t, td, rsName)
+
+	creds, resp := testGetKey(t, path, td)
+	secret := resp.Secret
+
+	// Confirm calls with key work
+	keyHttpC := oauth2.NewClient(context.Background(), creds.TokenSource)
+	checkSecretPermissions(t, td, keyHttpC)
+
+	keyName := secret.InternalData["key_name"].(string)
+	if keyName == "" {
+		t.Fatalf("expected internal data to include key name")
+	}
+
+	_, err = td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
+	if err != nil {
+		t.Fatalf("could not get key from given internal 'key_name': %v", err)
+	}
+
+	testRenewSecretKey(t, td, secret)
+	testRevokeSecretKey(t, td, secret)
+
+	k, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
+	if err == nil || !isGoogleAccountKeyNotFoundErr(err) {
+		t.Fatalf("expected 404 error from getting deleted key, instead got error: %v", err)
+	}
+	if k != nil {
+		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
+	}
+
+	// Cleanup: Delete role set
+	testRoleSetDelete(t, td, rsName, sa.Name)
+	verifyProjectBindingsRemoved(t, td, sa.Email, testRoles)
+}
+
+func TestSecrets_GenerateKeyConfigTTL(t *testing.T) {
+	secretType := SecretTypeKey
+	rsName := "test-genkey"
+	path := fmt.Sprintf("key/%s", rsName)
+
 	td := setupTest(t, "1h", "2h")
 	defer cleanup(t, td, rsName, testRoles)
 
@@ -117,7 +177,142 @@ func testGetRoleSetKey(t *testing.T, rsName, path string) {
 	// expect error for trying to read token from key roleset
 	testGetTokenFail(t, td, rsName)
 
-	creds, secret := testGetKey(t, path, td)
+	creds, resp := testGetKey(t, path, td)
+	if int(resp.Secret.LeaseTotal().Hours()) != 1 {
+		t.Fatalf("expected lease duration %d, got %d", 1, int(resp.Secret.LeaseTotal().Hours()))
+	}
+
+	// Confirm calls with key work
+	keyHttpC := oauth2.NewClient(context.Background(), creds.TokenSource)
+	checkSecretPermissions(t, td, keyHttpC)
+
+	keyName := resp.Secret.InternalData["key_name"].(string)
+	if keyName == "" {
+		t.Fatalf("expected internal data to include key name")
+	}
+
+	_, err = td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
+	if err != nil {
+		t.Fatalf("could not get key from given internal 'key_name': %v", err)
+	}
+
+	testRenewSecretKey(t, td, resp.Secret)
+	testRevokeSecretKey(t, td, resp.Secret)
+
+	k, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
+
+	if err == nil || !isGoogleAccountKeyNotFoundErr(err) {
+		t.Fatalf("expected 404 error from getting deleted key, instead got error: %v", err)
+	}
+	if k != nil {
+		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
+	}
+
+	// Cleanup: Delete role set
+	testRoleSetDelete(t, td, rsName, sa.Name)
+	verifyProjectBindingsRemoved(t, td, sa.Email, testRoles)
+}
+
+func TestSecrets_GenerateKeyTTLOverride(t *testing.T) {
+	secretType := SecretTypeKey
+	rsName := "test-genkey"
+
+	td := setupTest(t, "1h", "2h")
+	defer cleanup(t, td, rsName, testRoles)
+
+	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
+
+	// Create new role set
+	expectedBinds := ResourceBindings{projRes: testRoles}
+	bindsRaw, err := util.BindingsHCL(expectedBinds)
+	if err != nil {
+		t.Fatalf("unable to convert resource bindings to HCL string: %v", err)
+	}
+	testRoleSetCreate(t, td, rsName,
+		map[string]interface{}{
+			"secret_type": secretType,
+			"project":     td.Project,
+			"bindings":    bindsRaw,
+		})
+	sa := getRoleSetAccount(t, td, rsName)
+
+	// expect error for trying to read token from key roleset
+	testGetTokenFail(t, td, rsName)
+
+	// call the POST endpoint of /gcp/key/:roleset with updated TTL
+	creds, resp := testPostKey(t, td, rsName, "60s")
+	if int(resp.Secret.LeaseTotal().Seconds()) != 60 {
+		t.Fatalf("expected lease duration %d, got %d", 60, int(resp.Secret.LeaseTotal().Seconds()))
+	}
+
+	// Confirm calls with key work
+	keyHttpC := oauth2.NewClient(context.Background(), creds.TokenSource)
+	checkSecretPermissions(t, td, keyHttpC)
+
+	keyName := resp.Secret.InternalData["key_name"].(string)
+	if keyName == "" {
+		t.Fatalf("expected internal data to include key name")
+	}
+
+	_, err = td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
+	if err != nil {
+		t.Fatalf("could not get key from given internal 'key_name': %v", err)
+	}
+
+	testRenewSecretKey(t, td, resp.Secret)
+	testRevokeSecretKey(t, td, resp.Secret)
+
+	k, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
+
+	if k != nil {
+		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
+	}
+	if err == nil || !isGoogleAccountKeyNotFoundErr(err) {
+		t.Fatalf("expected 404 error from getting deleted key, instead got error: %v", err)
+	}
+
+	// Cleanup: Delete role set
+	testRoleSetDelete(t, td, rsName, sa.Name)
+	verifyProjectBindingsRemoved(t, td, sa.Email, testRoles)
+}
+
+// TestSecrets_GenerateKeyMaxTTLCheck verifies the MaxTTL is set for the
+// configured backend
+func TestSecrets_GenerateKeyMaxTTLCheck(t *testing.T) {
+	secretType := SecretTypeKey
+	rsName := "test-genkey"
+
+	td := setupTest(t, "1h", "2h")
+	defer cleanup(t, td, rsName, testRoles)
+
+	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
+
+	// Create new role set
+	expectedBinds := ResourceBindings{projRes: testRoles}
+	bindsRaw, err := util.BindingsHCL(expectedBinds)
+	if err != nil {
+		t.Fatalf("unable to convert resource bindings to HCL string: %v", err)
+	}
+	testRoleSetCreate(t, td, rsName,
+		map[string]interface{}{
+			"secret_type": secretType,
+			"project":     td.Project,
+			"bindings":    bindsRaw,
+		})
+	sa := getRoleSetAccount(t, td, rsName)
+
+	// expect error for trying to read token from key roleset
+	testGetTokenFail(t, td, rsName)
+
+	// call the POST endpoint of /gcp/key/:roleset with updated TTL
+	creds, resp := testPostKey(t, td, rsName, "60s")
+	if int(resp.Secret.LeaseTotal().Seconds()) != 60 {
+		t.Fatalf("expected lease duration %d, got %d", 60, int(resp.Secret.LeaseTotal().Seconds()))
+	}
+
+	if int(resp.Secret.LeaseOptions.MaxTTL.Hours()) != 2 {
+		t.Fatalf("expected max lease %d, got %d", 2, int(resp.Secret.LeaseOptions.MaxTTL.Hours()))
+	}
 
 	// Confirm calls with key work
 	keyHttpC := oauth2.NewClient(context.Background(), creds.TokenSource)
@@ -232,10 +427,16 @@ func testGetToken(t *testing.T, path string, td *testData) (token string) {
 	return tokenRaw.(string)
 }
 
-func testGetKey(t *testing.T, path string, td *testData) (*google.Credentials, *logical.Secret) {
+// testPostKey enables the POST call to /gcp/key/:roleset
+func testPostKey(t *testing.T, td *testData, rsName, ttl string) (*google.Credentials, *logical.Response) {
+	data := map[string]interface{}{}
+	if ttl != "" {
+		data["ttl"] = ttl
+	}
+
 	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
-		Operation: logical.ReadOperation,
-		Path:      path,
+		Operation: logical.UpdateOperation,
+		Path:      fmt.Sprintf("key/%s", rsName),
 		Storage:   td.S,
 		Data:      data,
 	})
@@ -254,12 +455,12 @@ func testGetKey(t *testing.T, path string, td *testData) (*google.Credentials, *
 	return creds, resp
 }
 
-func testGetKey(t *testing.T, td *testData, rsName string) (*google.Credentials, *logical.Response) {
+func testGetKey(t *testing.T, path string, td *testData) (*google.Credentials, *logical.Response) {
 	data := map[string]interface{}{}
 
 	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.ReadOperation,
-		Path:      fmt.Sprintf("key/%s", rsName),
+		Path:      path,
 		Storage:   td.S,
 		Data:      data,
 	})

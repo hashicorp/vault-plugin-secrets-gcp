@@ -207,9 +207,6 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 	b.rolesetLock.Lock()
 	defer b.rolesetLock.Unlock()
 
-	b.rolesetLock.Lock()
-	defer b.rolesetLock.Unlock()
-
 	rs, err := getRoleSet(name, ctx, req.Storage)
 	if err != nil {
 		return nil, err
@@ -346,9 +343,6 @@ func (b *backend) pathRoleSetRotateAccount(ctx context.Context, req *logical.Req
 	b.rolesetLock.Lock()
 	defer b.rolesetLock.Unlock()
 
-	b.rolesetLock.Lock()
-	defer b.rolesetLock.Unlock()
-
 	rs, err := getRoleSet(name, ctx, req.Storage)
 	if err != nil {
 		return nil, err
@@ -373,9 +367,6 @@ func (b *backend) pathRoleSetRotateAccount(ctx context.Context, req *logical.Req
 
 func (b *backend) pathRoleSetRotateKey(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	name := d.Get("name").(string)
-
-	b.rolesetLock.Lock()
-	defer b.rolesetLock.Unlock()
 
 	b.rolesetLock.Lock()
 	defer b.rolesetLock.Unlock()
