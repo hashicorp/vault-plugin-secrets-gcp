@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
-	"google.golang.org/api/option"
 )
 
 const testProjectResourceTemplate = "//cloudresourcemanager.googleapis.com/projects/%s"
@@ -733,105 +732,4 @@ func roleSubsetBoundOnProject(t *testing.T, httpC *http.Client, project, email s
 		}
 	}
 	return found
-}
-
-// Set up/Teardown
-type testData struct {
-	B          logical.Backend
-	S          logical.Storage
-	Project    string
-	HttpClient *http.Client
-	IamAdmin   *iam.Service
-}
-
-func setupTest(t *testing.T, ttl, maxTTL string) *testData {
-	proj := util.GetTestProject(t)
-	credsJson, creds := util.GetTestCredentials(t)
-	httpC, err := gcputil.GetHttpClient(creds, iam.CloudPlatformScope)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	iamAdmin, err := iam.NewService(context.Background(), option.WithHTTPClient(httpC))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	b, reqStorage := getTestBackend(t)
-
-	testConfigUpdate(t, b, reqStorage, map[string]interface{}{
-		"credentials": credsJson,
-		"ttl":         ttl,
-		"max_ttl":     maxTTL,
-	})
-
-	return &testData{
-		B:          b,
-		S:          reqStorage,
-		Project:    proj,
-		HttpClient: httpC,
-		IamAdmin:   iamAdmin,
-	}
-}
-
-func cleanup(t *testing.T, td *testData, rsName string, roles util.StringSet) {
-	resp, err := td.IamAdmin.Projects.ServiceAccounts.List(fmt.Sprintf("projects/%s", td.Project)).Do()
-	if err != nil {
-		t.Logf("[WARNING] Could not clean up test service accounts for role set %s or projects/%s IAM policy bindings (did test fail?)", rsName, td.Project)
-		return
-	}
-
-	memberStrs := make(util.StringSet)
-	for _, sa := range resp.Accounts {
-		if sa.DisplayName == fmt.Sprintf(serviceAccountDisplayNameTmpl, rsName) {
-			memberStrs.Add("serviceAccount:" + sa.Email)
-			t.Logf("[WARNING] found test service account %s that should have been deleted, did test fail? Manually deleting...", sa.Name)
-			if _, err := td.IamAdmin.Projects.ServiceAccounts.Delete(sa.Name).Do(); err != nil {
-				if isGoogleAccountNotFoundErr(err) {
-					t.Logf("[WARNING] Disregard previous warning - manual delete returned 404, probably IAM eventual consistency")
-					continue
-				}
-				t.Logf("[WARNING] Auto-delete failed - manually clean up service account %s: %v", sa.Name, err)
-			}
-		}
-	}
-
-	crm, err := cloudresourcemanager.New(td.HttpClient)
-	if err != nil {
-		t.Logf("[WARNING] Unable to ensure test project bindings deleted: %v", err)
-		return
-	}
-
-	p, err := crm.Projects.GetIamPolicy(td.Project, &cloudresourcemanager.GetIamPolicyRequest{}).Do()
-	if err != nil {
-		t.Logf("[WARNING] Unable to ensure test project bindings deleted, could not get policy: %v", err)
-		return
-	}
-
-	var changesMade bool
-	found := make(util.StringSet)
-	for idx, b := range p.Bindings {
-		if roles.Includes(b.Role) {
-			members := make([]string, 0, len(b.Members))
-			for _, m := range b.Members {
-				if memberStrs.Includes(m) {
-					changesMade = true
-					found.Add(b.Role)
-				} else {
-					members = append(members, m)
-				}
-			}
-			p.Bindings[idx].Members = members
-		}
-	}
-
-	if !changesMade {
-		return
-	}
-
-	t.Logf("[WARNING] had to clean up some roles (%s) for test role set %s - should have been deleted (did test fail?)",
-		strings.Join(found.ToSlice(), ","), rsName)
-	if _, err := crm.Projects.SetIamPolicy(td.Project, &cloudresourcemanager.SetIamPolicyRequest{Policy: p}).Do(); err != nil {
-		t.Logf("[WARNING] Auto-delete failed - manually remove bindings on project %s: %v", td.Project, err)
-	}
 }
