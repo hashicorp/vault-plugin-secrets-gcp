@@ -24,7 +24,7 @@ func TestPathRoleSet_Basic(t *testing.T) {
 	}
 
 	td := setupTest(t, "0s", "2h")
-	defer cleanup(t, td, rsName, roles)
+	defer cleanupRoleset(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
@@ -80,7 +80,7 @@ func TestPathRoleSet_UpdateKeyRoleSet(t *testing.T) {
 
 	// Initial test set up - backend, initial config, test resources in project
 	td := setupTest(t, "0s", "2h")
-	defer cleanup(t, td, rsName, initRoles.Union(updatedRoles))
+	defer cleanupRoleset(t, td, rsName, initRoles.Union(updatedRoles))
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
@@ -180,7 +180,7 @@ func TestPathRoleSet_RotateKeyRoleSet(t *testing.T) {
 
 	// Initial test set up - backend, initial config, test resources in project
 	td := setupTest(t, "0s", "2h")
-	defer cleanup(t, td, rsName, roles)
+	defer cleanupRoleset(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
@@ -236,7 +236,7 @@ func TestPathRoleSet_UpdateTokenRoleSetScopes(t *testing.T) {
 
 	// Initial test set up - backend, initial config, test resources in project
 	td := setupTest(t, "0s", "2h")
-	defer cleanup(t, td, rsName, roles)
+	defer cleanupRoleset(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
@@ -326,7 +326,7 @@ func TestPathRoleSet_UpdateTokenRoleSet(t *testing.T) {
 
 	// Initial test set up - backend, initial config, test resources in project
 	td := setupTest(t, "0s", "2h")
-	defer cleanup(t, td, rsName, initRoles.Union(updatedRoles))
+	defer cleanupRoleset(t, td, rsName, initRoles.Union(updatedRoles))
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
@@ -420,7 +420,7 @@ func TestPathRoleSet_RotateTokenRoleSet(t *testing.T) {
 
 	// Initial test set up - backend, initial config, test resources in project
 	td := setupTest(t, "0s", "2h")
-	defer cleanup(t, td, rsName, roles)
+	defer cleanupRoleset(t, td, rsName, roles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 

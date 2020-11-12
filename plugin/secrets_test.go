@@ -57,7 +57,7 @@ func testGetRoleSetAccessToken(t *testing.T, rsName, path string) {
 	secretType := SecretTypeAccessToken
 
 	td := setupTest(t, "0s", "2h")
-	defer cleanup(t, td, rsName, testRoles)
+	defer cleanupRoleset(t, td, rsName, testRoles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
@@ -96,7 +96,7 @@ func testGetRoleSetKey(t *testing.T, rsName, path string) {
 	secretType := SecretTypeKey
 
 	td := setupTest(t, "0s", "2h")
-	defer cleanup(t, td, rsName, testRoles)
+	defer cleanupRoleset(t, td, rsName, testRoles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
@@ -156,7 +156,7 @@ func TestSecrets_GenerateKeyConfigTTL(t *testing.T) {
 	path := fmt.Sprintf("key/%s", rsName)
 
 	td := setupTest(t, "1h", "2h")
-	defer cleanup(t, td, rsName, testRoles)
+	defer cleanupRoleset(t, td, rsName, testRoles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
@@ -218,7 +218,7 @@ func TestSecrets_GenerateKeyTTLOverride(t *testing.T) {
 	rsName := "test-genkey"
 
 	td := setupTest(t, "1h", "2h")
-	defer cleanup(t, td, rsName, testRoles)
+	defer cleanupRoleset(t, td, rsName, testRoles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 
@@ -283,7 +283,7 @@ func TestSecrets_GenerateKeyMaxTTLCheck(t *testing.T) {
 	rsName := "test-genkey"
 
 	td := setupTest(t, "1h", "2h")
-	defer cleanup(t, td, rsName, testRoles)
+	defer cleanupRoleset(t, td, rsName, testRoles)
 
 	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
 

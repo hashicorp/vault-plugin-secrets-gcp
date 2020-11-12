@@ -79,16 +79,16 @@ func setupTest(t *testing.T, ttl, maxTTL string) *testData {
 	}
 }
 
-func cleanup(t *testing.T, td *testData, rsName string, roles util.StringSet) {
+func cleanup(t *testing.T, td *testData, saDisplayName string, roles util.StringSet) {
 	resp, err := td.IamAdmin.Projects.ServiceAccounts.List(fmt.Sprintf("projects/%s", td.Project)).Do()
 	if err != nil {
-		t.Logf("[WARNING] Could not clean up test service accounts for role set %s or projects/%s IAM policy bindings (did test fail?)", rsName, td.Project)
+		t.Logf("[WARNING] Could not clean up test service accounts %s or projects/%s IAM policy bindings (did test fail?)", saDisplayName, td.Project)
 		return
 	}
 
 	memberStrs := make(util.StringSet)
 	for _, sa := range resp.Accounts {
-		if sa.DisplayName == fmt.Sprintf(serviceAccountDisplayNameTmpl, rsName) {
+		if sa.DisplayName == saDisplayName {
 			memberStrs.Add("serviceAccount:" + sa.Email)
 			t.Logf("[WARNING] found test service account %s that should have been deleted, did test fail? Manually deleting...", sa.Name)
 			if _, err := td.IamAdmin.Projects.ServiceAccounts.Delete(sa.Name).Do(); err != nil {
@@ -134,9 +134,13 @@ func cleanup(t *testing.T, td *testData, rsName string, roles util.StringSet) {
 		return
 	}
 
-	t.Logf("[WARNING] had to clean up some roles (%s) for test role set %s - should have been deleted (did test fail?)",
-		strings.Join(found.ToSlice(), ","), rsName)
+	t.Logf("[WARNING] had to clean up some roles (%s) for test service account %s - should have been deleted (did test fail?)",
+		strings.Join(found.ToSlice(), ","), saDisplayName)
 	if _, err := crm.Projects.SetIamPolicy(td.Project, &cloudresourcemanager.SetIamPolicyRequest{Policy: p}).Do(); err != nil {
 		t.Logf("[WARNING] Auto-delete failed - manually remove bindings on project %s: %v", td.Project, err)
 	}
+}
+
+func cleanupRoleset(t *testing.T, td *testData, rsName string, roles util.StringSet) {
+	cleanup(t, td, fmt.Sprintf(serviceAccountDisplayNameTmpl, rsName), roles)
 }
