@@ -39,7 +39,6 @@ var fieldSchemaRoleSetAccessToken = map[string]*framework.FieldSchema{
 func pathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern:        fmt.Sprintf("roleset/%s/key", framework.GenericNameRegex("roleset")),
-		Deprecated:     true,
 		Fields:         fieldSchemaRoleSetServiceAccountKey,
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
 		Operations: map[logical.Operation]framework.OperationHandler{

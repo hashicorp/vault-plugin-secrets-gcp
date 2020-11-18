@@ -10,13 +10,11 @@ import (
 	"google.golang.org/api/iam/v1"
 )
 
-// Test deprecated path still works
 func TestSecrets_getRoleSetAccessToken(t *testing.T) {
 	rsName := "test-gentoken"
 	testGetRoleSetAccessToken(t, rsName, fmt.Sprintf("roleset/%s/token", rsName))
 }
 
-// Test deprecated path still works
 func TestSecrets_getRoleSetKey(t *testing.T) {
 	rsName := "test-genkey"
 	testGetRoleSetKey(t, rsName, fmt.Sprintf("roleset/%s/key", rsName))
@@ -58,7 +56,7 @@ func testGetRoleSetAccessToken(t *testing.T, rsName, path string) {
 	sa := getRoleSetAccount(t, td, rsName)
 
 	// expect error for trying to read key from token roleset
-	testGetKeyFail(t, td, rsName)
+	testGetKeyFail(t, td, fmt.Sprintf("roleset/%s/key", rsName))
 
 	token := testGetToken(t, path, td)
 
@@ -96,7 +94,7 @@ func testGetRoleSetKey(t *testing.T, rsName, path string) {
 	sa := getRoleSetAccount(t, td, rsName)
 
 	// expect error for trying to read token from key roleset
-	testGetTokenFail(t, td, rsName)
+	testGetTokenFail(t, td, fmt.Sprintf("roleset/%s/token", rsName))
 
 	creds, resp := testGetKey(t, path, td)
 	secret := resp.Secret
@@ -134,7 +132,7 @@ func testGetRoleSetKey(t *testing.T, rsName, path string) {
 func TestSecrets_GenerateKeyConfigTTL(t *testing.T) {
 	secretType := SecretTypeKey
 	rsName := "test-genkey"
-	path := fmt.Sprintf("key/%s", rsName)
+	path := fmt.Sprintf("roleset/%s/key", rsName)
 
 	td := setupTest(t, "1h", "2h")
 	defer cleanupRoleset(t, td, rsName, testRoles)
@@ -156,7 +154,7 @@ func TestSecrets_GenerateKeyConfigTTL(t *testing.T) {
 	sa := getRoleSetAccount(t, td, rsName)
 
 	// expect error for trying to read token from key roleset
-	testGetTokenFail(t, td, rsName)
+	testGetTokenFail(t, td, fmt.Sprintf("roleset/%s/token", rsName))
 
 	creds, resp := testGetKey(t, path, td)
 	if int(resp.Secret.LeaseTotal().Hours()) != 1 {
@@ -218,10 +216,10 @@ func TestSecrets_GenerateKeyTTLOverride(t *testing.T) {
 	sa := getRoleSetAccount(t, td, rsName)
 
 	// expect error for trying to read token from key roleset
-	testGetTokenFail(t, td, rsName)
+	testGetTokenFail(t, td, fmt.Sprintf("roleset/%s/token", rsName))
 
 	// call the POST endpoint of /gcp/key/:roleset with updated TTL
-	creds, resp := testPostKey(t, td, rsName, "60s")
+	creds, resp := testPostKey(t, td, fmt.Sprintf("roleset/%s/key", rsName), "60s")
 	if int(resp.Secret.LeaseTotal().Seconds()) != 60 {
 		t.Fatalf("expected lease duration %d, got %d", 60, int(resp.Secret.LeaseTotal().Seconds()))
 	}
@@ -283,10 +281,10 @@ func TestSecrets_GenerateKeyMaxTTLCheck(t *testing.T) {
 	sa := getRoleSetAccount(t, td, rsName)
 
 	// expect error for trying to read token from key roleset
-	testGetTokenFail(t, td, rsName)
+	testGetTokenFail(t, td, fmt.Sprintf("roleset/%s/token", rsName))
 
-	// call the POST endpoint of /gcp/key/:roleset with updated TTL
-	creds, resp := testPostKey(t, td, rsName, "60s")
+	// call the POST endpoint of /gcp/roleset/:roleset/key with updated TTL
+	creds, resp := testPostKey(t, td, fmt.Sprintf("roleset/%s/key", rsName), "60s")
 	if int(resp.Secret.LeaseTotal().Seconds()) != 60 {
 		t.Fatalf("expected lease duration %d, got %d", 60, int(resp.Secret.LeaseTotal().Seconds()))
 	}

@@ -44,10 +44,10 @@ func getRoleSetAccount(t *testing.T, td *testData, rsName string) *iam.ServiceAc
 	return sa
 }
 
-func testGetTokenFail(t *testing.T, td *testData, rsName string) {
+func testGetTokenFail(t *testing.T, td *testData, path string) {
 	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.UpdateOperation,
-		Path:      fmt.Sprintf("token/%s", rsName),
+		Path:      path,
 		Data:      make(map[string]interface{}),
 		Storage:   td.S,
 	})
@@ -56,10 +56,10 @@ func testGetTokenFail(t *testing.T, td *testData, rsName string) {
 	}
 }
 
-func testGetKeyFail(t *testing.T, td *testData, rsName string) {
+func testGetKeyFail(t *testing.T, td *testData, path string) {
 	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.UpdateOperation,
-		Path:      fmt.Sprintf("key/%s", rsName),
+		Path:      path,
 		Data:      make(map[string]interface{}),
 		Storage:   td.S,
 	})
@@ -111,8 +111,8 @@ func testGetToken(t *testing.T, path string, td *testData) (token string) {
 	return tokenRaw.(string)
 }
 
-// testPostKey enables the POST call to /gcp/key/:roleset
-func testPostKey(t *testing.T, td *testData, rsName, ttl string) (*google.Credentials, *logical.Response) {
+// testPostKey enables the POST call to roleset|static/:name:/key
+func testPostKey(t *testing.T, td *testData, path, ttl string) (*google.Credentials, *logical.Response) {
 	data := map[string]interface{}{}
 	if ttl != "" {
 		data["ttl"] = ttl
@@ -120,7 +120,7 @@ func testPostKey(t *testing.T, td *testData, rsName, ttl string) (*google.Creden
 
 	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.UpdateOperation,
-		Path:      fmt.Sprintf("key/%s", rsName),
+		Path:      path,
 		Storage:   td.S,
 		Data:      data,
 	})
