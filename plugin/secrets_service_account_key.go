@@ -86,6 +86,22 @@ func (b *backend) verifyBindingsNotUpdatedForSecret(ctx context.Context, req *lo
 		if rs.bindingHash() != bindingSum.(string) {
 			return fmt.Errorf("role set '%v' bindings were updated since secret was generated, cannot renew", v)
 		}
+	} else if v, ok := req.Secret.InternalData["static_account"]; ok {
+		bindingSum, ok := req.Secret.InternalData["static_account_bindings"]
+		if !ok {
+			return fmt.Errorf("invalid secret, internal data is missing static account bindings checksum")
+		}
+
+		// Verify static account was not deleted.
+		sa, err := b.getStaticAccount(v.(string), ctx, req.Storage)
+		if err != nil {
+			return fmt.Errorf("could not find static account %q to verify secret", v)
+		}
+
+		// Verify static account bindings have not changed since secret was generated.
+		if sa.bindingHash() != bindingSum.(string) {
+			return fmt.Errorf("static account '%v' bindings were updated since secret was generated, cannot renew", v)
+		}
 	} else {
 		return fmt.Errorf("invalid secret, internal data is missing role set or static account name")
 	}

@@ -218,7 +218,7 @@ func TestSecrets_GenerateKeyTTLOverride(t *testing.T) {
 	// expect error for trying to read token from key roleset
 	testGetTokenFail(t, td, fmt.Sprintf("roleset/%s/token", rsName))
 
-	// call the POST endpoint of /gcp/key/:roleset with updated TTL
+	// call the POST endpoint of /gcp/roleset/:roleset:/key with TTL
 	creds, resp := testPostKey(t, td, fmt.Sprintf("roleset/%s/key", rsName), "60s")
 	if int(resp.Secret.LeaseTotal().Seconds()) != 60 {
 		t.Fatalf("expected lease duration %d, got %d", 60, int(resp.Secret.LeaseTotal().Seconds()))

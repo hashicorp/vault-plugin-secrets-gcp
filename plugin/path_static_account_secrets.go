@@ -3,6 +3,7 @@ package gcpsecrets
 import (
 	"context"
 	"fmt"
+
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -75,7 +76,7 @@ func (b *backend) pathStaticAccountSecretKey(ctx context.Context, req *logical.R
 		return logical.ErrorResponse("static account %q does not exists", acctName), nil
 	}
 	if acct.SecretType != SecretTypeKey {
-		return logical.ErrorResponse("static account %q cannot generate service account keys (has secret type %q)", acctName, acct.SecretType), nil
+		return logical.ErrorResponse("static account %q cannot generate service account keys (has secret type %s)", acctName, acct.SecretType), nil
 	}
 
 	params := secretKeyParams{
@@ -102,7 +103,7 @@ func (b *backend) pathStaticAccountAccessToken(ctx context.Context, req *logical
 		return logical.ErrorResponse("static account %q does not exists", acctName), nil
 	}
 	if acct.SecretType != SecretTypeAccessToken {
-		return logical.ErrorResponse("static account %q cannot generate access tokens (has secret type %q)", acctName, acct.SecretType), nil
+		return logical.ErrorResponse("static account %q cannot generate access tokens (has secret type %s)", acctName, acct.SecretType), nil
 	}
 
 	return b.secretAccessTokenResponse(ctx, req.Storage, acct.TokenGen)

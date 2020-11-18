@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -78,7 +79,7 @@ func pathStaticAccountList(b *backend) *framework.Path {
 func (b *backend) pathStaticAccountExistenceCheck(ctx context.Context, req *logical.Request, d *framework.FieldData) (bool, error) {
 	nameRaw, ok := d.GetOk("name")
 	if !ok {
-		return false, errors.New("roleset name is required")
+		return false, errors.New("static account name is required")
 	}
 
 	acct, err := b.getStaticAccount(nameRaw.(string), ctx, req.Storage)
@@ -144,8 +145,8 @@ func (b *backend) pathStaticAccountDelete(ctx context.Context, req *logical.Requ
 		return nil, errwrap.Wrapf(fmt.Sprintf("unable to create WALs for static account GCP resources %s: {{err}}", name), err)
 	}
 
-	// Delete roleset
-	b.Logger().Debug("deleting roleset from storage", "name", name)
+	// Delete static account
+	b.Logger().Debug("deleting static account from storage", "name", name)
 	if err := req.Storage.Delete(ctx, fmt.Sprintf("%s/%s", staticAccountStoragePrefix, name)); err != nil {
 		return nil, err
 	}
@@ -153,8 +154,8 @@ func (b *backend) pathStaticAccountDelete(ctx context.Context, req *logical.Requ
 	// Try to clean up resources.
 	if warnings := b.tryDeleteStaticAccountResources(ctx, req, resources, walIds); len(warnings) > 0 {
 		b.Logger().Debug(
-			"unable to delete GCP resources for deleted roleset but WALs exist to clean up, ignoring errors",
-			"roleset", name, "errors", warnings)
+			"unable to delete GCP resources for deleted static account but WALs exist to clean up, ignoring errors",
+			"static account", name, "errors", warnings)
 		return &logical.Response{Warnings: warnings}, nil
 	}
 
@@ -174,7 +175,7 @@ func (b *backend) pathStaticAccountCreate(ctx context.Context, req *logical.Requ
 	b.staticAccountLock.Lock()
 	defer b.staticAccountLock.Unlock()
 
-	// Create and save roleset with new resources.
+	// Create and save static account with new resources.
 	if err := b.createStaticAccount(ctx, req, input); err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	}
@@ -292,7 +293,7 @@ This path allows you to register a static GCP service account that you want to g
 This creates sets of IAM roles to specific GCP resources. Secrets (either service account keys or
 access tokens) are generated under this account. The account must exist at creation of static account creation.
 
-If bindings are specified, Vault will assign IAM permissions to the given service account. Bindings 
+If bindings are specified, Vault will assign IAM permissions to the given service account. Bindings
 can be given as a HCL (or JSON) string with the following format:
 
 resource "some/gcp/resource/uri" {
