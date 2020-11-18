@@ -157,15 +157,26 @@ func TestConfigRotateRootUpdate(t *testing.T) {
 		}
 		b.ClearCaches()
 
-		// Rotate the key
-		resp, err := b.HandleRequest(ctx, &logical.Request{
-			Operation: logical.UpdateOperation,
-			Path:      "config/rotate-root",
-			Storage:   storage,
-		})
+		// Rotate the key - retrying until success because of new key eventual consistency
+		rawResp, err := retryTestFunc(func() (interface{}, error) {
+			resp, err := b.HandleRequest(ctx, &logical.Request{
+				Operation: logical.UpdateOperation,
+				Path:      "config/rotate-root",
+				Storage:   storage,
+			})
+			if err != nil {
+				return resp, err
+			}
+			if resp != nil && resp.IsError() {
+				return resp, resp.Error()
+			}
+			return resp, err
+		}, maxTokenTestCalls)
+
 		if err != nil {
 			t.Fatal(err)
 		}
+		resp := rawResp.(*logical.Response)
 
 		privateKeyId := resp.Data["private_key_id"]
 		if privateKeyId == "" {
