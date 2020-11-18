@@ -602,7 +602,10 @@ func verifyReadData(t *testing.T, actual map[string]interface{}, expected map[st
 	for k, v := range expected {
 		actV, ok := actual[k]
 		if !ok {
-			t.Errorf("key '%s' not found, expected: %v", k, v)
+			// Allow testing for absence of data if v is set to nil
+			if v != nil {
+				t.Errorf("key '%s' not found, expected: %v", k, v)
+			}
 		} else if k == "bindings" {
 			verifyReadBindings(t, v.(ResourceBindings), actV)
 		} else if k == "token_scopes" {
