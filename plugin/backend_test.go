@@ -90,14 +90,14 @@ func cleanup(t *testing.T, td *testData, saDisplayName string, roles util.String
 	for _, sa := range resp.Accounts {
 		if sa.DisplayName == saDisplayName {
 			memberStrs.Add("serviceAccount:" + sa.Email)
-			t.Logf("[WARNING] found test service account %s that should have been deleted, did test fail? Manually deleting...", sa.Name)
 			if _, err := td.IamAdmin.Projects.ServiceAccounts.Delete(sa.Name).Do(); err != nil {
 				if isGoogleAccountNotFoundErr(err) {
-					t.Logf("[WARNING] Disregard previous warning - manual delete returned 404, probably IAM eventual consistency")
+					// Eventual consistency. We can ignore.
 					continue
 				}
-				t.Logf("[WARNING] Auto-delete failed - manually clean up service account %s: %v", sa.Name, err)
+				t.Logf("[WARNING] found test service account %s that should have been deleted, did test fail? Auto-delete failed - manually clean up service account: %v", sa.Name, err)
 			}
+			t.Logf("[WARNING] found test service account %s that should have been deleted, did test fail? Manually deleted", sa.Name)
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -54,6 +55,11 @@ func testGetTokenFail(t *testing.T, td *testData, path string) {
 	if err == nil && !resp.IsError() {
 		t.Fatalf("expected error, instead got valid response (data: %v)", resp.Data)
 	}
+
+	error := resp.Error().Error()
+	if !strings.Contains(error, "cannot generate access tokens (has secret type service_account_key)") {
+		t.Fatalf("unexpected error: %s", error)
+	}
 }
 
 func testGetKeyFail(t *testing.T, td *testData, path string) {
@@ -66,14 +72,39 @@ func testGetKeyFail(t *testing.T, td *testData, path string) {
 	if err == nil && !resp.IsError() {
 		t.Fatalf("expected error, instead got valid response (data: %v)", resp.Data)
 	}
+
+	error := resp.Error().Error()
+	if !strings.Contains(error, "cannot generate service account keys (has secret type access_token)") {
+		t.Fatalf("unexpected error: %s", error)
+	}
+}
+
+func retryGetToken(td *testData, path string) (*logical.Response, error) {
+	// Newly created key in backend is eventually consistent.
+	// Might take up to 60s according to Google's docs
+	rawResp, err := retryTestFunc(func() (interface{}, error) {
+		resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      path,
+			Storage:   td.S,
+		})
+
+		if err != nil {
+			return resp, err
+		}
+
+		if resp != nil && resp.IsError() {
+			return resp, resp.Error()
+		}
+		return resp, err
+	}, maxTokenTestCalls)
+
+	resp := rawResp.(*logical.Response)
+	return resp, err
 }
 
 func testGetToken(t *testing.T, path string, td *testData) (token string) {
-	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
-		Operation: logical.ReadOperation,
-		Path:      path,
-		Storage:   td.S,
-	})
+	resp, err := retryGetToken(td, path)
 
 	if err != nil {
 		t.Fatal(err)
