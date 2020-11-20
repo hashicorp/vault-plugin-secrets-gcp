@@ -22,9 +22,10 @@ import (
 )
 
 const (
-	serviceAccountMaxLen            = 30
-	serviceAccountDisplayNameMaxLen = 100
-	serviceAccountDisplayNameTmpl   = "Service account for Vault secrets backend role set %s"
+	serviceAccountMaxLen             = 30
+	serviceAccountDisplayNameHashLen = 8
+	serviceAccountDisplayNameMaxLen  = 100
+	serviceAccountDisplayNameTmpl    = "Service account for Vault secrets backend role set %s"
 )
 
 type RoleSet struct {
@@ -417,13 +418,12 @@ func roleSetServiceAccountName(rsName string) (name string) {
 }
 
 func roleSetServiceAccountDisplayName(name string) string {
-	hashLen := 8
 	fullDisplayName := fmt.Sprintf(serviceAccountDisplayNameTmpl, name)
 	displayName := fullDisplayName
 	if len(fullDisplayName) > serviceAccountDisplayNameMaxLen {
-		truncIndex := serviceAccountDisplayNameMaxLen - hashLen
+		truncIndex := serviceAccountDisplayNameMaxLen - serviceAccountDisplayNameHashLen
 		h := fmt.Sprintf("%x", sha256.Sum256([]byte(fullDisplayName[truncIndex:])))
-		displayName = fullDisplayName[:truncIndex] + h[:hashLen]
+		displayName = fullDisplayName[:truncIndex] + h[:serviceAccountDisplayNameHashLen]
 	}
 	return displayName
 }
