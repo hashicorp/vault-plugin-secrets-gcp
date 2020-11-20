@@ -2,6 +2,7 @@ package gcpsecrets
 
 import (
 	"fmt"
+
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"github.com/hashicorp/vault/sdk/framework"
@@ -39,8 +40,8 @@ func (input *inputParams) parseOkInputSecretType(d *framework.FieldData) (warnin
 	}
 }
 
-func (input *inputParams) parseOkInputEmail(d *framework.FieldData) (warnings []string, err error) {
-	email := d.Get("email").(string)
+func (input *inputParams) parseOkInputServiceAccountEmail(d *framework.FieldData) (warnings []string, err error) {
+	email := d.Get("service_account_email").(string)
 	if email == "" && input.serviceAccountEmail == "" {
 		return nil, fmt.Errorf("email is required")
 	}

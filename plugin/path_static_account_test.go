@@ -32,8 +32,8 @@ func TestPathStatic_Basic(t *testing.T) {
 	// 2. Create new static account
 	testStaticCreate(t, td, staticName,
 		map[string]interface{}{
-			"email":        sa.Email,
-			"token_scopes": []string{iam.CloudPlatformScope},
+			"service_account_email": sa.Email,
+			"token_scopes":          []string{iam.CloudPlatformScope},
 		})
 
 	// 3. Read static account
@@ -76,8 +76,8 @@ func TestPathStatic_UpdateDisallowed(t *testing.T) {
 	// 2. Create new static account
 	testStaticCreate(t, td, staticName,
 		map[string]interface{}{
-			"email":       sa.Email,
-			"secret_type": SecretTypeKey,
+			"service_account_email": sa.Email,
+			"secret_type":           SecretTypeKey,
 		})
 
 	// 3. Read static account
@@ -97,7 +97,7 @@ func TestPathStatic_UpdateDisallowed(t *testing.T) {
 	errCases := []map[string]interface{}{
 		{
 			// Email cannot be changed
-			"email": saNew.Email,
+			"service_account_email": saNew.Email,
 		},
 		{
 			// Cannot change secret type
@@ -148,9 +148,9 @@ func TestPathStatic_WithBindings(t *testing.T) {
 	}
 	testStaticCreate(t, td, staticName,
 		map[string]interface{}{
-			"email":        sa.Email,
-			"bindings":     bindsRaw,
-			"token_scopes": []string{iam.CloudPlatformScope},
+			"service_account_email": sa.Email,
+			"bindings":              bindsRaw,
+			"token_scopes":          []string{iam.CloudPlatformScope},
 		})
 
 	// 3. Read static account
@@ -202,8 +202,8 @@ func TestPathStatic_UpdateBinding(t *testing.T) {
 	// 2. Create new static account
 	testStaticCreate(t, td, staticName,
 		map[string]interface{}{
-			"email":        sa.Email,
-			"token_scopes": []string{iam.CloudPlatformScope},
+			"service_account_email": sa.Email,
+			"token_scopes":          []string{iam.CloudPlatformScope},
 		})
 
 	// 3. Read static account
@@ -229,9 +229,9 @@ func TestPathStatic_UpdateBinding(t *testing.T) {
 		t.Fatalf("unable to convert resource bindings to HCL string: %v", err)
 	}
 	testStaticUpdate(t, td, staticName, map[string]interface{}{
-		"email":        sa.Email,
-		"token_scopes": []string{iam.CloudPlatformScope},
-		"bindings":     bindsRaw,
+		"service_account_email": sa.Email,
+		"token_scopes":          []string{iam.CloudPlatformScope},
+		"bindings":              bindsRaw,
 	})
 
 	// 5. Check Binding is added
@@ -255,9 +255,9 @@ func TestPathStatic_UpdateBinding(t *testing.T) {
 		t.Fatalf("unable to convert resource bindings to HCL string: %v", err)
 	}
 	testStaticUpdate(t, td, staticName, map[string]interface{}{
-		"email":        sa.Email,
-		"token_scopes": []string{iam.CloudPlatformScope},
-		"bindings":     bindsRaw,
+		"service_account_email": sa.Email,
+		"token_scopes":          []string{iam.CloudPlatformScope},
+		"bindings":              bindsRaw,
 	})
 
 	// 7. Check Binding is modified
@@ -277,9 +277,9 @@ func TestPathStatic_UpdateBinding(t *testing.T) {
 
 	// 8. Remove Binding
 	testStaticUpdate(t, td, staticName, map[string]interface{}{
-		"email":        sa.Email,
-		"token_scopes": []string{iam.CloudPlatformScope},
-		"bindings":     "",
+		"service_account_email": sa.Email,
+		"token_scopes":          []string{iam.CloudPlatformScope},
+		"bindings":              "",
 	})
 
 	// 9. Check Binding is removed

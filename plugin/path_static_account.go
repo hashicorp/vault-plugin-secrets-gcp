@@ -29,9 +29,9 @@ func pathStaticAccount(b *backend) *framework.Path {
 				Description: fmt.Sprintf("Type of secret generated for this account. Defaults to %q", SecretTypeAccessToken),
 				Default:     SecretTypeAccessToken,
 			},
-			"email": {
+			"service_account_email": {
 				Type:        framework.TypeString,
-				Description: "Name of the GCP service account to manage.",
+				Description: "Email of the GCP service account to manage.",
 			},
 			"bindings": {
 				Type:        framework.TypeString,
@@ -263,7 +263,7 @@ func (b *backend) parseStaticAccountInformation(prevValues *inputParams, d *fram
 		warnings = append(warnings, ws...)
 	}
 
-	ws, err = input.parseOkInputEmail(d)
+	ws, err = input.parseOkInputServiceAccountEmail(d)
 	if err != nil {
 		return nil, nil, err
 	} else if len(ws) > 0 {

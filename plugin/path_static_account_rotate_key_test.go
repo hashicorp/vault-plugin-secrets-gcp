@@ -32,10 +32,10 @@ func TestStatic_Rotate(t *testing.T) {
 	}
 	testStaticCreate(t, td, staticName,
 		map[string]interface{}{
-			"email":        sa.Email,
-			"token_scopes": []string{iam.CloudPlatformScope},
-			"secret_type":  secretType,
-			"bindings":     bindsRaw,
+			"service_account_email": sa.Email,
+			"token_scopes":          []string{iam.CloudPlatformScope},
+			"secret_type":           secretType,
+			"bindings":              bindsRaw,
 		})
 
 	// expect error for trying to read key from token

@@ -45,10 +45,10 @@ func testGetStaticAccessToken(t *testing.T, staticName string) {
 	}
 	testStaticCreate(t, td, staticName,
 		map[string]interface{}{
-			"email":        sa.Email,
-			"token_scopes": []string{iam.CloudPlatformScope},
-			"secret_type":  secretType,
-			"bindings":     bindsRaw,
+			"service_account_email": sa.Email,
+			"token_scopes":          []string{iam.CloudPlatformScope},
+			"secret_type":           secretType,
+			"bindings":              bindsRaw,
 		})
 
 	// expect error for trying to read key from token
@@ -85,9 +85,9 @@ func testGetStaticKey(t *testing.T, staticName string, ttl uint64) {
 	}
 	testStaticCreate(t, td, staticName,
 		map[string]interface{}{
-			"email":       sa.Email,
-			"secret_type": secretType,
-			"bindings":    bindsRaw,
+			"service_account_email": sa.Email,
+			"secret_type":           secretType,
+			"bindings":              bindsRaw,
 		})
 
 	// expect error for trying to read token
