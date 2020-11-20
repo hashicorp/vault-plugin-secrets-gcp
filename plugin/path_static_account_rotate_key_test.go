@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"sort"
 	"testing"
 
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
@@ -42,15 +41,7 @@ func TestStatic_Rotate(t *testing.T) {
 	testGetKeyFail(t, td, fmt.Sprintf("%s/%s/key", staticAccountPathPrefix, staticName))
 
 	// Obtain current keys
-	keysRaw, err := td.IamAdmin.Projects.ServiceAccounts.Keys.List(sa.Name).Do()
-	if err != nil {
-		t.Fatalf("error listing service account keys: %v", err)
-	}
-	var oldKeys []string
-	for _, key := range keysRaw.Keys {
-		oldKeys = append(oldKeys, key.Name)
-	}
-	sort.Strings(oldKeys)
+	oldKeys := getServiceAccountKeys(t, td, sa.Name)
 
 	// Get token and check
 	token := testGetToken(t, fmt.Sprintf("%s/%s/token", staticAccountPathPrefix, staticName), td)
@@ -75,15 +66,7 @@ func TestStatic_Rotate(t *testing.T) {
 	}
 
 	// Get new keys
-	keysRaw, err = td.IamAdmin.Projects.ServiceAccounts.Keys.List(sa.Name).Do()
-	if err != nil {
-		t.Fatalf("error listing service account keys: %v", err)
-	}
-	var newKeys []string
-	for _, key := range keysRaw.Keys {
-		newKeys = append(newKeys, key.Name)
-	}
-	sort.Strings(newKeys)
+	newKeys := getServiceAccountKeys(t, td, sa.Name)
 
 	// Check that keys are actually rotated
 	if reflect.DeepEqual(oldKeys, newKeys) {

@@ -3,6 +3,7 @@ package gcpsecrets
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +24,9 @@ func TestPathStatic_Basic(t *testing.T) {
 	sa := createStaticAccount(t, td, staticName)
 	defer deleteStaticAccount(t, td, sa)
 
+	// Obtain current keys
+	oldKeys := getServiceAccountKeys(t, td, sa.Name)
+
 	// 1. Read should return nothing
 	respData := testStaticRead(t, td, staticName)
 	if respData != nil {
@@ -36,6 +40,13 @@ func TestPathStatic_Basic(t *testing.T) {
 			"token_scopes":          []string{iam.CloudPlatformScope},
 		})
 
+	// Get new keys
+	newKeys := getServiceAccountKeys(t, td, sa.Name)
+
+	if len(newKeys)-len(oldKeys) != 1 {
+		t.Fatal("expected one new key to be created for the service account but that was not the case")
+	}
+
 	// 3. Read static account
 	respData = testStaticRead(t, td, staticName)
 	if respData == nil {
@@ -44,6 +55,50 @@ func TestPathStatic_Basic(t *testing.T) {
 
 	verifyReadData(t, respData, map[string]interface{}{
 		"secret_type":             SecretTypeAccessToken, // default
+		"service_account_email":   sa.Email,
+		"service_account_project": sa.ProjectId,
+		"bindings":                nil,
+	})
+
+	// 4. Delete static account
+	testStaticDelete(t, td, staticName)
+	finalKeys := getServiceAccountKeys(t, td, sa.Name)
+	if len(finalKeys)-len(newKeys) != -1 {
+		t.Fatal("expected one fewer service account key upon deletion but that was not the case")
+	}
+}
+
+func TestPathStatic_Key(t *testing.T) {
+	staticName := "test-static-key"
+
+	td := setupTest(t, "0s", "2h")
+	defer cleanupStatic(t, td, staticName, util.StringSet{})
+
+	sa := createStaticAccount(t, td, staticName)
+	defer deleteStaticAccount(t, td, sa)
+
+	// 1. Read should return nothing
+	respData := testStaticRead(t, td, staticName)
+	if respData != nil {
+		t.Fatalf("expected static account to not exist initially")
+	}
+
+	// 2. Create new static account
+	testStaticCreate(t, td, staticName,
+		map[string]interface{}{
+			"secret_type":           SecretTypeKey,
+			"service_account_email": sa.Email,
+			"token_scopes":          []string{iam.CloudPlatformScope},
+		})
+
+	// 3. Read static account
+	respData = testStaticRead(t, td, staticName)
+	if respData == nil {
+		t.Fatalf("expected static account to have been created")
+	}
+
+	verifyReadData(t, respData, map[string]interface{}{
+		"secret_type":             SecretTypeKey,
 		"service_account_email":   sa.Email,
 		"service_account_project": sa.ProjectId,
 		"bindings":                nil,
@@ -397,4 +452,18 @@ func testStaticDelete(t *testing.T, td *testData, staticName string) {
 			t.Fatalf("unable to delete role set: %v", resp.Error())
 		}
 	}
+}
+
+// Return a list of key IDs for a service account
+func getServiceAccountKeys(t *testing.T, td *testData, saName string) []string {
+	keysRaw, err := td.IamAdmin.Projects.ServiceAccounts.Keys.List(saName).Do()
+	if err != nil {
+		t.Fatalf("error listing service account keys: %v", err)
+	}
+	var keys []string
+	for _, key := range keysRaw.Keys {
+		keys = append(keys, key.Name)
+	}
+	sort.Strings(keys)
+	return keys
 }
