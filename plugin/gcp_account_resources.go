@@ -115,7 +115,7 @@ func (b *backend) createServiceAccount(ctx context.Context, req *logical.Request
 	createSaReq := &iam.CreateServiceAccountRequest{
 		AccountId: saName,
 		ServiceAccount: &iam.ServiceAccount{
-			DisplayName: fmt.Sprintf(serviceAccountDisplayNameTmpl, descriptor),
+			DisplayName: roleSetServiceAccountDisplayName(descriptor),
 		},
 	}
 
@@ -133,4 +133,15 @@ func (b *backend) createServiceAccount(ctx context.Context, req *logical.Request
 
 func emailForServiceAccountName(project, accountName string) string {
 	return fmt.Sprintf(serviceAccountEmailTemplate, accountName, project)
+}
+
+func roleSetServiceAccountDisplayName(name string) string {
+	fullDisplayName := fmt.Sprintf(serviceAccountDisplayNameTmpl, name)
+	displayName := fullDisplayName
+	if len(fullDisplayName) > serviceAccountDisplayNameMaxLen {
+		truncIndex := serviceAccountDisplayNameMaxLen - serviceAccountDisplayNameHashLen
+		h := fmt.Sprintf("%x", sha256.Sum256([]byte(fullDisplayName[truncIndex:])))
+		displayName = fullDisplayName[:truncIndex] + h[:serviceAccountDisplayNameHashLen]
+	}
+	return displayName
 }

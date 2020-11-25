@@ -20,9 +20,11 @@ import (
 var serviceAccountRegex = regexp.MustCompile("[^a-zA-Z0-9-]+")
 
 const (
-	serviceAccountMaxLen          = 30
-	serviceAccountDisplayNameTmpl = "Service account for Vault secrets backend %s"
-	serviceAccountEmailTemplate   = "%s@%s.iam.gserviceaccount.com"
+	serviceAccountMaxLen             = 30
+	serviceAccountEmailTemplate      = "%s@%s.iam.gserviceaccount.com"
+	serviceAccountDisplayNameHashLen = 8
+	serviceAccountDisplayNameMaxLen  = 100
+	serviceAccountDisplayNameTmpl    = "Service account for Vault secrets backend role set %s"
 )
 
 type RoleSet struct {
