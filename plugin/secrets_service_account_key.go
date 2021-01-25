@@ -175,6 +175,12 @@ func (b *backend) secretKeyRevoke(ctx context.Context, req *logical.Request, d *
 
 func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleSet, keyType, keyAlgorithm string, ttl int) (*logical.Response, error) {
 	cfg, err := getConfig(ctx, s)
+	if err != nil {
+		return nil, errwrap.Wrapf("could not read backend config: {{err}}", err)
+	}
+	if cfg == nil {
+		cfg = &config{}
+	}
 	if rs.AccountId == nil {
 		return nil, fmt.Errorf("unable to create secret (service account key), roleset has nil account ID")
 	}
