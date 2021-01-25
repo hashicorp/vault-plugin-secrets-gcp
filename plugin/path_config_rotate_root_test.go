@@ -8,12 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
-	"google.golang.org/api/option"
-
 	"github.com/hashicorp/go-gcp-common/gcputil"
+	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"github.com/hashicorp/vault/sdk/logical"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/option"
 )
 
 func TestConfigRotateRootUpdate(t *testing.T) {

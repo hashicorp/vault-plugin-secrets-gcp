@@ -1,7 +1,5 @@
 package main
 
-import "os"
-
 import (
 	"bytes"
 	"errors"
@@ -9,6 +7,7 @@ import (
 	"go/format"
 	"log"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"text/template"
