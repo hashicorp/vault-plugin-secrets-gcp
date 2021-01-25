@@ -2,7 +2,6 @@ package gcpsecrets
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -20,9 +19,7 @@ func getTestBackend(tb testing.TB) (*backend, logical.Storage) {
 
 	config := logical.TestBackendConfig()
 	config.StorageView = new(logical.InmemStorage)
-	if os.Getenv("VAULT_LOG") == "" {
-		config.Logger = hclog.NewNullLogger()
-	}
+	config.Logger = hclog.New(nil)
 	config.System = &logical.StaticSystemView{
 		DefaultLeaseTTLVal: defaultLeaseTTLHr * time.Hour,
 		MaxLeaseTTLVal:     maxLeaseTTLHr * time.Hour,
