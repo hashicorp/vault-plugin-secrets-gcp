@@ -119,8 +119,8 @@ func TestPathStatic_UpdateDisallowed(t *testing.T) {
 	defer deleteStaticAccount(t, td, sa)
 
 	saNew := createStaticAccount(t, td, staticName+"-new")
-	defer deleteStaticAccount(t, td, saNew)
 	defer cleanupStatic(t, td, staticName+"-new", util.StringSet{})
+	defer deleteStaticAccount(t, td, saNew)
 
 	// 1. Read should return nothing
 	respData := testStaticRead(t, td, staticName)
@@ -443,13 +443,13 @@ func testStaticDelete(t *testing.T, td *testData, staticName string) {
 	})
 
 	if err != nil {
-		t.Fatalf("unable to delete role set: %v", err)
+		t.Fatalf("unable to delete static account: %v", err)
 	} else if resp != nil {
 		if len(resp.Warnings) > 0 {
-			t.Logf("warnings returned from role set delete. Warnings:\n %s\n", strings.Join(resp.Warnings, ",\n"))
+			t.Logf("warnings returned from static account delete. Warnings:\n %s\n", strings.Join(resp.Warnings, ",\n"))
 		}
 		if resp.IsError() {
-			t.Fatalf("unable to delete role set: %v", resp.Error())
+			t.Fatalf("unable to delete static account: %v", resp.Error())
 		}
 	}
 }
