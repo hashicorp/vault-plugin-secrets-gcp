@@ -4,15 +4,15 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
-	"google.golang.org/api/option"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
+	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"github.com/hashicorp/vault/sdk/logical"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/option"
 )
 
 func TestConfigRotateRootUpdate(t *testing.T) {
@@ -154,16 +154,28 @@ func TestConfigRotateRootUpdate(t *testing.T) {
 		if err := storage.Put(ctx, entry); err != nil {
 			t.Fatal(err)
 		}
+		b.ClearCaches()
 
-		// Rotate the key
-		resp, err := b.HandleRequest(ctx, &logical.Request{
-			Operation: logical.UpdateOperation,
-			Path:      "config/rotate-root",
-			Storage:   storage,
-		})
+		// Rotate the key - retrying until success because of new key eventual consistency
+		rawResp, err := retryTestFunc(func() (interface{}, error) {
+			resp, err := b.HandleRequest(ctx, &logical.Request{
+				Operation: logical.UpdateOperation,
+				Path:      "config/rotate-root",
+				Storage:   storage,
+			})
+			if err != nil {
+				return resp, err
+			}
+			if resp != nil && resp.IsError() {
+				return resp, resp.Error()
+			}
+			return resp, err
+		}, maxTokenTestCalls)
+
 		if err != nil {
 			t.Fatal(err)
 		}
+		resp := rawResp.(*logical.Response)
 
 		privateKeyId := resp.Data["private_key_id"]
 		if privateKeyId == "" {

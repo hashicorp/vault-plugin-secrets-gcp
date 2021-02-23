@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func Test_roleSetServiceAccountDisplayName(t *testing.T) {
+func Test_RoleSetServiceAccountDisplayName(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string

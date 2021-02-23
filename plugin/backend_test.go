@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
@@ -14,12 +14,12 @@ const (
 	maxLeaseTTLHr     = 12
 )
 
-func getTestBackend(tb testing.TB) (logical.Backend, logical.Storage) {
+func getTestBackend(tb testing.TB) (*backend, logical.Storage) {
 	tb.Helper()
 
 	config := logical.TestBackendConfig()
 	config.StorageView = new(logical.InmemStorage)
-	config.Logger = hclog.NewNullLogger()
+	config.Logger = hclog.New(nil)
 	config.System = &logical.StaticSystemView{
 		DefaultLeaseTTLVal: defaultLeaseTTLHr * time.Hour,
 		MaxLeaseTTLVal:     maxLeaseTTLHr * time.Hour,

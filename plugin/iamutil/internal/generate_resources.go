@@ -1,22 +1,22 @@
 package main
 
-import "os"
-
 import (
 	"bytes"
 	"errors"
 	"fmt"
+	"go/format"
+	"log"
+	"net/url"
+	"os"
+	"regexp"
+	"strings"
+	"text/template"
+
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
-	"go/format"
 	"google.golang.org/api/discovery/v1"
-	"log"
-	"net/url"
-	"regexp"
-	"strings"
-	"text/template"
 )
 
 const (

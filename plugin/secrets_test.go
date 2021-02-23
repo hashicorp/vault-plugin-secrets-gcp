@@ -432,16 +432,17 @@ func testRevokeSecretKey(t *testing.T, td *testData, sec *logical.Secret) {
 	}
 }
 
-func retryTestFunc(f func() error, retries int) error {
+func retryTestFunc(f func() (interface{}, error), retries int) (interface{}, error) {
 	var err error
+	var value interface{}
 	for i := 0; i < retries; i++ {
-		if err = f(); err == nil {
-			return nil
+		if value, err = f(); err == nil {
+			return value, nil
 		}
 		log.Printf("[DEBUG] test check failed with error %v (attempt %d), sleeping one second before trying again", err, i)
 		time.Sleep(time.Second)
 	}
-	return err
+	return value, err
 }
 
 func checkSecretPermissions(t *testing.T, td *testData, httpC *http.Client) {
@@ -451,9 +452,9 @@ func checkSecretPermissions(t *testing.T, td *testData, httpC *http.Client) {
 	}
 
 	// Should succeed: List roles
-	err = retryTestFunc(func() error {
-		_, err = iamAdmin.Projects.Roles.List(fmt.Sprintf("projects/%s", td.Project)).Do()
-		return err
+	_, err = retryTestFunc(func() (interface{}, error) {
+		roles, err := iamAdmin.Projects.Roles.List(fmt.Sprintf("projects/%s", td.Project)).Do()
+		return roles, err
 	}, maxTokenTestCalls)
 	if err != nil {
 		t.Fatalf("expected call using authorized secret to succeed, instead got error: %v", err)
