@@ -81,8 +81,9 @@ func (p *Policy) ChangedBindings(toAdd *PolicyDelta, toRemove *PolicyDelta) (cha
 
 		if len(memberSet) > 0 {
 			newBindings = append(newBindings, &Binding{
-				Role:    bind.Role,
-				Members: memberSet.ToSlice(),
+				Role:      bind.Role,
+				Members:   memberSet.ToSlice(),
+				Condition: bind.Condition,
 			})
 		}
 	}
