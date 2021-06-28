@@ -10,11 +10,11 @@ import (
 
 func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern: fmt.Sprintf("%s/%s/key", staticAccountPathPrefix, framework.GenericNameRegex("static_account")),
+		Pattern: fmt.Sprintf("%s/%s/key", staticAccountPathPrefix, framework.GenericNameRegex("name")),
 		Fields: map[string]*framework.FieldSchema{
-			"static_account": {
+			"name": {
 				Type:        framework.TypeString,
-				Description: "Required. Name of the static_account.",
+				Description: "Required. Name of the static account.",
 			},
 			"key_algorithm": {
 				Type:        framework.TypeString,
@@ -43,11 +43,11 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 
 func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern: fmt.Sprintf("%s/%s/token", staticAccountPathPrefix, framework.GenericNameRegex("static_account")),
+		Pattern: fmt.Sprintf("%s/%s/token", staticAccountPathPrefix, framework.GenericNameRegex("name")),
 		Fields: map[string]*framework.FieldSchema{
-			"static_account": {
+			"name": {
 				Type:        framework.TypeString,
-				Description: "Required. Name of the static_account.",
+				Description: "Required. Name of the static account.",
 			},
 		},
 		ExistenceCheck: b.pathStaticAccountExistenceCheck,
@@ -61,7 +61,7 @@ func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 }
 
 func (b *backend) pathStaticAccountSecretKey(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	acctName := d.Get("static_account").(string)
+	acctName := d.Get("name").(string)
 	keyType := d.Get("key_type").(string)
 	keyAlg := d.Get("key_algorithm").(string)
 	ttl := d.Get("ttl").(int)
@@ -91,7 +91,7 @@ func (b *backend) pathStaticAccountSecretKey(ctx context.Context, req *logical.R
 }
 
 func (b *backend) pathStaticAccountAccessToken(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	acctName := d.Get("static_account").(string)
+	acctName := d.Get("name").(string)
 
 	acct, err := b.getStaticAccount(acctName, ctx, req.Storage)
 	if err != nil {
