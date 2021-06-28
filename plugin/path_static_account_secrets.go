@@ -31,7 +31,6 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 				Description: "Lifetime of the service account key",
 			},
 		},
-		ExistenceCheck: b.pathStaticAccountExistenceCheck,
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathStaticAccountSecretKey},
 			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathStaticAccountSecretKey},
@@ -50,7 +49,6 @@ func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 				Description: "Required. Name of the static account.",
 			},
 		},
-		ExistenceCheck: b.pathStaticAccountExistenceCheck,
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathStaticAccountAccessToken},
 			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathStaticAccountAccessToken},
