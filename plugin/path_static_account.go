@@ -39,7 +39,7 @@ func pathStaticAccount(b *backend) *framework.Path {
 			},
 			"token_scopes": {
 				Type:        framework.TypeCommaStringSlice,
-				Description: fmt.Sprintf(`List of OAuth scopes to assign to access tokens generated under this account. Ignored if secret_type not %q`, SecretTypeKey),
+				Description: fmt.Sprintf(`List of OAuth scopes to assign to access tokens generated under this account. Ignored if "secret_type" is not "%q"`, SecretTypeAccessToken),
 			},
 		},
 		ExistenceCheck: b.pathStaticAccountExistenceCheck,

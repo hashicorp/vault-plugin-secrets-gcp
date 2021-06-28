@@ -157,11 +157,7 @@ func (b *backend) pathRoleSetRead(ctx context.Context, req *logical.Request, d *
 }
 
 func (b *backend) pathRoleSetDelete(ctx context.Context, req *logical.Request, d *framework.FieldData) (resp *logical.Response, err error) {
-	nameRaw, ok := d.GetOk("name")
-	if !ok {
-		return logical.ErrorResponse("name is required"), nil
-	}
-	rsName := nameRaw.(string)
+	rsName := d.Get("name").(string)
 
 	b.rolesetLock.Lock()
 	defer b.rolesetLock.Unlock()

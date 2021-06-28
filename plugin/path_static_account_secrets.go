@@ -10,8 +10,7 @@ import (
 
 func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern:    fmt.Sprintf("%s/%s/key", staticAccountPathPrefix, framework.GenericNameRegex("static_account")),
-		Deprecated: true,
+		Pattern: fmt.Sprintf("%s/%s/key", staticAccountPathPrefix, framework.GenericNameRegex("static_account")),
 		Fields: map[string]*framework.FieldSchema{
 			"static_account": {
 				Type:        framework.TypeString,
@@ -44,8 +43,7 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 
 func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern:    fmt.Sprintf("%s/%s/token", staticAccountPathPrefix, framework.GenericNameRegex("static_account")),
-		Deprecated: true,
+		Pattern: fmt.Sprintf("%s/%s/token", staticAccountPathPrefix, framework.GenericNameRegex("static_account")),
 		Fields: map[string]*framework.FieldSchema{
 			"static_account": {
 				Type:        framework.TypeString,

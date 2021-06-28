@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/go-multierror"
@@ -110,7 +111,7 @@ func (b *backend) createStaticAccount(ctx context.Context, req *logical.Request,
 
 	if err != nil {
 		if isGoogleAccountNotFoundErr(err) {
-			return fmt.Errorf("unable to create static account - service account %q should exist", input.serviceAccountEmail)
+			return fmt.Errorf("unable to create static account, service account %q should exist", input.serviceAccountEmail)
 		}
 		return errwrap.Wrapf(fmt.Sprintf("unable to create static account, could not confirm service account %q exists: {{err}}", input.serviceAccountEmail), err)
 	}
