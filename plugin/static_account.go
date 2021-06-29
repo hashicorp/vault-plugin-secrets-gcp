@@ -289,9 +289,10 @@ func (b *backend) addWalsForStaticAccountBindings(ctx context.Context, req *logi
 	// Add WALs for resources in added bindings
 	for resource, rolesAdded := range added {
 		walEntry := &walIamPolicyStaticAccount{
-			AccountId:  a.ServiceAccountId,
-			Resource:   resource,
-			RolesAdded: rolesAdded.ToSlice(),
+			StaticAccount: a.Name,
+			AccountId:     a.ServiceAccountId,
+			Resource:      resource,
+			RolesAdded:    rolesAdded.ToSlice(),
 		}
 		if rolesRemoved, ok := removed[resource]; ok {
 			walEntry.RolesRemoved = rolesRemoved.ToSlice()
@@ -309,9 +310,10 @@ func (b *backend) addWalsForStaticAccountBindings(ctx context.Context, req *logi
 			continue
 		}
 		walEntry := &walIamPolicyStaticAccount{
-			AccountId:    a.ServiceAccountId,
-			Resource:     resource,
-			RolesRemoved: rolesRemoved.ToSlice(),
+			StaticAccount: a.Name,
+			AccountId:     a.ServiceAccountId,
+			Resource:      resource,
+			RolesRemoved:  rolesRemoved.ToSlice(),
 		}
 
 		walId, err := framework.PutWAL(ctx, req.Storage, walTypeIamPolicyDiff, walEntry)
