@@ -72,11 +72,11 @@ func (input *inputParams) parseOkInputTokenScopes(d *framework.FieldData) (warni
 	}
 
 	if input.secretType == SecretTypeAccessToken && len(input.scopes) == 0 {
-		return nil, fmt.Errorf("non-empty token_scopes must be provided for generating access token secrets")
+		return nil, fmt.Errorf("non-empty token_scopes must be provided for generating access_token secrets")
 	}
 
 	if input.secretType != SecretTypeAccessToken && ok && len(input.scopes) > 0 {
-		warnings = append(warnings, "ignoring non-empty token scopes, secret type not access_token")
+		warnings = append(warnings, "ignoring non-empty token_scopes, secret type not access_token")
 	}
 	return
 }
