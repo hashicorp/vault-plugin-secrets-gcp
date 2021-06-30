@@ -245,8 +245,8 @@ func (b *backend) serviceAccountPolicyRollback(ctx context.Context, req *logical
 }
 
 func (b *backend) serviceAccountPolicyDiffRollback(ctx context.Context, req *logical.Request, data interface{}) error {
-	b.rolesetLock.Lock()
-	defer b.rolesetLock.Unlock()
+	b.staticAccountLock.Lock()
+	defer b.staticAccountLock.Unlock()
 
 	var entry walIamPolicyStaticAccount
 	if err := mapstructure.Decode(data, &entry); err != nil {
