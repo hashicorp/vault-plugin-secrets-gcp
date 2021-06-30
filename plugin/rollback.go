@@ -261,7 +261,8 @@ func (b *backend) serviceAccountPolicyDiffRollback(ctx context.Context, req *log
 		return err
 	}
 	if sa == nil {
-		return fmt.Errorf("static account %s not found", entry.StaticAccount)
+		b.Logger().Warn("static account %s not found, dropping WAL entry", entry.StaticAccount)
+		return nil
 	}
 	if sa.ResourceName() == entry.AccountId.ResourceName() {
 		rolesInUse = sa.Bindings[entry.Resource]
