@@ -56,7 +56,7 @@ func (input *inputParams) parseOkInputServiceAccountEmail(d *framework.FieldData
 func (input *inputParams) parseOkInputTokenScopes(d *framework.FieldData) (warnings []string, err error) {
 	// Parse secretType if not yet parsed
 	if input.secretType == "" {
-		warnings, err = input.parseOkInputTokenScopes(d)
+		warnings, err = input.parseOkInputSecretType(d)
 		if err != nil {
 			return nil, err
 		}
