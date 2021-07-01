@@ -80,7 +80,7 @@ func (b *backend) createNewTokenGen(ctx context.Context, req *logical.Request, p
 		parent,
 		&iam.CreateServiceAccountKeyRequest{
 			PrivateKeyType: privateKeyTypeJson,
-		}).Do()
+		}).Context(ctx).Do()
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func (b *backend) createServiceAccount(ctx context.Context, req *logical.Request
 		return nil, err
 	}
 
-	return iamAdmin.Projects.ServiceAccounts.Create(fmt.Sprintf("projects/%s", project), createSaReq).Do()
+	return iamAdmin.Projects.ServiceAccounts.Create(fmt.Sprintf("projects/%s", project), createSaReq).Context(ctx).Do()
 }
 
 // tryDeleteGcpAccountResources creates WALs to clean up a service account's
@@ -200,7 +200,7 @@ func (b *backend) deleteTokenGenKey(ctx context.Context, iamAdmin *iam.Service, 
 		return nil
 	}
 
-	_, err := iamAdmin.Projects.ServiceAccounts.Keys.Delete(tgen.KeyName).Do()
+	_, err := iamAdmin.Projects.ServiceAccounts.Keys.Delete(tgen.KeyName).Context(ctx).Do()
 	if err != nil && !isGoogleAccountKeyNotFoundErr(err) {
 		return errwrap.Wrapf("unable to delete service account key: {{err}}", err)
 	}
@@ -248,7 +248,7 @@ func (b *backend) deleteServiceAccount(ctx context.Context, iamAdmin *iam.Servic
 		return nil
 	}
 
-	_, err := iamAdmin.Projects.ServiceAccounts.Delete(account.ResourceName()).Do()
+	_, err := iamAdmin.Projects.ServiceAccounts.Delete(account.ResourceName()).Context(ctx).Do()
 	if err != nil && !isGoogleAccountNotFoundErr(err) {
 		return errwrap.Wrapf("unable to delete service account: {{err}}", err)
 	}

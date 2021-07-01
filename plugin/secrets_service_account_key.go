@@ -143,7 +143,7 @@ func (b *backend) secretKeyRevoke(ctx context.Context, req *logical.Request, d *
 		return logical.ErrorResponse(err.Error()), nil
 	}
 
-	_, err = iamAdmin.Projects.ServiceAccounts.Keys.Delete(keyNameRaw.(string)).Do()
+	_, err = iamAdmin.Projects.ServiceAccounts.Keys.Delete(keyNameRaw.(string)).Context(ctx).Do()
 	if err != nil && !isGoogleAccountKeyNotFoundErr(err) {
 		return logical.ErrorResponse("unable to delete service account key: %v", err), nil
 	}
