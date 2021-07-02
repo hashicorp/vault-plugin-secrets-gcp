@@ -158,7 +158,7 @@ func (b *backend) tryDeleteGcpAccountResources(ctx context.Context, req *logical
 		return nil
 	}
 
-	b.Logger().Debug("try to delete GCP account resources", "bound resources", boundResources, "remove service account", removeServiceAccount)
+	b.Logger().Debug("try to delete GCP account resources", "bound_resources", boundResources, "remove_service_account", removeServiceAccount)
 
 	iamAdmin, err := b.IAMAdminClient(req.Storage)
 	if err != nil {

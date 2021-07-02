@@ -20,7 +20,8 @@ const (
 )
 
 type secretKeyParams struct {
-	keyType, keyAlgorithm string
+	keyType      string
+	keyAlgorithm string
 	ttl                   int
 	extraInternalData     map[string]interface{}
 }

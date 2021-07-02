@@ -18,12 +18,12 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 			},
 			"key_algorithm": {
 				Type:        framework.TypeString,
-				Description: fmt.Sprintf(`Private key algorithm for service account key - defaults to %s"`, keyAlgorithmRSA2k),
+				Description: fmt.Sprintf(`Private key algorithm for service account key. Defaults to %s."`, keyAlgorithmRSA2k),
 				Default:     keyAlgorithmRSA2k,
 			},
 			"key_type": {
 				Type:        framework.TypeString,
-				Description: fmt.Sprintf(`Private key type for service account key - defaults to %s"`, privateKeyTypeJson),
+				Description: fmt.Sprintf(`Private key type for service account key. Defaults to %s."`, privateKeyTypeJson),
 				Default:     privateKeyTypeJson,
 			},
 			"ttl": {
@@ -53,8 +53,8 @@ func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathStaticAccountAccessToken},
 			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathStaticAccountAccessToken},
 		},
-		HelpSynopsis:    pathServiceAccountKeySyn,
-		HelpDescription: pathServiceAccountKeyDesc,
+		HelpSynopsis:    pathTokenHelpSyn,
+		HelpDescription: pathTokenHelpDesc,
 	}
 }
 

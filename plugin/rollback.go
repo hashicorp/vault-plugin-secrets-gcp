@@ -139,7 +139,7 @@ func (b *backend) serviceAccountKeyRollback(ctx context.Context, req *logical.Re
 			}
 		}
 	default:
-		b.Logger().Error("removing invalid walAccountKey with empty RoleSet and empty StaticAccount - may need manual cleanup: %v", entry)
+		b.Logger().Error("removing invalid walAccountKey with empty RoleSet and empty StaticAccount, may need manual cleanup: %v", entry)
 		return nil
 	}
 
