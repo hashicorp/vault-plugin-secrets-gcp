@@ -8,38 +8,43 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
-var fieldSchemaRoleSetServiceAccountKey = map[string]*framework.FieldSchema{
-	"roleset": {
-		Type:        framework.TypeString,
-		Description: "Required. Name of the role set.",
-	},
-	"key_algorithm": {
-		Type:        framework.TypeString,
-		Description: fmt.Sprintf(`Private key algorithm for service account key - defaults to %s"`, keyAlgorithmRSA2k),
-		Default:     keyAlgorithmRSA2k,
-	},
-	"key_type": {
-		Type:        framework.TypeString,
-		Description: fmt.Sprintf(`Private key type for service account key - defaults to %s"`, privateKeyTypeJson),
-		Default:     privateKeyTypeJson,
-	},
-	"ttl": {
-		Type:        framework.TypeDurationSecond,
-		Description: "Lifetime of the service account key",
-	},
+func fieldSchemaRoleSetServiceAccountKey() map[string]*framework.FieldSchema {
+	return map[string]*framework.FieldSchema{
+		"roleset": {
+			Type:        framework.TypeString,
+			Description: "Required. Name of the role set.",
+		},
+		"key_algorithm": {
+			Type:        framework.TypeString,
+			Description: fmt.Sprintf(`Private key algorithm for service account key - defaults to %s"`, keyAlgorithmRSA2k),
+			Default:     keyAlgorithmRSA2k,
+		},
+		"key_type": {
+			Type:        framework.TypeString,
+			Description: fmt.Sprintf(`Private key type for service account key - defaults to %s"`, privateKeyTypeJson),
+			Default:     privateKeyTypeJson,
+		},
+		"ttl": {
+			Type:        framework.TypeDurationSecond,
+			Description: "Lifetime of the service account key",
+		},
+	}
 }
 
-var fieldSchemaRoleSetAccessToken = map[string]*framework.FieldSchema{
-	"roleset": {
-		Type:        framework.TypeString,
-		Description: "Required. Name of the role set.",
-	},
+func fieldSchemaRoleSetAccessToken() map[string]*framework.FieldSchema {
+	return map[string]*framework.FieldSchema{
+		"roleset": {
+			Type:        framework.TypeString,
+			Description: "Required. Name of the role set.",
+		},
+	}
+
 }
 
 func pathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern:        fmt.Sprintf("roleset/%s/key", framework.GenericNameRegex("roleset")),
-		Fields:         fieldSchemaRoleSetServiceAccountKey,
+		Fields:         fieldSchemaRoleSetServiceAccountKey(),
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathRoleSetSecretKey},
@@ -54,7 +59,7 @@ func deprecatedPathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern:        fmt.Sprintf("key/%s", framework.GenericNameRegex("roleset")),
 		Deprecated:     true,
-		Fields:         fieldSchemaRoleSetServiceAccountKey,
+		Fields:         fieldSchemaRoleSetServiceAccountKey(),
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathRoleSetSecretKey},
@@ -68,7 +73,7 @@ func deprecatedPathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 func pathRoleSetSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern:        fmt.Sprintf("roleset/%s/token", framework.GenericNameRegex("roleset")),
-		Fields:         fieldSchemaRoleSetAccessToken,
+		Fields:         fieldSchemaRoleSetAccessToken(),
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathRoleSetSecretAccessToken},
@@ -83,7 +88,7 @@ func deprecatedPathRoleSetSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern:        fmt.Sprintf("token/%s", framework.GenericNameRegex("roleset")),
 		Deprecated:     true,
-		Fields:         fieldSchemaRoleSetAccessToken,
+		Fields:         fieldSchemaRoleSetAccessToken(),
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathRoleSetSecretAccessToken},

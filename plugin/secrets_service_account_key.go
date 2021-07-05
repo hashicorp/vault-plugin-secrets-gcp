@@ -20,10 +20,10 @@ const (
 )
 
 type secretKeyParams struct {
-	keyType      string
-	keyAlgorithm string
-	ttl                   int
-	extraInternalData     map[string]interface{}
+	keyType           string
+	keyAlgorithm      string
+	ttl               int
+	extraInternalData map[string]interface{}
 }
 
 func secretServiceAccountKey(b *backend) *framework.Secret {
