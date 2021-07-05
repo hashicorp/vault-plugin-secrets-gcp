@@ -129,6 +129,9 @@ func (b *backend) pathStaticAccountDelete(ctx context.Context, req *logical.Requ
 	}
 	name := nameRaw.(string)
 
+	b.staticAccountLock.Lock()
+	defer b.staticAccountLock.Unlock()
+
 	acct, err := b.getStaticAccount(name, ctx, req.Storage)
 	if err != nil {
 		return nil, errwrap.Wrapf(fmt.Sprintf("unable to get static account %q: {{err}}", name), err)
