@@ -28,7 +28,7 @@ func (input *inputParams) parseOkInputSecretType(d *framework.FieldData) (warnin
 		return nil, fmt.Errorf("secret_type is required")
 	}
 	if input.secretType != "" && secretType != "" && input.secretType != secretType {
-		return nil, fmt.Errorf("cannot update secret_type - currently %q", input.secretType)
+		return nil, fmt.Errorf("cannot update secret_type")
 	}
 
 	switch secretType {
@@ -46,7 +46,7 @@ func (input *inputParams) parseOkInputServiceAccountEmail(d *framework.FieldData
 		return nil, fmt.Errorf("email is required")
 	}
 	if input.serviceAccountEmail != "" && email != "" && input.serviceAccountEmail != email {
-		return nil, fmt.Errorf("cannot update email - currently %q", input.serviceAccountEmail)
+		return nil, fmt.Errorf("cannot update email")
 	}
 
 	input.serviceAccountEmail = email
