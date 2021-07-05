@@ -22,16 +22,16 @@ func pathStaticAccount(b *backend) *framework.Path {
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
 				Type:        framework.TypeString,
-				Description: "Required. Name to refer to this static account in Vault.",
+				Description: "Required. Name to refer to this static account in Vault. Cannot be updated.",
 			},
 			"secret_type": {
 				Type:        framework.TypeString,
-				Description: fmt.Sprintf("Type of secret generated for this account. Defaults to %q", SecretTypeAccessToken),
+				Description: fmt.Sprintf("Type of secret generated for this account. Cannot be updated. Defaults to %q", SecretTypeAccessToken),
 				Default:     SecretTypeAccessToken,
 			},
 			"service_account_email": {
 				Type:        framework.TypeString,
-				Description: "Email of the GCP service account to manage.",
+				Description: "Required. Email of the GCP service account to manage. Cannot be updated.",
 			},
 			"bindings": {
 				Type:        framework.TypeString,
