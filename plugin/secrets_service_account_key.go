@@ -201,9 +201,13 @@ func (b *backend) createServiceAccountKeySecret(ctx context.Context, s logical.S
 	return resp, nil
 }
 
-const pathServiceAccountKeySyn = `Generate an service account private key secret.`
+const pathServiceAccountKeySyn = `Generate a service account private key secret.`
 const pathServiceAccountKeyDesc = `
 This path will generate a new service account key for accessing GCP APIs.
+
 Either specify "roleset/my-roleset" or "static/my-account" to generate a key corresponding
 to a roleset or static account respectively.
+
+Please see backend documentation for more information:
+https://www.vaultproject.io/docs/secrets/gcp/index.html
 `

@@ -56,16 +56,12 @@ engine and will be cleaned up now. Note that there is the chance that this acces
 will still be valid up to one hour.
 `
 
-const pathTokenHelpSyn = `Generate an OAuth2 access token under a specific role set.`
+const pathTokenHelpSyn = `Generate an OAuth2 access token secret.`
 const pathTokenHelpDesc = `
 This path will generate a new OAuth2 access token for accessing GCP APIs.
-A role set, binding IAM roles to specific GCP resources, will be specified
-by name - for example, if this backend is mounted at "gcp",
-then "gcp/token/deploy" would generate tokens for the "deploy" role set.
 
-On the backend, each roleset is associated with a service account.
-The token will be associated with this service account. Tokens have a
-short-term lease (1-hour) associated with them but cannot be renewed.
+Either specify "roleset/my-roleset" or "static/my-account" to generate a key corresponding
+to a roleset or static account respectively.
 
 Please see backend documentation for more information:
 https://www.vaultproject.io/docs/secrets/gcp/index.html
