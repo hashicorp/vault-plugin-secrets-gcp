@@ -59,6 +59,8 @@ func TestPathStatic_Basic(t *testing.T) {
 		"service_account_project": sa.ProjectId,
 		"bindings":                nil,
 	})
+	// Test static account is listed
+	testStaticList(t, td, staticName)
 
 	// 4. Delete static account
 	testStaticDelete(t, td, staticName)
@@ -103,6 +105,8 @@ func TestPathStatic_Key(t *testing.T) {
 		"service_account_project": sa.ProjectId,
 		"bindings":                nil,
 	})
+	// Test static account is listed
+	testStaticList(t, td, staticName)
 
 	// 4. Delete static account
 	testStaticDelete(t, td, staticName)
@@ -220,6 +224,8 @@ func TestPathStatic_WithBindings(t *testing.T) {
 		"service_account_project": sa.ProjectId,
 		"bindings":                expectedBinds,
 	})
+	// Test static account is listed
+	testStaticList(t, td, staticName)
 
 	// Verify service account has given role on project
 	verifyProjectBinding(t, td, sa.Email, roles)
@@ -450,6 +456,39 @@ func testStaticDelete(t *testing.T, td *testData, staticName string) {
 		}
 		if resp.IsError() {
 			t.Fatalf("unable to delete static account: %v", resp.Error())
+		}
+	}
+}
+
+func testStaticList(t *testing.T, td *testData, staticName string) {
+	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
+		Operation: logical.ListOperation,
+		Path:      staticAccountPathPrefix,
+		Storage:   td.S,
+	})
+
+	if err != nil {
+		t.Fatalf("unable to list static accounts: %v", err)
+	} else if resp != nil {
+		if len(resp.Warnings) > 0 {
+			t.Logf("warnings returned from static account list. Warnings:\n %s\n", strings.Join(resp.Warnings, ",\n"))
+		}
+		if resp.IsError() {
+			t.Fatalf("unable to list static accounts: %v", resp.Error())
+		}
+		keys, ok := resp.Data["keys"].([]string)
+		if !ok {
+			t.Fatalf("expected response to contain data map with key 'key' of type []string keys")
+		}
+		found := false
+		for _, s := range keys {
+			if s == staticName {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected static accounts listing to contain static account but did not")
 		}
 	}
 }

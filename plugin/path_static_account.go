@@ -63,9 +63,9 @@ func pathStaticAccount(b *backend) *framework.Path {
 }
 
 func pathStaticAccountList(b *backend) *framework.Path {
-	// Paths for listing role sets
+	// Paths for listing static accounts
 	return &framework.Path{
-		Pattern: fmt.Sprintf("%ss?/?", staticAccountPathPrefix),
+		Pattern: fmt.Sprintf("%s?/?", staticAccountPathPrefix),
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ListOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountList,
