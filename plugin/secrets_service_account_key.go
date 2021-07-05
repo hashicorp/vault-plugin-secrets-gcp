@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/go-gcp-common/gcputil"
-
 	"github.com/hashicorp/errwrap"
+	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 	"google.golang.org/api/iam/v1"
