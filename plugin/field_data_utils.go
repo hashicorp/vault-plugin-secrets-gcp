@@ -40,6 +40,9 @@ func (input *inputParams) parseOkInputSecretType(d *framework.FieldData) (warnin
 	}
 }
 
+// parseOkInputServiceAccountEmail checks that when creating a static acocunt, a service account
+// email is provided. A service account email can be provide while updating the static account
+// but it must be the same as the one in the static account and cannot be updated.
 func (input *inputParams) parseOkInputServiceAccountEmail(d *framework.FieldData) (warnings []string, err error) {
 	email := d.Get("service_account_email").(string)
 	if email == "" && input.serviceAccountEmail == "" {
