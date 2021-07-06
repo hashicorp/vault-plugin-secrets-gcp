@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
@@ -41,9 +40,7 @@ func TestConfigRotateRootUpdate(t *testing.T) {
 		ctx := context.Background()
 		b, storage := getTestBackend(t)
 
-		entry, err := logical.StorageEntryJSON("config", &config{
-			TTL: 5 * time.Minute,
-		})
+		entry, err := logical.StorageEntryJSON("config", &config{})
 		if err != nil {
 			t.Fatal(err)
 		}
