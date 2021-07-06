@@ -102,17 +102,11 @@ func (b *backend) secretKeyRenew(ctx context.Context, req *logical.Request, d *f
 	if resp == nil {
 		resp = &logical.Response{}
 	}
-	cfg, err := getConfig(ctx, req.Storage)
-	if err != nil {
-		return nil, err
-	}
-	if cfg == nil {
-		cfg = &config{}
-	}
 
 	resp.Secret = req.Secret
-	resp.Secret.TTL = cfg.TTL
-	resp.Secret.MaxTTL = cfg.MaxTTL
+	if err := adjustTTLsFromConfig(ctx, req.Storage, resp); err != nil {
+		return resp, err
+	}
 	return resp, nil
 }
 
@@ -174,13 +168,6 @@ func (b *backend) secretKeyRevoke(ctx context.Context, req *logical.Request, d *
 }
 
 func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleSet, keyType, keyAlgorithm string, ttl int) (*logical.Response, error) {
-	cfg, err := getConfig(ctx, s)
-	if err != nil {
-		return nil, errwrap.Wrapf("could not read backend config: {{err}}", err)
-	}
-	if cfg == nil {
-		cfg = &config{}
-	}
 	if rs.AccountId == nil {
 		return nil, fmt.Errorf("unable to create secret (service account key), roleset has nil account ID")
 	}
@@ -211,14 +198,10 @@ func (b *backend) getSecretKey(ctx context.Context, s logical.Storage, rs *RoleS
 	}
 
 	resp := b.Secret(SecretTypeKey).Response(secretD, internalD)
+	resp.Secret.TTL = time.Duration(ttl) * time.Second
 	resp.Secret.Renewable = true
-
-	resp.Secret.MaxTTL = cfg.MaxTTL
-	resp.Secret.TTL = cfg.TTL
-
-	// If the request came with a TTL value, overwrite the config default
-	if ttl > 0 {
-		resp.Secret.TTL = time.Duration(ttl) * time.Second
+	if err := adjustTTLsFromConfig(ctx, s, resp); err != nil {
+		return resp, err
 	}
 
 	return resp, nil
