@@ -1,6 +1,6 @@
 module github.com/hashicorp/vault-plugin-secrets-gcp
 
-go 1.12
+go 1.13
 
 require (
 	cloud.google.com/go v0.86.0 // indirect
