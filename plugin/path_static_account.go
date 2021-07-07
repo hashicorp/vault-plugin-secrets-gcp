@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	staticAccountStoragePrefix       = "static"
-	staticAccountPathPrefix          = "static"
+	staticAccountStoragePrefix       = "static-account"
+	staticAccountPathPrefix          = "static-account"
 	gcpServiceAccountInferredProject = "-"
 )
 
@@ -65,7 +65,7 @@ func pathStaticAccount(b *backend) *framework.Path {
 func pathStaticAccountList(b *backend) *framework.Path {
 	// Paths for listing static accounts
 	return &framework.Path{
-		Pattern: fmt.Sprintf("%s?/?", staticAccountPathPrefix),
+		Pattern: fmt.Sprintf("%ss?/?", staticAccountPathPrefix),
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ListOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountList,
