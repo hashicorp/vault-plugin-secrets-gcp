@@ -1,4 +1,4 @@
-// Copyright 2019 Google LLC.
+// Copyright 2021 Google LLC.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -52,6 +52,7 @@ import (
 	googleapi "google.golang.org/api/googleapi"
 	gensupport "google.golang.org/api/internal/gensupport"
 	option "google.golang.org/api/option"
+	internaloption "google.golang.org/api/option/internaloption"
 	htransport "google.golang.org/api/transport/http"
 )
 
@@ -68,6 +69,7 @@ var _ = googleapi.Version
 var _ = errors.New
 var _ = strings.Replace
 var _ = context.Canceled
+var _ = internaloption.WithDefaultEndpoint
 
 const apiId = "discovery:v1"
 const apiName = "discovery"
@@ -76,6 +78,7 @@ const basePath = "https://www.googleapis.com/discovery/v1/"
 
 // NewService creates a new Service.
 func NewService(ctx context.Context, opts ...option.ClientOption) (*Service, error) {
+	opts = append(opts, internaloption.WithDefaultEndpoint(basePath))
 	client, endpoint, err := htransport.NewClient(ctx, opts...)
 	if err != nil {
 		return nil, err
@@ -700,6 +703,11 @@ type RestMethod struct {
 	// The ETag is sent as an HTTP If-Match or If-None-Match header.
 	EtagRequired bool `json:"etagRequired,omitempty"`
 
+	// FlatPath: The URI path of this REST method in (RFC 6570) format
+	// without level 2 features ({+var}). Supplementary to the path
+	// property.
+	FlatPath string `json:"flatPath,omitempty"`
+
 	// HttpMethod: HTTP method used by this method.
 	HttpMethod string `json:"httpMethod,omitempty"`
 
@@ -1007,6 +1015,9 @@ type ApisGetRestCall struct {
 }
 
 // GetRest: Retrieve the description of a particular version of an api.
+//
+// - api: The name of the API.
+// - version: The version of the API.
 func (r *ApisService) GetRest(api string, version string) *ApisGetRestCall {
 	c := &ApisGetRestCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.api = api
@@ -1051,7 +1062,7 @@ func (c *ApisGetRestCall) Header() http.Header {
 
 func (c *ApisGetRestCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := make(http.Header)
-	reqHeaders.Set("x-goog-api-client", "gl-go/1.13.4 gdcl/20191114")
+	reqHeaders.Set("x-goog-api-client", "gl-go/"+gensupport.GoVersion()+" gdcl/20210629")
 	for k, v := range c.header_ {
 		reqHeaders[k] = v
 	}
@@ -1210,7 +1221,7 @@ func (c *ApisListCall) Header() http.Header {
 
 func (c *ApisListCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := make(http.Header)
-	reqHeaders.Set("x-goog-api-client", "gl-go/1.13.4 gdcl/20191114")
+	reqHeaders.Set("x-goog-api-client", "gl-go/"+gensupport.GoVersion()+" gdcl/20210629")
 	for k, v := range c.header_ {
 		reqHeaders[k] = v
 	}
