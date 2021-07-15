@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
+	"github.com/hashicorp/go-secure-stdlib/strutil"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
-	"github.com/hashicorp/vault/sdk/helper/strutil"
 	"github.com/hashicorp/vault/sdk/logical"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
@@ -512,7 +512,6 @@ func testRoleSetRead(t *testing.T, td *testData, rsName string) map[string]inter
 		Path:      fmt.Sprintf("roleset/%s", rsName),
 		Storage:   td.S,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -548,7 +547,6 @@ func testRoleSetRotate(t *testing.T, td *testData, rsName string) {
 		Path:      fmt.Sprintf("roleset/%s/rotate", rsName),
 		Storage:   td.S,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -565,7 +563,6 @@ func testRoleSetRotateKey(t *testing.T, td *testData, rsName string) {
 		Path:      fmt.Sprintf("roleset/%s/rotate-key", rsName),
 		Storage:   td.S,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}

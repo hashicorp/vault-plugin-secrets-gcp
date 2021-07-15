@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-secure-stdlib/strutil"
 	"github.com/hashicorp/vault/sdk/framework"
-	"github.com/hashicorp/vault/sdk/helper/strutil"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
@@ -108,7 +108,6 @@ func (b *backend) createStaticAccount(ctx context.Context, req *logical.Request,
 		Project:   gcpServiceAccountInferredProject,
 		EmailOrId: input.serviceAccountEmail,
 	})
-
 	if err != nil {
 		if isGoogleAccountNotFoundErr(err) {
 			return fmt.Errorf("unable to create static account, service account %q should exist", input.serviceAccountEmail)
@@ -227,7 +226,6 @@ func (b *backend) updateStaticAccount(ctx context.Context, req *logical.Request,
 
 	b.tryDeleteWALs(ctx, req.Storage, walIds...)
 	return
-
 }
 
 func (b *backend) updateBindingsForStaticAccount(ctx context.Context, req *logical.Request, a *StaticAccount, newBindings ResourceBindings) ([]string, error) {
