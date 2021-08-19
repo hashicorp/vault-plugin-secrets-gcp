@@ -202,7 +202,7 @@ func (b *backend) serviceAccountPolicyRollback(ctx context.Context, req *logical
 	if err != nil {
 		return err
 	}
-	if rs.AccountId != nil && rs.AccountId.ResourceName() == entry.AccountId.ResourceName() {
+	if rs != nil && rs.AccountId != nil && rs.AccountId.ResourceName() == entry.AccountId.ResourceName() {
 		rolesInUse = rs.Bindings[entry.Resource]
 	}
 
