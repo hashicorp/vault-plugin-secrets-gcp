@@ -148,3 +148,7 @@ func cleanupRoleset(t *testing.T, td *testData, rsName string, roles util.String
 func cleanupStatic(t *testing.T, td *testData, saName string, roles util.StringSet) {
 	cleanup(t, td, fmt.Sprintf(staticAccountDisplayNameTmpl, saName), roles)
 }
+
+func cleanupImpersonate(t *testing.T, td *testData, saName string, roles util.StringSet) {
+	cleanup(t, td, fmt.Sprintf(impersonateAccountDisplayNameTmpl, saName), roles)
+}
