@@ -35,8 +35,9 @@ type backend struct {
 
 	resources iamutil.ResourceParser
 
-	rolesetLock       sync.Mutex
-	staticAccountLock sync.Mutex
+	rolesetLock             sync.Mutex
+	staticAccountLock       sync.Mutex
+	impersonatedAccountLock sync.Mutex
 }
 
 // Factory returns a new backend as logical.Backend.
@@ -85,6 +86,10 @@ func Backend() *backend {
 				pathStaticAccountRotateKey(b),
 				pathStaticAccountSecretAccessToken(b),
 				pathStaticAccountSecretServiceAccountKey(b),
+				// Impersonate
+				pathImpersonatedAccount(b),
+				pathImpersonatedAccountList(b),
+				pathImpersonatedAccountSecretAccessToken(b),
 			},
 		),
 		Secrets: []*framework.Secret{
