@@ -43,7 +43,6 @@ func TestPathImpersonate_Basic(t *testing.T) {
 	}
 
 	verifyReadData(t, respData, map[string]interface{}{
-		"secret_type":             SecretTypeAccessToken, // default
 		"service_account_email":   sa.Email,
 		"service_account_project": sa.ProjectId,
 	})
@@ -56,7 +55,7 @@ func TestPathImpersonate_Basic(t *testing.T) {
 
 // Tests that some fields cannot be updated
 func TestPathImpersonate_UpdateDisallowed(t *testing.T) {
-	impersonateName := "test-impersonated-update-fail"
+	impersonateName := "test-imp-update-fail"
 
 	td := setupTest(t, "0s", "2h")
 	defer cleanupImpersonate(t, td, impersonateName, util.StringSet{})
@@ -79,7 +78,6 @@ func TestPathImpersonate_UpdateDisallowed(t *testing.T) {
 		map[string]interface{}{
 			"service_account_email": sa.Email,
 			"token_scopes":          []string{iam.CloudPlatformScope},
-			"secret_type":           SecretTypeAccessToken,
 		})
 
 	// 3. Read impersonated account
@@ -89,7 +87,6 @@ func TestPathImpersonate_UpdateDisallowed(t *testing.T) {
 	}
 
 	verifyReadData(t, respData, map[string]interface{}{
-		"secret_type":             SecretTypeAccessToken,
 		"service_account_email":   sa.Email,
 		"service_account_project": sa.ProjectId,
 	})
@@ -99,10 +96,6 @@ func TestPathImpersonate_UpdateDisallowed(t *testing.T) {
 		{
 			// Email cannot be changed
 			"service_account_email": saNew.Email,
-		},
-		{
-			// Cannot change secret type
-			"secret_type": "blah",
 		},
 	}
 	for _, d := range errCases {

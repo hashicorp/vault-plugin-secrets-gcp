@@ -23,18 +23,13 @@ func pathImpersonatedAccount(b *backend) *framework.Path {
 				Type:        framework.TypeString,
 				Description: "Required. Name to refer to this impersonated account in Vault. Cannot be updated.",
 			},
-			"secret_type": {
-				Type:        framework.TypeString,
-				Description: fmt.Sprintf("Type of secret generated for this account. Cannot be updated. Defaults to %q", SecretTypeAccessToken),
-				Default:     SecretTypeAccessToken,
-			},
 			"service_account_email": {
 				Type:        framework.TypeString,
 				Description: "Required. Email of the GCP service account to manage. Cannot be updated.",
 			},
 			"token_scopes": {
 				Type:        framework.TypeCommaStringSlice,
-				Description: fmt.Sprintf(`List of OAuth scopes to assign to access tokens generated under this account. Ignored if "secret_type" is not "%q"`, SecretTypeAccessToken),
+				Description: "List of OAuth scopes to assign to access tokens generated under this account.",
 			},
 		},
 		ExistenceCheck: b.pathImpersonatedAccountExistenceCheck,
@@ -102,11 +97,7 @@ func (b *backend) pathImpersonatedAccountRead(ctx context.Context, req *logical.
 	data := map[string]interface{}{
 		"service_account_project": acct.Project,
 		"service_account_email":   acct.EmailOrId,
-		"secret_type":             acct.SecretType,
-	}
-
-	if acct.SecretType == SecretTypeAccessToken {
-		data["token_scopes"] = acct.TokenScopes
+		"token_scopes":            acct.TokenScopes,
 	}
 
 	return &logical.Response{
@@ -182,9 +173,8 @@ func (b *backend) pathImpersonatedAccountUpdate(ctx context.Context, req *logica
 		return nil, fmt.Errorf("unable to find impersonated account %s to update", name)
 	}
 
-	initialInput := &inputParams{
+	initialInput := &impersonatedAccountInputParams{
 		name:                acct.Name,
-		secretType:          acct.SecretType,
 		project:             acct.Project,
 		serviceAccountEmail: acct.EmailOrId,
 		scopes:              acct.TokenScopes,
@@ -217,12 +207,12 @@ func (b *backend) pathImpersonatedAccountList(ctx context.Context, req *logical.
 	return logical.ListResponse(accounts), nil
 }
 
-func (b *backend) parseImpersonateInformation(prevValues *inputParams, d *framework.FieldData) (*inputParams, []string, error) {
+func (b *backend) parseImpersonateInformation(prevValues *impersonatedAccountInputParams, d *framework.FieldData) (*impersonatedAccountInputParams, []string, error) {
 	var warnings []string
 
 	input := prevValues
 	if prevValues == nil {
-		input = &inputParams{}
+		input = &impersonatedAccountInputParams{}
 	}
 
 	nameRaw, ok := d.GetOk("name")
@@ -231,14 +221,7 @@ func (b *backend) parseImpersonateInformation(prevValues *inputParams, d *framew
 	}
 	input.name = nameRaw.(string)
 
-	ws, err := input.parseOkInputSecretType(d)
-	if err != nil {
-		return nil, nil, err
-	} else if len(ws) > 0 {
-		warnings = append(warnings, ws...)
-	}
-
-	ws, err = input.parseOkInputServiceAccountEmail(d)
+	ws, err := input.parseOkInputServiceAccountEmail(d)
 	if err != nil {
 		return nil, nil, err
 	} else if len(ws) > 0 {
@@ -246,13 +229,6 @@ func (b *backend) parseImpersonateInformation(prevValues *inputParams, d *framew
 	}
 
 	ws, err = input.parseOkInputTokenScopes(d)
-	if err != nil {
-		return nil, nil, err
-	} else if len(ws) > 0 {
-		warnings = append(warnings, ws...)
-	}
-
-	ws, err = input.parseOkInputBindings(d)
 	if err != nil {
 		return nil, nil, err
 	} else if len(ws) > 0 {

@@ -12,7 +12,7 @@ import (
 )
 
 func TestImpersonatedSecrets_GetAccessToken(t *testing.T) {
-	roleName := "test-impersonated-token"
+	roleName := "test-imp-token"
 	testGetImpersonatedAccessToken(t, roleName)
 }
 
@@ -28,7 +28,6 @@ func testGetImpersonatedAccessToken(t *testing.T, roleName string) {
 		map[string]interface{}{
 			"service_account_email": sa.Email,
 			"token_scopes":          []string{iam.CloudPlatformScope},
-			"secret_type":           SecretTypeAccessToken,
 		})
 
 	token := testGetToken(t, fmt.Sprintf("%s/%s/token", impersonatedAccountPathPrefix, roleName), td)

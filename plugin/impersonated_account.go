@@ -30,8 +30,7 @@ func (b *backend) getImpersonatedAccount(name string, ctx context.Context, s log
 }
 
 type ImpersonatedAccount struct {
-	Name       string
-	SecretType string
+	Name string
 	gcputil.ServiceAccountId
 
 	TokenScopes []string
@@ -43,24 +42,14 @@ func (a *ImpersonatedAccount) validate() error {
 		err = multierror.Append(err, errors.New("impersonated account name is empty"))
 	}
 
-	if a.SecretType == "" {
-		err = multierror.Append(err, errors.New("impersonated account secret type is empty"))
-	}
-
 	if a.EmailOrId == "" {
 		err = multierror.Append(err, fmt.Errorf("impersonated account must have service account email"))
 	}
 
-	switch a.SecretType {
-	case SecretTypeAccessToken:
-		if len(a.TokenScopes) == 0 {
-			err = multierror.Append(err, fmt.Errorf("access token impersonated account should have defined scopes"))
-		}
-	case SecretTypeKey:
-		break
-	default:
-		err = multierror.Append(err, fmt.Errorf("unknown secret type: %s", a.SecretType))
+	if len(a.TokenScopes) == 0 {
+		err = multierror.Append(err, fmt.Errorf("access token impersonated account should have defined scopes"))
 	}
+
 	return err.ErrorOrNil()
 }
 
@@ -81,7 +70,7 @@ func (b *backend) tryDeleteImpersonatedAccountResources(ctx context.Context, req
 	return b.tryDeleteGcpAccountResources(ctx, req, boundResources, flagMustKeepServiceAccount, walIds)
 }
 
-func (b *backend) createImpersonatedAccount(ctx context.Context, req *logical.Request, input *inputParams) (err error) {
+func (b *backend) createImpersonatedAccount(ctx context.Context, req *logical.Request, input *impersonatedAccountInputParams) (err error) {
 	iamAdmin, err := b.IAMAdminClient(req.Storage)
 	if err != nil {
 		return err
@@ -103,20 +92,9 @@ func (b *backend) createImpersonatedAccount(ctx context.Context, req *logical.Re
 		EmailOrId: gcpAcct.Email,
 	}
 
-	// Construct gcpAccountResources references. Note bindings/key are yet to be created.
-	newResources := &gcpAccountResources{
-		accountId: acctId,
-	}
-	if input.secretType == SecretTypeAccessToken {
-		newResources.tokenGen = &TokenGenerator{
-			Scopes: input.scopes,
-		}
-	}
-
 	// Construct new impersonated account
 	a := &ImpersonatedAccount{
 		Name:             input.name,
-		SecretType:       input.secretType,
 		ServiceAccountId: acctId,
 		TokenScopes:      input.scopes,
 	}
@@ -129,7 +107,7 @@ func (b *backend) createImpersonatedAccount(ctx context.Context, req *logical.Re
 	return err
 }
 
-func (b *backend) updateImpersonatedAccount(ctx context.Context, req *logical.Request, a *ImpersonatedAccount, updateInput *inputParams) (warnings []string, err error) {
+func (b *backend) updateImpersonatedAccount(ctx context.Context, req *logical.Request, a *ImpersonatedAccount, updateInput *impersonatedAccountInputParams) (warnings []string, err error) {
 	iamAdmin, err := b.IAMAdminClient(req.Storage)
 	if err != nil {
 		return nil, err
@@ -144,13 +122,10 @@ func (b *backend) updateImpersonatedAccount(ctx context.Context, req *logical.Re
 	}
 
 	madeChange := false
-
-	if a.SecretType == "access_token" {
-		if !strutil.EquivalentSlices(updateInput.scopes, a.TokenScopes) {
-			b.Logger().Debug("detected scopes change, updating scopes for impersonated account")
-			a.TokenScopes = updateInput.scopes
-			madeChange = true
-		}
+	if !strutil.EquivalentSlices(updateInput.scopes, a.TokenScopes) {
+		b.Logger().Debug("detected scopes change, updating scopes for impersonated account")
+		a.TokenScopes = updateInput.scopes
+		madeChange = true
 	}
 
 	if !madeChange {
