@@ -39,9 +39,6 @@ func (b *backend) pathImpersonatedAccountAccessToken(ctx context.Context, req *l
 	if acct == nil {
 		return logical.ErrorResponse("impersonated account %q does not exists", acctName), nil
 	}
-	if acct.SecretType != SecretTypeAccessToken {
-		return logical.ErrorResponse("impersonated account %q cannot generate access tokens (has secret type %s)", acctName, acct.SecretType), nil
-	}
 
 	creds, err := b.credentials(req.Storage)
 	if err != nil {
@@ -51,7 +48,6 @@ func (b *backend) pathImpersonatedAccountAccessToken(ctx context.Context, req *l
 	tokenSource, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
 		TargetPrincipal: acct.EmailOrId,
 		Scopes:          acct.TokenScopes,
-		//Lifetime:        1 * time.Hour,
 	}, option.WithCredentials(creds))
 	if err != nil {
 		return nil, err
