@@ -85,10 +85,6 @@ teardown(){
 }
 
 @test "Can successfully write token roleset" {
-
-    echo ${GOOGLE_PROJECT?}
-    echo ${PATH_TO_CREDS?}
-
     run vault write gcp/config \
           credentials=@${PATH_TO_CREDS?}
 
