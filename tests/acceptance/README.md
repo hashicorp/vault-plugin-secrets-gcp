@@ -35,7 +35,7 @@ resource "//cloudresourcemanager.googleapis.com/projects/<YOUR_GCP_PROJECT>" {
 
 Finally, run the tests:
 ```bash
-$ cd ./test/acceptance
+$ cd ./tests/acceptance
 $ bats gcp-secrets.bat
 ```
 
