@@ -6,3 +6,4 @@
 IMPROVEMENTS:
 
 * Truncate ServiceAccount display names longer than 100 characters [[GH-87](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/87)]
+* Add BATs acceptance tests for Vault GCP Auth [GH-122](https://github.com/hashicorp/vault-plugin-auth-gcp/pull/122)
