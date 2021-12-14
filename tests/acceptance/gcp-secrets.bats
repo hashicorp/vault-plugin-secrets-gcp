@@ -76,6 +76,9 @@ teardown(){
 
     { # Braces used to redirect all teardown logs.
 
+    # Remove temp bindings file
+    rm tests/acceptance/configs/mybindings.hcl
+
     vault secrets disable gcp
     # If the test failed, print some debug output
     if [[ "$BATS_ERROR_STATUS" -ne 0 ]]; then
