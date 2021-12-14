@@ -3,28 +3,22 @@
 #load _helpers
 #
 #SKIP_TEARDOWN=true
-VAULT_ADDR='http://127.0.0.1:8200'
-VAULT_IMAGE="${VAULT_IMAGE:-hashicorp/vault:1.9.0-rc1}"
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_IMAGE="${VAULT_IMAGE:-hashicorp/vault:1.9.1}"
 
-if [[ -z SERVICE_ACCOUNT_ID ]]
+if [[ -z $SERVICE_ACCOUNT_ID ]]
 then
     echo "SERVICE_ACCOUNT_ID env is not set. Exiting.."
     exit 1
 fi
 
-if [[ -z PATH_TO_CREDS ]]
+if [[ -z $GOOGLE_CLOUD_PROJECT ]]
 then
-    echo "PATH_TO_CREDS env is not set. Exiting.."
+    echo "GOOGLE_CLOUD_PROJECT env is not set. Exiting.."
     exit 1
 fi
 
-if [[ -z GOOGLE_PROJECT ]]
-then
-    echo "GOOGLE_PROJECT env is not set. Exiting.."
-    exit 1
-fi
-
-if [[ -z GOOGLE_APPLICATION_CREDENTIALS ]]
+if [[ -z $GOOGLE_APPLICATION_CREDENTIALS ]]
 then
     echo "GOOGLE_APPLICATION_CREDENTIALS env is not set. Exiting.."
     exit 1
@@ -32,9 +26,18 @@ fi
 
 export SETUP_TEARDOWN_OUTFILE=/tmp/output.log
 
+cp $GOOGLE_APPLICATION_CREDENTIALS ./creds.json
+
 setup(){
     { # Braces used to redirect all setup logs.
-    # 1. Configure Vault.
+    # 1. Write bindings file.
+    cat > tests/acceptance/configs/mybindings.hcl <<EOF
+    resource "//cloudresourcemanager.googleapis.com/projects/${GOOGLE_CLOUD_PROJECT}" {
+        roles = ["roles/viewer"]
+    }
+    EOF
+
+    # 2. Configure Vault.
     VAULT_TOKEN='root'
     DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -50,8 +53,8 @@ setup(){
       --privileged \
       --detach ${VAULT_IMAGE?}
 
-    # Replace with a check
-    sleep 2
+    echo -n "waiting for vault"
+    while ! vault status >/dev/null 2>&1; do sleep 1; echo -n .; done; echo
 
     vault login ${VAULT_TOKEN?}
 
@@ -80,16 +83,16 @@ teardown(){
 
 @test "Can successfully write GCP Secrets Config" {
     run vault write gcp/config \
-          credentials=@${PATH_TO_CREDS?}
+          credentials=@creds.json
     [ "${status?}" -eq 0 ]
 }
 
 @test "Can successfully write token roleset" {
     run vault write gcp/config \
-          credentials=@${PATH_TO_CREDS?}
+          credentials=@creds.json
 
     run vault write gcp/roleset/my-token-roleset \
-      project=${GOOGLE_PROJECT?} \
+      project=${GOOGLE_CLOUD_PROJECT?} \
       secret_type="access_token"  \
       token_scopes="https://www.googleapis.com/auth/cloud-platform" \
       bindings=@tests/acceptance/configs/mybindings.hcl
@@ -98,10 +101,10 @@ teardown(){
 
 @test "Can successfully generate oAuth tokens" {
     run vault write gcp/config \
-          credentials=@${PATH_TO_CREDS?}
+          credentials=@creds.json
 
     run vault write gcp/roleset/my-token-roleset \
-      project=${GOOGLE_PROJECT?} \
+      project=${GOOGLE_CLOUD_PROJECT?} \
       secret_type="access_token"  \
       token_scopes="https://www.googleapis.com/auth/cloud-platform" \
       bindings=@tests/acceptance/configs/mybindings.hcl
@@ -112,10 +115,10 @@ teardown(){
 
 @test "Can successfully write key roleset" {
     run vault write gcp/config \
-          credentials=@${PATH_TO_CREDS?}
+          credentials=@creds.json
 
     run vault write gcp/roleset/my-key-roleset \
-          project=${GOOGLE_PROJECT?} \
+          project=${GOOGLE_CLOUD_PROJECT?} \
           secret_type="service_account_key"  \
           token_scopes="https://www.googleapis.com/auth/cloud-platform" \
           bindings=@tests/acceptance/configs/mybindings.hcl
@@ -124,10 +127,10 @@ teardown(){
 
 @test "Can successfully generate dynamic keys" {
     run vault write gcp/config \
-          credentials=@${PATH_TO_CREDS?}
+          credentials=@creds.json
 
     run vault write gcp/roleset/my-key-roleset \
-          project=${GOOGLE_PROJECT?} \
+          project=${GOOGLE_CLOUD_PROJECT?} \
           secret_type="service_account_key"  \
           token_scopes="https://www.googleapis.com/auth/cloud-platform" \
           bindings=@tests/acceptance/configs/mybindings.hcl
@@ -138,7 +141,7 @@ teardown(){
 
 @test "Can successfully write access token static account" {
     run vault write gcp/config \
-          credentials=@${PATH_TO_CREDS?}
+          credentials=@creds.json
 
     run vault write gcp/static-account/my-token-account \
           service_account_email=${SERVICE_ACCOUNT_ID?} \
@@ -150,7 +153,7 @@ teardown(){
 
 @test "Can successfully write service account key static account" {
     run vault write gcp/config \
-          credentials=@${PATH_TO_CREDS?}
+          credentials=@creds.json
 
     run vault write gcp/static-account/my-key-account \
           service_account_email=${SERVICE_ACCOUNT_ID?} \
