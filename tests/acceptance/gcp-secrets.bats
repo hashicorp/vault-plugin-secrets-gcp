@@ -32,8 +32,6 @@ fi
 
 export SETUP_TEARDOWN_OUTFILE=/tmp/output.log
 
-cp $GOOGLE_APPLICATION_CREDENTIALS ./creds.json
-
 setup(){
     { # Braces used to redirect all setup logs.
     # 1. Write bindings file.
@@ -42,8 +40,10 @@ setup(){
         roles = ["roles/viewer"]
     }
     EOF
+    # 2. Copy credentials file.
+    cp $GOOGLE_APPLICATION_CREDENTIALS ./creds.json
 
-    # 2. Configure Vault.
+    # 3. Configure Vault.
     VAULT_TOKEN='root'
     DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -78,6 +78,9 @@ teardown(){
 
     # Remove temp bindings file
     rm tests/acceptance/configs/mybindings.hcl
+
+    # Remove credentials file
+    rm ./creds.json
 
     vault secrets disable gcp
     # If the test failed, print some debug output
