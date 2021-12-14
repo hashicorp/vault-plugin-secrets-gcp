@@ -12,9 +12,15 @@ then
     exit 1
 fi
 
-if [[ -z $GOOGLE_CLOUD_PROJECT ]]
+if [[ -z $GOOGLE_CLOUD_PROJECT_ID ]]
 then
-    echo "GOOGLE_CLOUD_PROJECT env is not set. Exiting.."
+    echo "GOOGLE_CLOUD_PROJECT_ID env is not set. Exiting.."
+    exit 1
+fi
+
+if [[ -z $GOOGLE_CLOUD_PROJECT_NAME ]]
+then
+    echo "GOOGLE_CLOUD_PROJECT_NAME env is not set. Exiting.."
     exit 1
 fi
 
@@ -32,7 +38,7 @@ setup(){
     { # Braces used to redirect all setup logs.
     # 1. Write bindings file.
     cat > tests/acceptance/configs/mybindings.hcl <<EOF
-    resource "//cloudresourcemanager.googleapis.com/projects/${GOOGLE_CLOUD_PROJECT}" {
+    resource "//cloudresourcemanager.googleapis.com/projects/${GOOGLE_CLOUD_PROJECT_NAME}" {
         roles = ["roles/viewer"]
     }
     EOF
@@ -92,7 +98,7 @@ teardown(){
           credentials=@creds.json
 
     run vault write gcp/roleset/my-token-roleset \
-      project=${GOOGLE_CLOUD_PROJECT?} \
+      project=${GOOGLE_CLOUD_PROJECT_ID?} \
       secret_type="access_token"  \
       token_scopes="https://www.googleapis.com/auth/cloud-platform" \
       bindings=@tests/acceptance/configs/mybindings.hcl
@@ -104,7 +110,7 @@ teardown(){
           credentials=@creds.json
 
     run vault write gcp/roleset/my-token-roleset \
-      project=${GOOGLE_CLOUD_PROJECT?} \
+      project=${GOOGLE_CLOUD_PROJECT_ID?} \
       secret_type="access_token"  \
       token_scopes="https://www.googleapis.com/auth/cloud-platform" \
       bindings=@tests/acceptance/configs/mybindings.hcl
@@ -118,7 +124,7 @@ teardown(){
           credentials=@creds.json
 
     run vault write gcp/roleset/my-key-roleset \
-          project=${GOOGLE_CLOUD_PROJECT?} \
+          project=${GOOGLE_CLOUD_PROJECT_ID?} \
           secret_type="service_account_key"  \
           token_scopes="https://www.googleapis.com/auth/cloud-platform" \
           bindings=@tests/acceptance/configs/mybindings.hcl
@@ -130,7 +136,7 @@ teardown(){
           credentials=@creds.json
 
     run vault write gcp/roleset/my-key-roleset \
-          project=${GOOGLE_CLOUD_PROJECT?} \
+          project=${GOOGLE_CLOUD_PROJECT_ID?} \
           secret_type="service_account_key"  \
           token_scopes="https://www.googleapis.com/auth/cloud-platform" \
           bindings=@tests/acceptance/configs/mybindings.hcl
