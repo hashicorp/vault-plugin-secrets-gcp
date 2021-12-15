@@ -88,6 +88,8 @@ teardown(){
         docker logs vault
     fi
 
+    echo "${BATS_TEST_NAME}: [$BATS_ERROR_STATUS]: ${output}" >&2
+
     # Teardown Vault configuration.
     docker rm vault --force
     } >> $SETUP_TEARDOWN_OUTFILE
