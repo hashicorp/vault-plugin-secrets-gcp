@@ -39,8 +39,10 @@ func TestEnabledIamResources_RelativeName(t *testing.T) {
 			}
 
 			if resource != nil {
-				if err = verifyResource(resourceType, resource.(*IamResource)); err != nil {
-					t.Errorf("could not verify resource for relative resource name %q: %sv", testRelName, err)
+				if r, ok := resource.(*IamResource); ok {
+					if err = verifyResource(resourceType, r); err != nil {
+						t.Errorf("could not verify resource for relative resource name %q: %sv", testRelName, err)
+					}
 				}
 			}
 		} else if resource != nil || err == nil {
@@ -67,9 +69,11 @@ func TestEnabledIamResources_FullName(t *testing.T) {
 					t.Errorf("failed to get resource for full resource name %s (type: %s): %v", testFullName, resourceType, err)
 					continue
 				}
-				if err = verifyResource(resourceType, resource.(*IamResource)); err != nil {
-					t.Errorf("could not verify resource for relative resource name %s: %v", testFullName, err)
-					continue
+				if r, ok := resource.(*IamResource); ok {
+					if err = verifyResource(resourceType, r); err != nil {
+						t.Errorf("could not verify resource for relative resource name %s: %v", testFullName, err)
+						continue
+					}
 				}
 			} else if resource != nil || err == nil {
 				t.Errorf("expected error for using full resource name %s (type: %s), got resource:\n %v\n", testFullName, resourceType, resource)
