@@ -211,7 +211,7 @@ func testResource() *DatasetResource {
 	return &DatasetResource{
 		relativeId: &gcputil.RelativeResourceName{
 			Name:    "dataset",
-			TypeKey: "projects/dataset",
+			TypeKey: "projects/datasets",
 			IdTuples: map[string]string{
 				"projects": "project",
 				"datasets": "dataset",
