@@ -211,8 +211,9 @@ func generateConfig() error {
 
 	config := make(iamutil.GeneratedResources)
 
+	var mErr *multierror.Error
 	for _, docMeta := range docs.Items {
-		doc, err := docsClient.Apis.GetRest(docMeta.Name, docMeta.Version).Fields(
+		doc, docErr := docsClient.Apis.GetRest(docMeta.Name, docMeta.Version).Fields(
 			"name",
 			"resources",
 			"rootUrl",
@@ -220,23 +221,23 @@ func generateConfig() error {
 			"servicePath",
 			"version",
 		).Do()
-		if err != nil || doc == nil {
-			err = multierror.Append(err,
+		if docErr != nil || doc == nil {
+			mErr = multierror.Append(mErr,
 				errwrap.Wrapf(
-					fmt.Sprintf("[WARNING] Unable to add '%s' (version '%s'), could not find doc - {{err}}", docMeta.Name, docMeta.Version), err))
+					fmt.Sprintf("[WARNING] Unable to add '%s' (version '%s'), could not find doc - {{err}}", docMeta.Name, docMeta.Version), docErr))
 			continue
 		}
 
 		for rName, resource := range doc.Resources {
-			if err := checkResource(rName, rName, &resource, doc, docMeta, config); err != nil {
-				err = multierror.Append(err,
+			if resErr := checkResource(rName, rName, &resource, doc, docMeta, config); resErr != nil {
+				mErr = multierror.Append(mErr,
 					errwrap.Wrapf(
-						fmt.Sprintf("[WARNING] Unable to add '%s' (version '%s'): {{err}}", docMeta.Name, docMeta.Version), err))
+						fmt.Sprintf("[WARNING] Unable to add '%s' (version '%s'): {{err}}", docMeta.Name, docMeta.Version), resErr))
 			}
 		}
 	}
-	if err != nil {
-		return err
+	if mErr.ErrorOrNil() != nil {
+		return mErr.ErrorOrNil()
 	}
 
 	// Inject overrides that use ACLs instead of IAM policies
