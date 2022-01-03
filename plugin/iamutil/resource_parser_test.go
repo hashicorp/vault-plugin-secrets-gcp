@@ -13,7 +13,7 @@ import (
 
 var letters = "ABCDEFGHIJKLMNOP"
 
-func TestEnabledIamResources_RelativeName(t *testing.T) {
+func TestEnabledResources_RelativeName(t *testing.T) {
 	enabledApis := GetEnabledResources()
 
 	for resourceType, services := range generatedResources {
@@ -39,7 +39,7 @@ func TestEnabledIamResources_RelativeName(t *testing.T) {
 			}
 
 			if resource != nil {
-				if err = verifyResource(resourceType, resource.(*IamResource)); err != nil {
+				if err = verifyResource(resourceType, resource); err != nil {
 					t.Errorf("could not verify resource for relative resource name %q: %sv", testRelName, err)
 				}
 			}
@@ -50,7 +50,7 @@ func TestEnabledIamResources_RelativeName(t *testing.T) {
 	}
 }
 
-func TestEnabledIamResources_FullName(t *testing.T) {
+func TestEnabledResources_FullName(t *testing.T) {
 	enabledApis := GetEnabledResources()
 
 	for resourceType, services := range generatedResources {
@@ -67,7 +67,7 @@ func TestEnabledIamResources_FullName(t *testing.T) {
 					t.Errorf("failed to get resource for full resource name %s (type: %s): %v", testFullName, resourceType, err)
 					continue
 				}
-				if err = verifyResource(resourceType, resource.(*IamResource)); err != nil {
+				if err = verifyResource(resourceType, resource); err != nil {
 					t.Errorf("could not verify resource for relative resource name %s: %v", testFullName, err)
 					continue
 				}
@@ -226,13 +226,13 @@ func getFakeId(resourceType string) string {
 	return strings.Trim(fakeId, "/")
 }
 
-func verifyResource(rType string, resource *IamResource) (err error) {
+func verifyResource(rType string, resource Resource) (err error) {
 	var req *http.Request
-	if resource.relativeId.TypeKey != rType {
-		return fmt.Errorf("expected resource type %s, actual resource has different type %s", rType, resource.relativeId.TypeKey)
+	if resource.GetRelativeId().TypeKey != rType {
+		return fmt.Errorf("expected resource type %s, actual resource has different type %s", rType, resource.GetRelativeId().TypeKey)
 	}
 
-	req, err = constructRequest(resource, &resource.config.GetMethod, nil)
+	req, err = constructRequest(resource, &resource.GetConfig().GetMethod, nil)
 	if err != nil {
 		return errwrap.Wrapf("unable to construct GetIamPolicyRequest: {{err}}", err)
 	}
@@ -240,7 +240,7 @@ func verifyResource(rType string, resource *IamResource) (err error) {
 		return err
 	}
 
-	req, err = constructRequest(resource, &resource.config.SetMethod, strings.NewReader("{}"))
+	req, err = constructRequest(resource, &resource.GetConfig().SetMethod, strings.NewReader("{}"))
 	if err != nil {
 		return errwrap.Wrapf("unable to construct SetIamPolicyRequest: {{err}}", err)
 	}
