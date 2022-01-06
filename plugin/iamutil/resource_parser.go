@@ -1,4 +1,4 @@
-//go:generate go run internal/generate_iam.go
+//go:generate go run internal/generate_resources.go
 package iamutil
 
 import (
