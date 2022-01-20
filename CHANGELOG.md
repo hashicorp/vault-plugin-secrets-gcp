@@ -1,14 +1,21 @@
 ## Next
 
 ## v0.11.1
-### Unreleased
+### January 3, 2022
 
 BUG FIXES:
 
 * Fixes role bindings for BigQuery dataset resources [[GH-130](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/130)]
 
 ## v0.10.3
-### Unreleased
+### January 3, 2022
+
+BUG FIXES:
+
+* Fixes role bindings for BigQuery dataset resources [[GH-130](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/130)]
+
+## v0.9.1
+### January 20, 2022
 
 BUG FIXES:
 
