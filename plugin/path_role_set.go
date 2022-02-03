@@ -318,7 +318,7 @@ func (b *backend) pathRoleSetCreateUpdate(ctx context.Context, req *logical.Requ
 		warnings = append(warnings, updateWarns...)
 	}
 	if err != nil {
-		return logical.ErrorResponse(err.Error()), nil
+		return logical.ErrorResponse(err.Error()), err
 	} else if warnings != nil && len(warnings) > 0 {
 		return &logical.Response{Warnings: warnings}, nil
 	}
