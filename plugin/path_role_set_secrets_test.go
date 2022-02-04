@@ -148,14 +148,14 @@ func testGetRoleSetBadResource(t *testing.T, rsName, path string) {
 	if err != nil {
 		t.Fatalf("unable to convert resource bindings to HCL string: %v", err)
 	}
-	_, err = testRoleSetCreateRaw(t, td, rsName,
+	resp, _ := testRoleSetCreateRaw(t, td, rsName,
 		map[string]interface{}{
 			"secret_type": secretType,
 			"project":     td.Project,
 			"bindings":    bindsRaw,
 		})
 
-	if err == nil {
+	if !resp.IsError() {
 		t.Fatal("expected error, got none")
 	}
 }
