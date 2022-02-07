@@ -109,7 +109,7 @@ func (b *backend) createIamBindings(ctx context.Context, req *logical.Request, s
 		b.Logger().Debug("getting IAM policy for resource name", "name", resourceName)
 		p, err := resource.GetIamPolicy(ctx, apiHandle)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		b.Logger().Debug("got IAM policy for resource name", "name", resourceName)
