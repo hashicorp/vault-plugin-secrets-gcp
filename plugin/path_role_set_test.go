@@ -506,6 +506,15 @@ func testRoleSetCreate(t *testing.T, td *testData, rsName string, d map[string]i
 	}
 }
 
+func testRoleSetCreateRaw(t *testing.T, td *testData, rsName string, d map[string]interface{}) (*logical.Response, error) {
+	return td.B.HandleRequest(context.Background(), &logical.Request{
+		Operation: logical.CreateOperation,
+		Path:      fmt.Sprintf("roleset/%s", rsName),
+		Data:      d,
+		Storage:   td.S,
+	})
+}
+
 func testRoleSetRead(t *testing.T, td *testData, rsName string) map[string]interface{} {
 	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.ReadOperation,
