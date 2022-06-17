@@ -1,5 +1,9 @@
 ## Next
 
+IMPROVEMENTS:
+
+* Updates dependencies: `google.golang.org/api@v0.83.0`, `github.com/hashicorp/go-gcp-common@v0.8.0` [[GH-142](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/142)]
+
 ## v0.11.1
 ### January 3, 2022
 
