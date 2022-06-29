@@ -28,10 +28,11 @@ testcompile: fmtcheck generate
 	done
 
 test:
-	@go test -short -parallel=40 ./... $(TESTARGS)
+	@go test -short ./... $(TESTARGS)
 
 test-acc:
-	@go test -parallel=40 ./... $(TESTARGS)
+	@go test ./... $(TESTARGS)
+
 # generate runs `go generate` to build the dynamically generated
 # source files.
 generate:
