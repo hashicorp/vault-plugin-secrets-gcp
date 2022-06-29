@@ -1,4 +1,4 @@
-//go:generate go run internal/generate_iam.go
+//go:generate go run internal/generate_resources.go
 package iamutil
 
 import (
@@ -125,7 +125,7 @@ func (apis GeneratedResources) Parse(rawName string) (Resource, error) {
 		return nil, err
 	}
 	switch cfg.TypeKey {
-	case "projects/dataset":
+	case "projects/datasets":
 		return &DatasetResource{relativeId: relName, config: cfg}, nil
 	default:
 		return &IamResource{relativeId: relName, config: cfg}, nil
