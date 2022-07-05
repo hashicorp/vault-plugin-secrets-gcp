@@ -3,7 +3,6 @@ package gcpsecrets
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/vault/sdk/framework"
@@ -28,18 +27,6 @@ func pathImpersonatedAccountSecretAccessToken(b *backend) *framework.Path {
 		HelpSynopsis:    pathTokenHelpSyn,
 		HelpDescription: pathTokenHelpDesc,
 	}
-}
-
-func isOrgPolicyConstraintMissingError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	if strings.Contains(err.Error(), "constraints/iam.allowServiceAccountCredentialLifetimeExtension") {
-		return true
-	}
-
-	return false
 }
 
 func (b *backend) pathImpersonatedAccountAccessToken(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
