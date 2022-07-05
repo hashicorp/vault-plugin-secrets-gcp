@@ -31,6 +31,10 @@ func pathImpersonatedAccount(b *backend) *framework.Path {
 				Type:        framework.TypeCommaStringSlice,
 				Description: "List of OAuth scopes to assign to access tokens generated under this account.",
 			},
+			"ttl": {
+				Type:        framework.TypeDurationSecond,
+				Description: "Lifetime of the token for the impersonated account.",
+			},
 		},
 		ExistenceCheck: b.pathImpersonatedAccountExistenceCheck,
 		Operations: map[logical.Operation]framework.OperationHandler{
@@ -98,6 +102,7 @@ func (b *backend) pathImpersonatedAccountRead(ctx context.Context, req *logical.
 		"service_account_project": acct.Project,
 		"service_account_email":   acct.EmailOrId,
 		"token_scopes":            acct.TokenScopes,
+		"ttl":                     acct.Ttl,
 	}
 
 	return &logical.Response{
@@ -178,6 +183,7 @@ func (b *backend) pathImpersonatedAccountUpdate(ctx context.Context, req *logica
 		project:             acct.Project,
 		serviceAccountEmail: acct.EmailOrId,
 		scopes:              acct.TokenScopes,
+		ttl:                 acct.Ttl,
 	}
 
 	updateInput, warnings, err := b.parseImpersonateInformation(initialInput, d)
@@ -233,6 +239,11 @@ func (b *backend) parseImpersonateInformation(prevValues *impersonatedAccountInp
 		return nil, nil, err
 	} else if len(ws) > 0 {
 		warnings = append(warnings, ws...)
+	}
+
+	ttl, ok := d.GetOk("ttl")
+	if ok {
+		input.ttl = ttl.(int)
 	}
 
 	return input, warnings, nil

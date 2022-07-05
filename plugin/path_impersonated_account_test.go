@@ -53,6 +53,49 @@ func TestPathImpersonate_Basic(t *testing.T) {
 	testImpersonateDelete(t, td, impersonateName)
 }
 
+func TestPathImpersonate_TTL(t *testing.T) {
+	impersonateName := "test-impersonated-basic"
+
+	td := setupTest(t, "0s", "2h")
+	defer cleanupImpersonate(t, td, impersonateName, util.StringSet{})
+
+	sa := createServiceAccount(t, td, impersonateName)
+	defer deleteServiceAccount(t, td, sa)
+
+	// 1. Read should return nothing
+	respData := testImpersonateRead(t, td, impersonateName)
+	if respData != nil {
+		t.Fatalf("expected impersonate account to not exist initially")
+	}
+
+	// 2. Create new impersonated account with a TTL of 4 hours
+	// (longer than MaxTTL of 2 horus)
+	const ttl = 60 * 60 * 4
+	testImpersonateCreate(t, td, impersonateName,
+		map[string]interface{}{
+			"service_account_email": sa.Email,
+			"token_scopes":          []string{iam.CloudPlatformScope},
+			"ttl":                   ttl,
+		})
+
+	// 3. Read impersonated account
+	respData = testImpersonateRead(t, td, impersonateName)
+	if respData == nil {
+		t.Fatalf("expected impersonate account to have been created")
+	}
+
+	verifyReadData(t, respData, map[string]interface{}{
+		"service_account_email":   sa.Email,
+		"service_account_project": sa.ProjectId,
+		"ttl":                     ttl,
+	})
+	// Test impersonate account is listed
+	testImpersonateList(t, td, impersonateName)
+
+	// 4. Delete impersonated account
+	testImpersonateDelete(t, td, impersonateName)
+}
+
 // Tests that some fields cannot be updated
 func TestPathImpersonate_UpdateDisallowed(t *testing.T) {
 	impersonateName := "test-imp-update-fail"

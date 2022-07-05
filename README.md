@@ -161,6 +161,14 @@ permissions listed below. The following steps assume you have
     $ gcloud projects add-iam-policy-binding "${GOOGLE_CLOUD_PROJECT}" \
         --member "serviceAccount:vault-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com" \
         --role "roles/owner"
+
+    $ gcloud projects add-iam-policy-binding "${GOOGLE_CLOUD_PROJECT}" \
+        --member "serviceAccount:vault-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com" \
+        --role "roles/iam.serviceAccountTokenCreator"
+
+    $ gcloud projects add-iam-policy-binding "${GOOGLE_CLOUD_PROJECT}" \
+        --member "serviceAccount:vault-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com" \
+        --role "roles/iam.serviceAccountKeyAdmin"
     ```
 
     Note: these are overly broad permissions because the account needs a
@@ -168,25 +176,25 @@ permissions listed below. The following steps assume you have
     **strongly recommended** that you have a dedicated project for running
     tests.
 
-1. Download the service account key file to local disk:
+2. Download the service account key file to local disk:
 
     ```text
     $ gcloud iam service-accounts keys create vault-tester.json \
         --iam-account "vault-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
     ```
 
-1. Export the credentials to an environment variable. You can set the env variable to either 
+3. Export the credentials to an environment variable. You can set the env variable to either
    the path or the JSON itself, i.e.
-   
+
     ```text
     $ export GOOGLE_CREDENTIALS="path/to/vault-tester.json"
     ```
-    
+
     ```text
     $ export GOOGLE_CREDENTIALS="$(cat path/to/vault-tester.json)"
     ```
 
-1. Run the acceptance tests:
+4. Run the acceptance tests:
 
     ```text
     $ make test-acc

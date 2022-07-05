@@ -3,6 +3,7 @@ package gcpsecrets
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/vault/sdk/framework"
@@ -29,6 +30,18 @@ func pathImpersonatedAccountSecretAccessToken(b *backend) *framework.Path {
 	}
 }
 
+func isOrgPolicyConstraintMissingError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if strings.Contains(err.Error(), "constraints/iam.allowServiceAccountCredentialLifetimeExtension") {
+		return true
+	}
+
+	return false
+}
+
 func (b *backend) pathImpersonatedAccountAccessToken(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	acctName := d.Get("name").(string)
 
@@ -45,14 +58,26 @@ func (b *backend) pathImpersonatedAccountAccessToken(ctx context.Context, req *l
 		return nil, err
 	}
 
-	tokenSource, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
-		TargetPrincipal: acct.EmailOrId,
-		Scopes:          acct.TokenScopes,
-	}, option.WithCredentials(creds))
+	config, err := getConfig(ctx, req.Storage)
 	if err != nil {
 		return nil, err
 	}
 
+	acctTtl := time.Duration(acct.Ttl) * time.Second
+	if acctTtl > config.MaxTTL {
+		acctTtl = config.MaxTTL
+	} else if acctTtl == 0 {
+		acctTtl = config.TTL
+	}
+
+	tokenSource, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
+		TargetPrincipal: acct.EmailOrId,
+		Scopes:          acct.TokenScopes,
+		Lifetime:        time.Duration(acctTtl),
+	}, option.WithCredentials(creds))
+	if err != nil {
+		return logical.ErrorResponse("unable to generate token source: %v", err), nil
+	}
 	token, err := tokenSource.Token()
 	if err != nil {
 		return logical.ErrorResponse("unable to generate token - make sure your service account and key are still valid: %v", err), nil
