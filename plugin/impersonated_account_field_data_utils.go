@@ -13,6 +13,7 @@ type impersonatedAccountInputParams struct {
 	serviceAccountEmail string
 
 	scopes []string
+	ttl    int
 }
 
 // parseOkInputServiceAccountEmail checks that when creating a static acocunt, a service account

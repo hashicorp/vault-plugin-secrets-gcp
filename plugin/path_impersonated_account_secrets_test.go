@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"google.golang.org/api/iam/v1"
@@ -11,14 +12,105 @@ import (
 	"google.golang.org/api/option"
 )
 
-func TestImpersonatedSecrets_GetAccessToken(t *testing.T) {
+func TestImpersonatedSecrets_GetDefaultAccessToken(t *testing.T) {
 	roleName := "test-imp-token"
-	testGetImpersonatedAccessToken(t, roleName)
+	td := setupTest(t, "0h", "12h")
+
+	tests := map[string]struct {
+		ttl_req time.Duration
+		ttl_rcv time.Duration
+	}{
+		"unset ttl should be 1 hour": {
+			ttl_req: 0,
+			ttl_rcv: 1 * time.Hour,
+		},
+		"30 minutes requested and received": {
+			ttl_req: 30 * time.Minute,
+			ttl_rcv: 30 * time.Minute,
+		},
+		"1 hour requested and received": {
+			ttl_req: 1 * time.Hour,
+			ttl_rcv: 1 * time.Hour,
+		},
+	}
+
+	for tn, tt := range tests {
+		t.Run(tn, func(t *testing.T) {
+			ttl := testGetImpersonatedAccessToken(t, td, roleName, tt.ttl_req.String())
+			if ttl.Round(1*time.Minute) != tt.ttl_rcv {
+				t.Fatalf("expected access token to have a TTL of %v but got: %v", tt.ttl_rcv, ttl)
+			}
+		})
+	}
 }
 
-func testGetImpersonatedAccessToken(t *testing.T, roleName string) {
+func TestImpersonatedSecrets_GetExtendedAccessToken(t *testing.T) {
 
-	td := setupTest(t, "0s", "2h")
+	roleName := "test-imp-token"
+	td := setupTestCredentials(t)
+	skipIfCredentialLifetimesNotExtended(t, td, roleName)
+
+	setupTestBackend(t, td, "2h", "4h")
+
+	tests := map[string]struct {
+		ttl_req time.Duration
+		ttl_rcv time.Duration
+	}{
+		"unset ttl should be 2 hours": {
+			ttl_req: 0,
+			ttl_rcv: 2 * time.Hour,
+		},
+		"account ttl below backend ttl should be allowed": {
+			ttl_req: 1 * time.Hour,
+			ttl_rcv: 1 * time.Hour,
+		},
+		"2 hours requested and received": {
+			ttl_req: 2 * time.Hour,
+			ttl_rcv: 2 * time.Hour,
+		},
+		"4 hours requested and received": {
+			ttl_req: 4 * time.Hour,
+			ttl_rcv: 4 * time.Hour,
+		},
+		"6 hours requested but clamped to backend TTL": {
+			ttl_req: 6 * time.Hour,
+			ttl_rcv: 4 * time.Hour,
+		},
+	}
+
+	for tn, tt := range tests {
+		t.Run(tn, func(t *testing.T) {
+			ttl := testGetImpersonatedAccessToken(t, td, roleName, tt.ttl_req.String())
+			if ttl.Round(1*time.Minute) != tt.ttl_rcv {
+				t.Fatalf("expected access token to have a TTL of %v but got: %v", tt.ttl_rcv, ttl)
+			}
+		})
+	}
+
+}
+
+func skipIfCredentialLifetimesNotExtended(t *testing.T, td *testData, roleName string) {
+
+	policyName := fmt.Sprintf("projects/%s/policies/iam.allowServiceAccountCredentialLifetimeExtension", td.Project)
+	policy, err := td.OrgAdmin.Organizations.Policies.GetEffectivePolicy(policyName).Do()
+	if policy == nil || err != nil {
+		t.Skipf("credential lifetime extension policy not found %v", err)
+	}
+
+	allowed := false
+	for _, rule := range policy.Spec.Rules {
+		if rule.AllowAll {
+			allowed = true
+		}
+	}
+	if !allowed {
+		t.Skipf("credential lifetime extension not allowed for %q", roleName)
+	}
+
+}
+
+func testGetImpersonatedAccessToken(t *testing.T, td *testData, roleName string, ttl string) (tokenTtl time.Duration) {
+
 	defer cleanupImpersonate(t, td, roleName, util.StringSet{})
 
 	sa := createServiceAccount(t, td, roleName)
@@ -28,6 +120,7 @@ func testGetImpersonatedAccessToken(t *testing.T, roleName string) {
 		map[string]interface{}{
 			"service_account_email": sa.Email,
 			"token_scopes":          []string{iam.CloudPlatformScope},
+			"ttl":                   ttl,
 		})
 
 	token := testGetToken(t, fmt.Sprintf("%s/%s/token", impersonatedAccountPathPrefix, roleName), td)
@@ -48,4 +141,6 @@ func testGetImpersonatedAccessToken(t *testing.T, roleName string) {
 
 	// Cleanup
 	testImpersonateDelete(t, td, roleName)
+
+	return time.Duration(info.ExpiresIn) * time.Second
 }
