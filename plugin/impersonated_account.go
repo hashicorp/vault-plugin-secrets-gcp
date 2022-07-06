@@ -34,6 +34,7 @@ type ImpersonatedAccount struct {
 	gcputil.ServiceAccountId
 
 	TokenScopes []string
+	Ttl         int
 }
 
 func (a *ImpersonatedAccount) validate() error {
@@ -97,6 +98,7 @@ func (b *backend) createImpersonatedAccount(ctx context.Context, req *logical.Re
 		Name:             input.name,
 		ServiceAccountId: acctId,
 		TokenScopes:      input.scopes,
+		Ttl:              input.ttl,
 	}
 
 	// Save to storage.
@@ -125,6 +127,12 @@ func (b *backend) updateImpersonatedAccount(ctx context.Context, req *logical.Re
 	if !strutil.EquivalentSlices(updateInput.scopes, a.TokenScopes) {
 		b.Logger().Debug("detected scopes change, updating scopes for impersonated account")
 		a.TokenScopes = updateInput.scopes
+		madeChange = true
+	}
+
+	if updateInput.ttl != a.Ttl {
+		b.Logger().Debug("detected ttl change, updating ttl for impersonated account")
+		a.Ttl = updateInput.ttl
 		madeChange = true
 	}
 
