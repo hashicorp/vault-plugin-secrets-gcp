@@ -52,9 +52,13 @@ func (b *backend) pathImpersonatedAccountAccessToken(ctx context.Context, req *l
 
 	acctTtl := time.Duration(acct.Ttl) * time.Second
 	if acctTtl > config.MaxTTL {
+		b.Logger().Debug("impersonated account %q ttl of %s is greater than backend max ttl of %s so clamping ttl to max", acctName, acctTtl, config.MaxTTL)
 		acctTtl = config.MaxTTL
 	} else if acctTtl == 0 {
+		b.Logger().Debug("impersonated account %q ttl not configured so using backend default ttl of %s", acctName, config.TTL)
 		acctTtl = config.TTL
+	} else {
+		b.Logger().Debug("impersonated account %q ttl of %s being used", acctName, acctTtl)
 	}
 
 	tokenSource, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
