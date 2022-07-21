@@ -137,7 +137,7 @@ func (b *backend) updateImpersonatedAccount(ctx context.Context, req *logical.Re
 	}
 
 	if !madeChange {
-		return []string{"no changes to token_scopes or ttl detected, no update needed"}, nil
+		return nil, nil
 	}
 
 	if err := a.save(ctx, req.Storage); err != nil {
