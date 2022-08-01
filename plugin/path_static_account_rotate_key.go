@@ -3,6 +3,7 @@ package gcpsecrets
 import (
 	"context"
 	"fmt"
+
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -19,7 +20,9 @@ func pathStaticAccountRotateKey(b *backend) *framework.Path {
 		ExistenceCheck: b.pathStaticAccountExistenceCheck,
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback: b.pathStaticAccountRotateKey,
+				Callback:                    b.pathStaticAccountRotateKey,
+				ForwardPerformanceStandby:   true,
+				ForwardPerformanceSecondary: true,
 			},
 		},
 		HelpSynopsis:    pathStaticAccountRotateKeyHelpSyn,
