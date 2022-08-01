@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/go-secure-stdlib/strutil"
@@ -688,10 +689,16 @@ func getServiceAccount(t *testing.T, iamAdmin *iam.Service, readData map[string]
 }
 
 func verifyServiceAccountDeleted(t *testing.T, iamAdmin *iam.Service, saName string) {
-	_, err := iamAdmin.Projects.ServiceAccounts.Get(saName).Do()
-	if err == nil || !isGoogleAccountNotFoundErr(err) {
-		t.Fatalf("expected service account '%s' to have been deleted", saName)
+	for attempt := 0; attempt < 10; attempt++ {
+		_, err := iamAdmin.Projects.ServiceAccounts.Get(saName).Do()
+		if isGoogleAccountNotFoundErr(err) {
+			return
+		}
+
+		t.Logf("%d: waiting for service account %q to be deleted", attempt, saName)
+		time.Sleep(1 * time.Second)
 	}
+	t.Fatalf("expected service account %q to have been deleted", saName)
 }
 
 func verifyProjectBinding(t *testing.T, td *testData, email string, roleSet util.StringSet) {
