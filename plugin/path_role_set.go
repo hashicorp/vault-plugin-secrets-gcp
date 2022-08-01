@@ -49,10 +49,14 @@ func pathRoleSet(b *backend) *framework.Path {
 				Callback: b.pathRoleSetRead,
 			},
 			logical.CreateOperation: &framework.PathOperation{
-				Callback: b.pathRoleSetCreateUpdate,
+				Callback:                    b.pathRoleSetCreateUpdate,
+				ForwardPerformanceStandby:   true,
+				ForwardPerformanceSecondary: true,
 			},
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback: b.pathRoleSetCreateUpdate,
+				Callback:                    b.pathRoleSetCreateUpdate,
+				ForwardPerformanceStandby:   true,
+				ForwardPerformanceSecondary: true,
 			},
 		},
 		HelpSynopsis:    pathRoleSetHelpSyn,
@@ -87,7 +91,9 @@ func pathRoleSetRotateAccount(b *backend) *framework.Path {
 		ExistenceCheck: b.pathRoleSetExistenceCheck("name"),
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback: b.pathRoleSetRotateAccount,
+				Callback:                    b.pathRoleSetRotateAccount,
+				ForwardPerformanceStandby:   true,
+				ForwardPerformanceSecondary: true,
 			},
 		},
 		HelpSynopsis:    pathRoleSetRotateAccountHelpSyn,
@@ -107,7 +113,9 @@ func pathRoleSetRotateKey(b *backend) *framework.Path {
 		ExistenceCheck: b.pathRoleSetExistenceCheck("name"),
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback: b.pathRoleSetRotateKey,
+				Callback:                    b.pathRoleSetRotateKey,
+				ForwardPerformanceStandby:   true,
+				ForwardPerformanceSecondary: true,
 			},
 		},
 		HelpSynopsis:    pathRoleSetRotateKeyHelpSyn,
