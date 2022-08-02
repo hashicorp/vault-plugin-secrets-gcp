@@ -51,10 +51,14 @@ func pathStaticAccount(b *backend) *framework.Path {
 				Callback: b.pathStaticAccountRead,
 			},
 			logical.CreateOperation: &framework.PathOperation{
-				Callback: b.pathStaticAccountCreate,
+				Callback:                    b.pathStaticAccountCreate,
+				ForwardPerformanceStandby:   true,
+				ForwardPerformanceSecondary: true,
 			},
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback: b.pathStaticAccountUpdate,
+				Callback:                    b.pathStaticAccountUpdate,
+				ForwardPerformanceStandby:   true,
+				ForwardPerformanceSecondary: true,
 			},
 		},
 		HelpSynopsis:    pathStaticAccountHelpSyn,
