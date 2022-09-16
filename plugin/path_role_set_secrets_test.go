@@ -121,13 +121,7 @@ func testGetRoleSetKey(t *testing.T, rsName, path string) {
 	testRenewSecretKey(t, td, secret)
 	testRevokeSecretKey(t, td, secret)
 
-	k, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
-	if err == nil || !isGoogleAccountKeyNotFoundErr(err) {
-		t.Fatalf("expected 404 error from getting deleted key, instead got error: %v", err)
-	}
-	if k != nil {
-		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
-	}
+	verifyServiceAccountKeyDeleted(t, td.IamAdmin, keyName)
 
 	// Cleanup: Delete role set
 	testRoleSetDelete(t, td, rsName, sa.Name)
@@ -209,14 +203,7 @@ func TestSecrets_GenerateKeyConfigTTL(t *testing.T) {
 	testRenewSecretKey(t, td, resp.Secret)
 	testRevokeSecretKey(t, td, resp.Secret)
 
-	k, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
-
-	if err == nil || !isGoogleAccountKeyNotFoundErr(err) {
-		t.Fatalf("expected 404 error from getting deleted key, instead got error: %v", err)
-	}
-	if k != nil {
-		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
-	}
+	verifyServiceAccountKeyDeleted(t, td.IamAdmin, keyName)
 
 	// Cleanup: Delete role set
 	testRoleSetDelete(t, td, rsName, sa.Name)
@@ -272,14 +259,7 @@ func TestSecrets_GenerateKeyTTLOverride(t *testing.T) {
 	testRenewSecretKey(t, td, resp.Secret)
 	testRevokeSecretKey(t, td, resp.Secret)
 
-	k, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
-
-	if k != nil {
-		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
-	}
-	if err == nil || !isGoogleAccountKeyNotFoundErr(err) {
-		t.Fatalf("expected 404 error from getting deleted key, instead got error: %v", err)
-	}
+	verifyServiceAccountKeyDeleted(t, td.IamAdmin, keyName)
 
 	// Cleanup: Delete role set
 	testRoleSetDelete(t, td, rsName, sa.Name)
@@ -341,13 +321,7 @@ func TestSecrets_GenerateKeyMaxTTLCheck(t *testing.T) {
 	testRenewSecretKey(t, td, resp.Secret)
 	testRevokeSecretKey(t, td, resp.Secret)
 
-	k, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
-	if err == nil || !isGoogleAccountKeyNotFoundErr(err) {
-		t.Fatalf("expected 404 error from getting deleted key, instead got error: %v", err)
-	}
-	if k != nil {
-		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
-	}
+	verifyServiceAccountKeyDeleted(t, td.IamAdmin, keyName)
 
 	// Cleanup: Delete role set
 	testRoleSetDelete(t, td, rsName, sa.Name)

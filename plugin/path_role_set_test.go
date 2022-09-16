@@ -688,6 +688,19 @@ func getServiceAccount(t *testing.T, iamAdmin *iam.Service, readData map[string]
 	return sa
 }
 
+func verifyServiceAccountKeyDeleted(t *testing.T, iamAdmin *iam.Service, keyName string) {
+	for attempt := 0; attempt < 10; attempt++ {
+		_, err := iamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
+		if isGoogleAccountKeyNotFoundErr(err) {
+			return
+		}
+
+		t.Logf("%d: waiting for service account key %q to be deleted", attempt, keyName)
+		time.Sleep(1 * time.Second)
+	}
+	t.Fatalf("expected service account key %q to have been deleted", keyName)
+}
+
 func verifyServiceAccountDeleted(t *testing.T, iamAdmin *iam.Service, saName string) {
 	for attempt := 0; attempt < 10; attempt++ {
 		_, err := iamAdmin.Projects.ServiceAccounts.Get(saName).Do()
