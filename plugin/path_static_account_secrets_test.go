@@ -130,13 +130,7 @@ func testGetStaticKey(t *testing.T, staticName string, ttl uint64) {
 	testRenewSecretKey(t, td, secret)
 	testRevokeSecretKey(t, td, secret)
 
-	k, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
-	if err == nil || !isGoogleAccountKeyNotFoundErr(err) {
-		t.Fatalf("expected 404 error from getting deleted key, instead got error: %v", err)
-	}
-	if k != nil {
-		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
-	}
+	verifyServiceAccountKeyDeleted(t, td.IamAdmin, keyName)
 
 	// Cleanup
 	testStaticDelete(t, td, staticName)
