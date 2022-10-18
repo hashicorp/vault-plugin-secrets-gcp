@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/go-secure-stdlib/strutil"
@@ -506,6 +507,15 @@ func testRoleSetCreate(t *testing.T, td *testData, rsName string, d map[string]i
 	}
 }
 
+func testRoleSetCreateRaw(t *testing.T, td *testData, rsName string, d map[string]interface{}) (*logical.Response, error) {
+	return td.B.HandleRequest(context.Background(), &logical.Request{
+		Operation: logical.CreateOperation,
+		Path:      fmt.Sprintf("roleset/%s", rsName),
+		Data:      d,
+		Storage:   td.S,
+	})
+}
+
 func testRoleSetRead(t *testing.T, td *testData, rsName string) map[string]interface{} {
 	resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.ReadOperation,
@@ -678,11 +688,30 @@ func getServiceAccount(t *testing.T, iamAdmin *iam.Service, readData map[string]
 	return sa
 }
 
-func verifyServiceAccountDeleted(t *testing.T, iamAdmin *iam.Service, saName string) {
-	_, err := iamAdmin.Projects.ServiceAccounts.Get(saName).Do()
-	if err == nil || !isGoogleAccountNotFoundErr(err) {
-		t.Fatalf("expected service account '%s' to have been deleted", saName)
+func verifyServiceAccountKeyDeleted(t *testing.T, iamAdmin *iam.Service, keyName string) {
+	for attempt := 0; attempt < 10; attempt++ {
+		_, err := iamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
+		if isGoogleAccountKeyNotFoundErr(err) {
+			return
+		}
+
+		t.Logf("%d: waiting for service account key %q to be deleted", attempt, keyName)
+		time.Sleep(1 * time.Second)
 	}
+	t.Fatalf("expected service account key %q to have been deleted", keyName)
+}
+
+func verifyServiceAccountDeleted(t *testing.T, iamAdmin *iam.Service, saName string) {
+	for attempt := 0; attempt < 10; attempt++ {
+		_, err := iamAdmin.Projects.ServiceAccounts.Get(saName).Do()
+		if isGoogleAccountNotFoundErr(err) {
+			return
+		}
+
+		t.Logf("%d: waiting for service account %q to be deleted", attempt, saName)
+		time.Sleep(1 * time.Second)
+	}
+	t.Fatalf("expected service account %q to have been deleted", saName)
 }
 
 func verifyProjectBinding(t *testing.T, td *testData, email string, roleSet util.StringSet) {

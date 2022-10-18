@@ -41,8 +41,6 @@ website/build
 .vagrant/
 Vagrantfile
 
-# Configs
-*.hcl
 
 .DS_Store
 .idea

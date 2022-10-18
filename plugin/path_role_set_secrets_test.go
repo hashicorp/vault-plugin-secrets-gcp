@@ -20,6 +20,11 @@ func TestSecrets_getRoleSetKey(t *testing.T) {
 	testGetRoleSetKey(t, rsName, fmt.Sprintf("roleset/%s/key", rsName))
 }
 
+func TestSecrets_roleSetBadResource(t *testing.T) {
+	rsName := "test-bad-resource"
+	testGetRoleSetBadResource(t, rsName, fmt.Sprintf("roleset/%s", rsName))
+}
+
 // Test deprecated path still works
 func TestSecretsDeprecated_getRoleSetAccessToken(t *testing.T) {
 	rsName := "test-gentoken"
@@ -116,17 +121,37 @@ func testGetRoleSetKey(t *testing.T, rsName, path string) {
 	testRenewSecretKey(t, td, secret)
 	testRevokeSecretKey(t, td, secret)
 
-	k, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
-	if err == nil || !isGoogleAccountKeyNotFoundErr(err) {
-		t.Fatalf("expected 404 error from getting deleted key, instead got error: %v", err)
-	}
-	if k != nil {
-		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
-	}
+	verifyServiceAccountKeyDeleted(t, td.IamAdmin, keyName)
 
 	// Cleanup: Delete role set
 	testRoleSetDelete(t, td, rsName, sa.Name)
 	verifyProjectBindingsRemoved(t, td, sa.Email, testRoles)
+}
+
+func testGetRoleSetBadResource(t *testing.T, rsName, path string) {
+	secretType := SecretTypeKey
+
+	td := setupTest(t, "0s", "2h")
+	defer cleanupRoleset(t, td, rsName, testRoles)
+
+	projRes := fmt.Sprintf(testProjectResourceTemplate, rsName)
+
+	// Create new role set
+	expectedBinds := ResourceBindings{projRes: testRoles}
+	bindsRaw, err := util.BindingsHCL(expectedBinds)
+	if err != nil {
+		t.Fatalf("unable to convert resource bindings to HCL string: %v", err)
+	}
+	resp, _ := testRoleSetCreateRaw(t, td, rsName,
+		map[string]interface{}{
+			"secret_type": secretType,
+			"project":     td.Project,
+			"bindings":    bindsRaw,
+		})
+
+	if !resp.IsError() {
+		t.Fatal("expected error, got none")
+	}
 }
 
 func TestSecrets_GenerateKeyConfigTTL(t *testing.T) {
@@ -178,14 +203,7 @@ func TestSecrets_GenerateKeyConfigTTL(t *testing.T) {
 	testRenewSecretKey(t, td, resp.Secret)
 	testRevokeSecretKey(t, td, resp.Secret)
 
-	k, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
-
-	if err == nil || !isGoogleAccountKeyNotFoundErr(err) {
-		t.Fatalf("expected 404 error from getting deleted key, instead got error: %v", err)
-	}
-	if k != nil {
-		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
-	}
+	verifyServiceAccountKeyDeleted(t, td.IamAdmin, keyName)
 
 	// Cleanup: Delete role set
 	testRoleSetDelete(t, td, rsName, sa.Name)
@@ -241,14 +259,7 @@ func TestSecrets_GenerateKeyTTLOverride(t *testing.T) {
 	testRenewSecretKey(t, td, resp.Secret)
 	testRevokeSecretKey(t, td, resp.Secret)
 
-	k, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
-
-	if k != nil {
-		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
-	}
-	if err == nil || !isGoogleAccountKeyNotFoundErr(err) {
-		t.Fatalf("expected 404 error from getting deleted key, instead got error: %v", err)
-	}
+	verifyServiceAccountKeyDeleted(t, td.IamAdmin, keyName)
 
 	// Cleanup: Delete role set
 	testRoleSetDelete(t, td, rsName, sa.Name)
@@ -310,13 +321,7 @@ func TestSecrets_GenerateKeyMaxTTLCheck(t *testing.T) {
 	testRenewSecretKey(t, td, resp.Secret)
 	testRevokeSecretKey(t, td, resp.Secret)
 
-	k, err := td.IamAdmin.Projects.ServiceAccounts.Keys.Get(keyName).Do()
-	if err == nil || !isGoogleAccountKeyNotFoundErr(err) {
-		t.Fatalf("expected 404 error from getting deleted key, instead got error: %v", err)
-	}
-	if k != nil {
-		t.Fatalf("expected error as revoked key was deleted, instead got key: %v", k)
-	}
+	verifyServiceAccountKeyDeleted(t, td.IamAdmin, keyName)
 
 	// Cleanup: Delete role set
 	testRoleSetDelete(t, td, rsName, sa.Name)
