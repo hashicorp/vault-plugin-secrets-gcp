@@ -19,4 +19,4 @@ vault plugin register \
       -sha256="$(shasum -a 256 "$PLUGIN_DIR"/"$PLUGIN_NAME" | awk '{print $1}')" \
       secret "$PLUGIN_NAME"
 vault secrets enable --plugin-name="$PLUGIN_NAME" --path="$PLUGIN_MOUNT" plugin
-vault write "$PLUGIN_MOUNT"/config credentials=@"GOOGLE_TEST_CREDENTIALS"
+vault write "$PLUGIN_MOUNT"/config credentials=@"$GOOGLE_TEST_CREDENTIALS"
