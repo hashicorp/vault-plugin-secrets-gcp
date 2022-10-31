@@ -22,7 +22,7 @@ default: dev
 # dev creates binaries for testing Vault locally. These are put
 # into ./bin/ as well as $GOPATH/bin, except for quickdev which
 # is only put into /bin/
-.PHONY: generate
+.PHONY: quickdev
 quickdev: generate
 	@CGO_ENABLED=0 go build -i -tags='$(BUILD_TAGS)' -o bin/vault-plugin-secrets-gcp
 .PHONY: dev
@@ -90,5 +90,5 @@ configure: dev
 	$(PLUGIN_DIR) \
 	$(PLUGIN_NAME) \
 	$(PLUGIN_MOUNT) \
-	$(GOOGLE_CREDENTIALS) \
+	$(GOOGLE_TEST_CREDENTIALS) \
 

@@ -159,7 +159,7 @@ Manual method.
    the path or the JSON itself, i.e.
 
     ```sh
-    $ export GOOGLE_CREDENTIALS="path/to/vault-tester.json"
+    $ export GOOGLE_TEST_CREDENTIALS="path/to/vault-tester.json"
     ```
 
 1. Register the local plugin version
@@ -179,7 +179,7 @@ Manual method.
 1. Write the configuration to allow connection to your google cloud project
 
     ```sh
-    vault write local-gcp/config credentials=@"$GOOGLE_CREDENTIALS"
+    vault write local-gcp/config credentials=@"$GOOGLE_TEST_CREDENTIALS"
     ```
 
 ## Tests

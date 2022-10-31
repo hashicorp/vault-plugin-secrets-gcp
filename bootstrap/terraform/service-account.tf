@@ -50,7 +50,7 @@ resource "local_file" "vault_gcp_tests" {
 resource "local_file" "setup_environment_file" {
   filename = "local_environment_setup.sh"
   content  = <<EOF
-export GOOGLE_CREDENTIALS=${path.cwd}/${local_file.vault_gcp_tests.filename} &&\
+export GOOGLE_TEST_CREDENTIALS=${path.cwd}/${local_file.vault_gcp_tests.filename} &&\
 export GOOGLE_CLOUD_PROJECT=${var.GOOGLE_CLOUD_PROJECT_ID}
 EOF
 }

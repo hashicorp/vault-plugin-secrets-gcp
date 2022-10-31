@@ -1,7 +1,7 @@
 PLUGIN_DIR=$1
 PLUGIN_NAME=$2
 PLUGIN_MOUNT=$3
-GOOGLE_CREDENTIALS=$4
+GOOGLE_TEST_CREDENTIALS=$4
 
 # Try to clean-up previous runs
 vault plugin deregister "$PLUGIN_NAME"
@@ -19,4 +19,4 @@ vault plugin register \
       -sha256="$(shasum -a 256 "$PLUGIN_DIR"/"$PLUGIN_NAME" | awk '{print $1}')" \
       secret "$PLUGIN_NAME"
 vault secrets enable --plugin-name="$PLUGIN_NAME" --path="$PLUGIN_MOUNT" plugin
-vault write "$PLUGIN_MOUNT"/config credentials=@"$GOOGLE_CREDENTIALS"
+vault write "$PLUGIN_MOUNT"/config credentials=@"GOOGLE_TEST_CREDENTIALS"
