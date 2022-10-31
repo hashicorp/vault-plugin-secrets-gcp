@@ -47,9 +47,9 @@ func GetTestProject(tb testing.TB) string {
 		tb.Skip("skipping integration test (short)")
 	}
 
-	project := strings.TrimSpace(os.Getenv("GOOGLE_CLOUD_PROJECT"))
+	project := strings.TrimSpace(os.Getenv("GOOGLE_CLOUD_PROJECT_ID"))
 	if project == "" {
-		tb.Fatal("set GOOGLE_CLOUD_PROJECT to the ID of a GCP project to run integration tests")
+		tb.Fatal("set GOOGLE_CLOUD_PROJECT_ID to the ID of a GCP project to run integration tests")
 	}
 	return project
 }

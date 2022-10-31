@@ -114,7 +114,7 @@ Manual method.
 1. Save the name of your test project as an environment variable for reference:
 
     ```sh
-    $ export GOOGLE_CLOUD_PROJECT=my-project # replace with your project ID
+    $ export GOOGLE_CLOUD_PROJECT_ID=my-project # replace with your project ID
     ```
 
    Do not use a production project. Use a dedicated project for testing.
@@ -122,7 +122,7 @@ Manual method.
 1. Enable the IAM service on the project:
 
     ```sh
-    $ gcloud services enable --project "${GOOGLE_CLOUD_PROJECT}" \
+    $ gcloud services enable --project "${GOOGLE_CLOUD_PROJECT_ID}" \
         cloudresourcemanager.googleapis.com \
         iam.googleapis.com
     ```
@@ -132,14 +132,14 @@ Manual method.
     ```sh
     $ gcloud iam service-accounts create vault-tester \
         --display-name vault-tester \
-        --project "${GOOGLE_CLOUD_PROJECT}"
+        --project "${GOOGLE_CLOUD_PROJECT_ID}"
     ```
 
 1. Grant required test permissions:
 
     ```sh
-    $ gcloud projects add-iam-policy-binding "${GOOGLE_CLOUD_PROJECT}" \
-        --member "serviceAccount:vault-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com" \
+    $ gcloud projects add-iam-policy-binding "${GOOGLE_CLOUD_PROJECT_ID}" \
+        --member "serviceAccount:vault-tester@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com" \
         --role "roles/owner"
     ```
 
@@ -152,7 +152,7 @@ Manual method.
 
     ```sh
     $ gcloud iam service-accounts keys create vault-tester.json \
-        --iam-account "vault-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
+        --iam-account "vault-tester@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com"
     ```
 
 1. Export the credentials to an environment variable. You can set the env variable to either
@@ -210,7 +210,7 @@ appropriate permissions. You can use the steps explained in the [setup section](
 1. Save the name of your test project as an environment variable for reference:
 
     ```text
-    $ export GOOGLE_CLOUD_PROJECT=my-project # replace with your project ID
+    $ export GOOGLE_CLOUD_PROJECT_ID=my-project # replace with your project ID
     ```
 
 1. Run the acceptance tests:
