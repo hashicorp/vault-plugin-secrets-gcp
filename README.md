@@ -195,7 +195,7 @@ To run the unit tests:
 
 ### Acceptance Tests
 This plugin also has comprehensive [acceptance tests](https://en.wikipedia.org/wiki/Acceptance_testing)
-covering most of the features of this auth backend.
+covering most of the features of this secrets backend.
 
 **Warning:** The acceptance tests create/destroy/modify *real resources*,
 which may incur real costs in some cases. In the presence of a bug,

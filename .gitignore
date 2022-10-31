@@ -78,3 +78,10 @@ ui/testem.log
 
 # IAM
 vault-tester.json
+
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
