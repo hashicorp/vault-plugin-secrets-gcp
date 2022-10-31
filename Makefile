@@ -2,7 +2,6 @@ TOOL?=vault-gcp-secrets-plugin
 TEST?=$$(go list ./... | grep -v /vendor/)
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 EXTERNAL_TOOLS=\
-	github.com/mitchellh/gox \
 	github.com/kardianos/govendor
 BUILD_TAGS?=${TOOL}
 GOFMT_FILES?=$$(find . -name '*.go' | grep -v vendor)
@@ -11,7 +10,7 @@ PLUGIN_NAME?=$(shell command ls bin/)
 PLUGIN_DIR?=$$GOPATH/vault-plugins
 PLUGIN_MOUNT?=local-gcp
 
-# bin generates the releasable binaries for this
+# bin generates the releasable binaries for this plugin
 .PHONY: bin
 bin: fmtcheck generate
 	@CGO_ENABLED=0 BUILD_TAGS='$(BUILD_TAGS)' sh -c "'$(CURDIR)/scripts/build.sh'"
