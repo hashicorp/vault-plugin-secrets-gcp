@@ -1,4 +1,4 @@
-variable "GOOGLE_CLOUD_PROJECT" {}
+variable "GOOGLE_CLOUD_PROJECT_ID" {}
 
 provider "google" {
   // Credentials and configuration derived from the environment
@@ -7,19 +7,21 @@ provider "google" {
   // region      = "us-central1"
   // zone        = "us-central1-c
 
-  project = var.GOOGLE_CLOUD_PROJECT
+  project = var.GOOGLE_CLOUD_PROJECT_ID
 }
 
 resource "google_project_service" "vault_gcp_tests_resources" {
   service = "cloudresourcemanager.googleapis.com"
 
-  disable_on_destroy=false
+  disable_dependent_services = true
+  disable_on_destroy         = false
 }
 
 resource "google_project_service" "vault_gcp_tests_iam" {
   service = "iam.googleapis.com"
 
-  disable_on_destroy=false
+  disable_dependent_services = true
+  disable_on_destroy         = false
 }
 
 resource "google_service_account" "vault_gcp_tests" {
@@ -28,7 +30,7 @@ resource "google_service_account" "vault_gcp_tests" {
 }
 
 resource "google_project_iam_binding" "vault_gcp_tests" {
-  project = var.GOOGLE_CLOUD_PROJECT
+  project = var.GOOGLE_CLOUD_PROJECT_ID
   role    = "roles/owner"
 
   members = [
@@ -39,15 +41,16 @@ resource "google_project_iam_binding" "vault_gcp_tests" {
 resource "google_service_account_key" "vault_gcp_tests" {
   service_account_id = google_service_account.vault_gcp_tests.name
 }
-resource local_file "vault_gcp_tests" {
+
+resource "local_file" "vault_gcp_tests" {
   content  = base64decode(google_service_account_key.vault_gcp_tests.private_key)
   filename = "${path.module}/vault-tester.json"
 }
 
 resource "local_file" "setup_environment_file" {
   filename = "local_environment_setup.sh"
-  content = <<EOF
+  content  = <<EOF
 export GOOGLE_CREDENTIALS=${path.cwd}/${local_file.vault_gcp_tests.filename} &&\
-export GOOGLE_CLOUD_PROJECT=${var.GOOGLE_CLOUD_PROJECT}
+export GOOGLE_CLOUD_PROJECT=${var.GOOGLE_CLOUD_PROJECT_ID}
 EOF
 }

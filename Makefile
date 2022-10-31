@@ -8,7 +8,8 @@ BUILD_TAGS?=${TOOL}
 GOFMT_FILES?=$$(find . -name '*.go' | grep -v vendor)
 
 PLUGIN_NAME?=$(shell command ls bin/)
-PLUGIN_DIR?=$(GOPATH)/vault-plugins
+PLUGIN_DIR?=$$GOPATH/vault-plugins
+PLUGIN_MOUNT?=local-gcp
 
 # bin generates the releasable binaries for this
 .PHONY: bin
@@ -65,7 +66,7 @@ fmtcheck:
 
 .PHONY: fmt
 fmt:
-	gofmt -w $(GOFMT_FILES)
+	gofmt -w $(GOFMT_FILES) && cd bootstrap/terraform && terraform fmt
 
 .PHONY: update-resources
 update-resources:
@@ -88,6 +89,6 @@ configure: dev
 	@./bootstrap/configure.sh \
 	$(PLUGIN_DIR) \
 	$(PLUGIN_NAME) \
+	$(PLUGIN_MOUNT) \
 	$(GOOGLE_CREDENTIALS) \
-	$(GOOGLE_CLOUD_PROJECT)
 

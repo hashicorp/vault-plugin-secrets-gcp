@@ -51,7 +51,6 @@ gox \
     -osarch="${XC_OSARCH}" \
     -ldflags "-X github.com/hashicorp/${TOOL}/version.GitCommit='${GIT_COMMIT}${GIT_DIRTY}'" \
     -output "pkg/{{.OS}}_{{.Arch}}/${TOOL}" \
-    -tags="${BUILD_TAGS}" \
     .
 
 # Move all the compiled things to the $GOPATH/bin
