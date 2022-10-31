@@ -3,10 +3,10 @@ PLUGIN_NAME=$2
 PLUGIN_MOUNT=$3
 GOOGLE_CREDENTIALS=$4
 
-# Try to clean-up previous runs, ignores errors that will naturally occur e.g. if it's the first run
-vault plugin deregister "$PLUGIN_NAME" #2>/dev/null
-vault secrets disable "$PLUGIN_MOUNT" #2>/dev/null
-killall "$PLUGIN_NAME" #2>/dev/
+# Try to clean-up previous runs
+vault plugin deregister "$PLUGIN_NAME"
+vault secrets disable "$PLUGIN_MOUNT"
+killall "$PLUGIN_NAME"
 
 # Give a bit of time for the binary file to be released o we can copy over it
 sleep 3
