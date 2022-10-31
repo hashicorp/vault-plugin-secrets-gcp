@@ -88,7 +88,7 @@ You can use the scripted or manual methods depending on your preference.
 
 Scripted method.
 
-1. A Terraform project sets up the necessary gcp service account & credentials necessary.
+1. A Terraform project sets up the necessary gcp service account & credentials.
    You can configure the project id via this environment variable: `TF_VAR_GOOGLE_CLOUD_PROJECT_ID` 
    or paste it in the terminal when prompted.
 
