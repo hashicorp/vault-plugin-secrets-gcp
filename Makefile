@@ -9,7 +9,7 @@ GOFMT_FILES?=$$(find . -name '*.go' | grep -v vendor)
 
 PLUGIN_NAME?=$(shell command ls bin/)
 PLUGIN_DIR?=$$GOPATH/vault-plugins
-PLUGIN_MOUNT?=local-gcp
+PLUGIN_PATH?=local-gcp
 
 # bin generates the releasable binaries for this plugin
 .PHONY: bin
@@ -89,6 +89,6 @@ configure: dev
 	@./bootstrap/configure.sh \
 	$(PLUGIN_DIR) \
 	$(PLUGIN_NAME) \
-	$(PLUGIN_MOUNT) \
+	$(PLUGIN_PATH) \
 	$(GOOGLE_TEST_CREDENTIALS)
 

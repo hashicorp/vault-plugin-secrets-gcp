@@ -106,7 +106,7 @@ Scripted method.
    development plugin directory and mount path or leave empty to use the default values.
 
     ```sh
-    $ make configure PLUGIN_NAME=vault-plugin-secrets-gcp PLUGIN_DIR=$GOPATH/vault-plugins PLUGIN_MOUNT=local-gcp
+    $ make configure PLUGIN_NAME=vault-plugin-secrets-gcp PLUGIN_DIR=$GOPATH/vault-plugins PLUGIN_PATH=local-gcp
     ```
 
 Manual method.
