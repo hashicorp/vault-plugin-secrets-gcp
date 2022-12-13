@@ -67,7 +67,7 @@ func (b *backend) pathImpersonatedAccountAccessToken(ctx context.Context, req *l
 	tokenSource, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
 		TargetPrincipal: acct.EmailOrId,
 		Scopes:          acct.TokenScopes,
-		Lifetime:        time.Duration(acctTtl),
+		Lifetime:        acctTtl,
 	}, option.WithCredentials(creds))
 	if err != nil {
 		return logical.ErrorResponse("unable to generate token source: %v", err), nil

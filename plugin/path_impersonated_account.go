@@ -204,7 +204,7 @@ func (b *backend) pathImpersonatedAccountUpdate(ctx context.Context, req *logica
 	return nil, nil
 }
 
-func (b *backend) pathImpersonatedAccountList(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathImpersonatedAccountList(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
 	accounts, err := req.Storage.List(ctx, fmt.Sprintf("%s/", impersonatedAccountStoragePrefix))
 	if err != nil {
 		return nil, err
