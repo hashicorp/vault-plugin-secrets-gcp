@@ -50,18 +50,17 @@ func (b *backend) pathImpersonatedAccountAccessToken(ctx context.Context, req *l
 		return nil, err
 	}
 
+	warnings := []string{}
 	acctTtl := time.Duration(acct.Ttl) * time.Second
 	if acctTtl > config.MaxTTL {
-		b.Logger().Debug("using backend max ttl which is less than impersonated account ttl for token",
-			"impersonated_account_name", acctName, "impersonated_account_ttl", acctTtl.String(), "backend_max_ttl", config.MaxTTL.String())
+		warnings = append(warnings, fmt.Sprintf("using backend max ttl %q which is less than impersonated account ttl %q for token",
+			config.MaxTTL.String(),
+			acctTtl.String()))
 		acctTtl = config.MaxTTL
 	} else if acctTtl == 0 {
-		b.Logger().Debug("using backend default ttl since impersonated account ttl not configured for token",
-			"impersonated_account_name", acctName, "backend_default_ttl", config.TTL.String())
+		warnings = append(warnings, fmt.Sprintf("using backend default ttl %q since impersonated account ttl not configured for token",
+			config.TTL.String()))
 		acctTtl = config.TTL
-	} else {
-		b.Logger().Debug("using impersonated account ttl for token",
-			"impersonated_account_name", acctName, "impersonated_account_ttl", acctTtl.String())
 	}
 
 	tokenSource, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
@@ -83,5 +82,6 @@ func (b *backend) pathImpersonatedAccountAccessToken(ctx context.Context, req *l
 			"token_ttl":          token.Expiry.UTC().Sub(time.Now().UTC()) / (time.Second),
 			"expires_at_seconds": token.Expiry.Unix(),
 		},
+		Warnings: warnings,
 	}, nil
 }
