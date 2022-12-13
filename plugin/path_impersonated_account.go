@@ -119,14 +119,6 @@ func (b *backend) pathImpersonatedAccountDelete(ctx context.Context, req *logica
 	b.impersonatedAccountLock.Lock()
 	defer b.impersonatedAccountLock.Unlock()
 
-	acct, err := b.getImpersonatedAccount(name, ctx, req.Storage)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get impersonated account %q: %w", name, err)
-	}
-	if acct == nil {
-		return nil, nil
-	}
-
 	// Delete impersonated account
 	b.Logger().Debug("deleting impersonated account from storage", "name", name)
 	if err := req.Storage.Delete(ctx, fmt.Sprintf("%s/%s", impersonatedAccountStoragePrefix, name)); err != nil {
