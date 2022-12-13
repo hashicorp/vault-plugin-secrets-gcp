@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -169,12 +170,14 @@ func (b *backend) pathImpersonatedAccountUpdate(ctx context.Context, req *logica
 		return nil, fmt.Errorf("unable to find impersonated account %s to update", name)
 	}
 
-	initialInput := &impersonatedAccountInputParams{
-		name:                acct.Name,
-		project:             acct.Project,
-		serviceAccountEmail: acct.EmailOrId,
-		scopes:              acct.TokenScopes,
-		ttl:                 acct.Ttl,
+	initialInput := &ImpersonatedAccount{
+		Name:        acct.Name,
+		Ttl:         acct.Ttl,
+		TokenScopes: acct.TokenScopes,
+		ServiceAccountId: gcputil.ServiceAccountId{
+			Project:   acct.Project,
+			EmailOrId: acct.EmailOrId,
+		},
 	}
 
 	updateInput, warnings, err := b.parseImpersonateInformation(initialInput, d)
@@ -204,19 +207,19 @@ func (b *backend) pathImpersonatedAccountList(ctx context.Context, req *logical.
 	return logical.ListResponse(accounts), nil
 }
 
-func (b *backend) parseImpersonateInformation(prevValues *impersonatedAccountInputParams, d *framework.FieldData) (*impersonatedAccountInputParams, []string, error) {
+func (b *backend) parseImpersonateInformation(prevValues *ImpersonatedAccount, d *framework.FieldData) (*ImpersonatedAccount, []string, error) {
 	var warnings []string
 
 	input := prevValues
 	if prevValues == nil {
-		input = &impersonatedAccountInputParams{}
+		input = &ImpersonatedAccount{}
 	}
 
 	nameRaw, ok := d.GetOk("name")
 	if !ok {
 		return nil, nil, fmt.Errorf("name is required")
 	}
-	input.name = nameRaw.(string)
+	input.Name = nameRaw.(string)
 
 	ws, err := input.parseOkInputServiceAccountEmail(d)
 	if err != nil {
@@ -234,7 +237,7 @@ func (b *backend) parseImpersonateInformation(prevValues *impersonatedAccountInp
 
 	ttl, ok := d.GetOk("ttl")
 	if ok {
-		input.ttl = ttl.(int)
+		input.Ttl = ttl.(int)
 	}
 
 	return input, warnings, nil
