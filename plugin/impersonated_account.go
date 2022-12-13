@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-secure-stdlib/strutil"
@@ -85,7 +84,7 @@ func (b *backend) createImpersonatedAccount(ctx context.Context, req *logical.Re
 		if isGoogleAccountNotFoundErr(err) {
 			return fmt.Errorf("unable to create impersonated account, service account %q should exist", input.serviceAccountEmail)
 		}
-		return errwrap.Wrapf(fmt.Sprintf("unable to create impersonated account, could not confirm service account %q exists: {{err}}", input.serviceAccountEmail), err)
+		return fmt.Errorf("unable to create impersonated account, could not confirm service account %q exists: %w", input.serviceAccountEmail, err)
 	}
 
 	acctId := gcputil.ServiceAccountId{
@@ -120,7 +119,7 @@ func (b *backend) updateImpersonatedAccount(ctx context.Context, req *logical.Re
 		if isGoogleAccountNotFoundErr(err) {
 			return nil, fmt.Errorf("unable to update impersonated account, could not find service account %q", a.ResourceName())
 		}
-		return nil, errwrap.Wrapf(fmt.Sprintf("unable to create impersonated account, could not confirm service account %q exists: {{err}}", a.ResourceName()), err)
+		return nil, fmt.Errorf("unable to create impersonated account, could not confirm service account %q exists: %w", a.ResourceName(), err)
 	}
 
 	madeChange := false

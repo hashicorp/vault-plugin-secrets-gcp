@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -122,7 +121,7 @@ func (b *backend) pathImpersonatedAccountDelete(ctx context.Context, req *logica
 
 	acct, err := b.getImpersonatedAccount(name, ctx, req.Storage)
 	if err != nil {
-		return nil, errwrap.Wrapf(fmt.Sprintf("unable to get impersonated account %q: {{err}}", name), err)
+		return nil, fmt.Errorf("unable to get impersonated account %q: %w", name, err)
 	}
 	if acct == nil {
 		return nil, nil
