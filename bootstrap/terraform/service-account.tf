@@ -38,6 +38,24 @@ resource "google_project_iam_binding" "vault_gcp_tests" {
   ]
 }
 
+resource "google_project_iam_binding" "vault_gcp_tests_sa_token_creator" {
+  project = var.GOOGLE_CLOUD_PROJECT_ID
+  role    = "roles/iam.serviceAccountTokenCreator"
+
+  members = [
+    "serviceAccount:${google_service_account.vault_gcp_tests.email}"
+  ]
+}
+
+resource "google_project_iam_binding" "vault_gcp_tests_sa_key_admin" {
+  project = var.GOOGLE_CLOUD_PROJECT_ID
+  role    = "roles/iam.serviceAccountKeyAdmin"
+
+  members = [
+    "serviceAccount:${google_service_account.vault_gcp_tests.email}"
+  ]
+}
+
 resource "google_service_account_key" "vault_gcp_tests" {
   service_account_id = google_service_account.vault_gcp_tests.name
 }
