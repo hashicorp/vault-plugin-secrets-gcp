@@ -141,6 +141,14 @@ Manual method.
     $ gcloud projects add-iam-policy-binding "${GOOGLE_CLOUD_PROJECT_ID}" \
         --member "serviceAccount:vault-tester@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com" \
         --role "roles/owner"
+
+    $ gcloud projects add-iam-policy-binding "${GOOGLE_CLOUD_PROJECT_ID}" \
+        --member "serviceAccount:vault-tester@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com" \
+        --role "roles/iam.serviceAccountTokenCreator"
+
+    $ gcloud projects add-iam-policy-binding "${GOOGLE_CLOUD_PROJECT_ID}" \
+        --member "serviceAccount:vault-tester@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com" \
+        --role "roles/iam.serviceAccountKeyAdmin"
     ```
 
    Note: these are overly broad permissions because the account needs a
