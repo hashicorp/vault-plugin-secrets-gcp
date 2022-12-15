@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -170,17 +169,7 @@ func (b *backend) pathImpersonatedAccountUpdate(ctx context.Context, req *logica
 		return nil, fmt.Errorf("unable to find impersonated account %s to update", name)
 	}
 
-	initialInput := &ImpersonatedAccount{
-		Name:        acct.Name,
-		Ttl:         acct.Ttl,
-		TokenScopes: acct.TokenScopes,
-		ServiceAccountId: gcputil.ServiceAccountId{
-			Project:   acct.Project,
-			EmailOrId: acct.EmailOrId,
-		},
-	}
-
-	updateInput, warnings, err := b.parseImpersonateInformation(initialInput, d)
+	updateInput, warnings, err := b.parseImpersonateInformation(acct, d)
 	if err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	}
