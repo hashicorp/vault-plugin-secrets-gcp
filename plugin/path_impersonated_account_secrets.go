@@ -49,6 +49,9 @@ func (b *backend) pathImpersonatedAccountAccessToken(ctx context.Context, req *l
 	if err != nil {
 		return nil, err
 	}
+	if config == nil {
+		return logical.ErrorResponse("configuration for secrets engine does not exist"), nil
+	}
 
 	warnings := []string{}
 	acctTtl := time.Duration(acct.Ttl) * time.Second
