@@ -45,22 +45,25 @@ func (b *backend) pathImpersonatedAccountAccessToken(ctx context.Context, req *l
 		return nil, err
 	}
 
-	config, err := getConfig(ctx, req.Storage)
+	cfg, err := getConfig(ctx, req.Storage)
 	if err != nil {
 		return nil, err
+	}
+	if cfg == nil {
+		cfg = &config{}
 	}
 
 	warnings := []string{}
 	acctTtl := time.Duration(acct.Ttl) * time.Second
-	if acctTtl > config.MaxTTL {
+	if acctTtl > cfg.MaxTTL {
 		warnings = append(warnings, fmt.Sprintf("using backend max ttl %q which is less than impersonated account ttl %q for token",
-			config.MaxTTL.String(),
+			cfg.MaxTTL.String(),
 			acctTtl.String()))
-		acctTtl = config.MaxTTL
+		acctTtl = cfg.MaxTTL
 	} else if acctTtl == 0 {
 		warnings = append(warnings, fmt.Sprintf("using backend default ttl %q since impersonated account ttl not configured for token",
-			config.TTL.String()))
-		acctTtl = config.TTL
+			cfg.TTL.String()))
+		acctTtl = cfg.TTL
 	}
 
 	tokenSource, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
