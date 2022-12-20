@@ -15,6 +15,7 @@ import (
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
+	"google.golang.org/api/orgpolicy/v2"
 )
 
 const (
@@ -47,11 +48,12 @@ type testData struct {
 	Project    string
 	HttpClient *http.Client
 	IamAdmin   *iam.Service
+	OrgAdmin   *orgpolicy.Service
 }
 
-func setupTest(t *testing.T, ttl, maxTTL string) *testData {
+func setupTestCredentials(t *testing.T) *testData {
 	proj := util.GetTestProject(t)
-	credsJson, creds := util.GetTestCredentials(t)
+	_, creds := util.GetTestCredentials(t)
 	httpC, err := gcputil.GetHttpClient(creds, iam.CloudPlatformScope)
 	if err != nil {
 		t.Fatal(err)
@@ -62,21 +64,39 @@ func setupTest(t *testing.T, ttl, maxTTL string) *testData {
 		t.Fatal(err)
 	}
 
-	b, reqStorage := getTestBackend(t)
+	orgAdmin, err := orgpolicy.NewService(context.Background(), option.WithHTTPClient(httpC))
+	if err != nil {
+		t.Fatal(err)
+	}
 
+	return &testData{
+		B:          nil,
+		S:          nil,
+		Project:    proj,
+		HttpClient: httpC,
+		IamAdmin:   iamAdmin,
+		OrgAdmin:   orgAdmin,
+	}
+}
+
+func setupTestBackend(t *testing.T, td *testData, ttl, maxTTL string) {
+
+	b, reqStorage := getTestBackend(t)
+	td.B = b
+	td.S = reqStorage
+	credsJson, _ := util.GetTestCredentials(t)
 	testConfigUpdate(t, b, reqStorage, map[string]interface{}{
 		"credentials": credsJson,
 		"ttl":         ttl,
 		"max_ttl":     maxTTL,
 	})
 
-	return &testData{
-		B:          b,
-		S:          reqStorage,
-		Project:    proj,
-		HttpClient: httpC,
-		IamAdmin:   iamAdmin,
-	}
+}
+
+func setupTest(t *testing.T, ttl, maxTTL string) *testData {
+	td := setupTestCredentials(t)
+	setupTestBackend(t, td, ttl, maxTTL)
+	return td
 }
 
 func cleanup(t *testing.T, td *testData, saDisplayName string, roles util.StringSet) {
@@ -147,4 +167,8 @@ func cleanupRoleset(t *testing.T, td *testData, rsName string, roles util.String
 
 func cleanupStatic(t *testing.T, td *testData, saName string, roles util.StringSet) {
 	cleanup(t, td, fmt.Sprintf(staticAccountDisplayNameTmpl, saName), roles)
+}
+
+func cleanupImpersonate(t *testing.T, td *testData, saName string, roles util.StringSet) {
+	cleanup(t, td, fmt.Sprintf(impersonateAccountDisplayNameTmpl, saName), roles)
 }

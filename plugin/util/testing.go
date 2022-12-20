@@ -17,9 +17,9 @@ func GetTestCredentials(tb testing.TB) (string, *gcputil.GcpCredentials) {
 	}
 
 	var credsStr string
-	credsEnv := os.Getenv("GOOGLE_CREDENTIALS")
+	credsEnv := os.Getenv("GOOGLE_TEST_CREDENTIALS")
 	if credsEnv == "" {
-		tb.Fatal("set GOOGLE_CREDENTIALS to JSON or path to JSON creds on disk to run integration tests")
+		tb.Fatal("set GOOGLE_TEST_CREDENTIALS to JSON or path to JSON creds on disk to run integration tests")
 	}
 
 	// Attempt to read as file path; if invalid, assume given JSON value directly
@@ -35,7 +35,7 @@ func GetTestCredentials(tb testing.TB) (string, *gcputil.GcpCredentials) {
 
 	creds, err := gcputil.Credentials(credsStr)
 	if err != nil {
-		tb.Fatalf("failed to parse GOOGLE_CREDENTIALS as JSON: %s", err)
+		tb.Fatalf("failed to parse GOOGLE_TEST_CREDENTIALS as JSON: %s", err)
 	}
 	return credsStr, creds
 }
@@ -47,9 +47,9 @@ func GetTestProject(tb testing.TB) string {
 		tb.Skip("skipping integration test (short)")
 	}
 
-	project := strings.TrimSpace(os.Getenv("GOOGLE_CLOUD_PROJECT"))
+	project := strings.TrimSpace(os.Getenv("GOOGLE_CLOUD_PROJECT_ID"))
 	if project == "" {
-		tb.Fatal("set GOOGLE_CLOUD_PROJECT to the ID of a GCP project to run integration tests")
+		tb.Fatal("set GOOGLE_CLOUD_PROJECT_ID to the ID of a GCP project to run integration tests")
 	}
 	return project
 }
