@@ -2,6 +2,7 @@ package gcpsecrets
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -114,8 +115,7 @@ func Backend() *backend {
 func (b *backend) initialize(ctx context.Context, _ *logical.InitializationRequest) error {
 	pluginEnv, err := b.System().PluginEnv(ctx)
 	if err != nil {
-		b.Logger().Warn("failed to read plugin environment, user-agent will not be set",
-			"error", err)
+		return fmt.Errorf("failed to read plugin environment: %w", err)
 	}
 	b.pluginEnv = pluginEnv
 
