@@ -97,7 +97,8 @@ func (b *backend) createIamBindings(ctx context.Context, req *logical.Request, s
 	if err != nil {
 		return err
 	}
-	apiHandle := iamutil.GetApiHandle(httpC, useragent.String())
+	apiHandle := iamutil.GetApiHandle(httpC, useragent.PluginString(b.pluginEnv,
+		userAgentPluginName))
 
 	for resourceName, roles := range binds {
 		b.Logger().Debug("setting IAM binding", "resource", resourceName, "roles", roles)
@@ -213,7 +214,8 @@ func (b *backend) removeBindings(ctx context.Context, req *logical.Request, emai
 		return &multierror.Error{Errors: []error{err}}
 	}
 
-	apiHandle := iamutil.GetApiHandle(httpC, useragent.String())
+	apiHandle := iamutil.GetApiHandle(httpC, useragent.PluginString(b.pluginEnv,
+		userAgentPluginName))
 
 	for resName, roles := range bindings {
 		resource, err := b.resources.Parse(resName)
