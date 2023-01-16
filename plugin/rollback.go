@@ -222,7 +222,8 @@ func (b *backend) serviceAccountPolicyRollback(ctx context.Context, req *logical
 		return err
 	}
 
-	apiHandle := iamutil.GetApiHandle(httpC, useragent.String())
+	apiHandle := iamutil.GetApiHandle(httpC, useragent.PluginString(b.pluginEnv,
+		userAgentPluginName))
 	p, err := r.GetIamPolicy(ctx, apiHandle)
 	if err != nil {
 		if isGoogleAccountNotFoundErr(err) || isGoogleAccountUnauthorizedErr(err) {
@@ -284,7 +285,8 @@ func (b *backend) serviceAccountPolicyDiffRollback(ctx context.Context, req *log
 		return err
 	}
 
-	apiHandle := iamutil.GetApiHandle(httpC, useragent.String())
+	apiHandle := iamutil.GetApiHandle(httpC, useragent.PluginString(b.pluginEnv,
+		userAgentPluginName))
 	p, err := r.GetIamPolicy(ctx, apiHandle)
 	if err != nil {
 		return err
