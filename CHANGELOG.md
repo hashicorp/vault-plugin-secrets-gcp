@@ -1,5 +1,10 @@
 ## Unreleased
 
+CHANGES:
+
+* Changes user-agent header value to use correct Vault version information and include
+  the plugin type and name in the comment section.
+
 ## v0.14.0
 
 IMPROVEMENTS:
