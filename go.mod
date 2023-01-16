@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
 	github.com/hashicorp/hcl v1.0.0
 	github.com/hashicorp/vault/api v1.8.2
-	github.com/hashicorp/vault/sdk v0.6.1
+	github.com/hashicorp/vault/sdk v0.6.2
 	github.com/mitchellh/mapstructure v1.5.0
 	golang.org/x/oauth2 v0.3.0
 	google.golang.org/api v0.105.0
