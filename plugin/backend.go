@@ -2,6 +2,7 @@ package gcpsecrets
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -20,6 +21,8 @@ import (
 	"google.golang.org/api/option"
 )
 
+const userAgentPluginName = "secrets-gcp"
+
 const (
 	// cacheTime is the duration for which to cache clients and credentials. This
 	// must be less than 60 minutes.
@@ -32,6 +35,9 @@ type backend struct {
 	// cache is the internal client/object cache. Callers should never access the
 	// cache directly.
 	cache *cache.Cache
+
+	// pluginEnv contains Vault version information. It is used in user-agent headers.
+	pluginEnv *logical.PluginEnvironment
 
 	resources iamutil.ResourceParser
 
@@ -97,12 +103,23 @@ func Backend() *backend {
 			secretServiceAccountKey(b),
 		},
 
+		InitializeFunc:    b.initialize,
 		Invalidate:        b.invalidate,
 		WALRollback:       b.walRollback,
 		WALRollbackMinAge: 5 * time.Minute,
 	}
 
 	return b
+}
+
+func (b *backend) initialize(ctx context.Context, _ *logical.InitializationRequest) error {
+	pluginEnv, err := b.System().PluginEnv(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read plugin environment: %w", err)
+	}
+	b.pluginEnv = pluginEnv
+
+	return nil
 }
 
 // IAMAdminClient returns a new IAM client. The client is cached.
@@ -117,7 +134,7 @@ func (b *backend) IAMAdminClient(s logical.Storage) (*iam.Service, error) {
 		if err != nil {
 			return nil, errwrap.Wrapf("failed to create IAM client: {{err}}", err)
 		}
-		client.UserAgent = useragent.String()
+		client.UserAgent = useragent.PluginString(b.pluginEnv, userAgentPluginName)
 
 		return client, nil
 	})
