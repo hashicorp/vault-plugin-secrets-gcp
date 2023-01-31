@@ -130,7 +130,7 @@ func (b *backend) pathImpersonatedAccountDelete(ctx context.Context, req *logica
 }
 
 func (b *backend) pathImpersonatedAccountCreate(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	input, warnings, err := b.parseImpersonateInformation(nil, d)
+	input, warnings, err := b.parseImpersonateInformation(ImpersonatedAccount{}, d)
 	if err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	}
@@ -169,7 +169,7 @@ func (b *backend) pathImpersonatedAccountUpdate(ctx context.Context, req *logica
 		return nil, fmt.Errorf("unable to find impersonated account %s to update", name)
 	}
 
-	updateInput, warnings, err := b.parseImpersonateInformation(acct, d)
+	updateInput, warnings, err := b.parseImpersonateInformation(*acct, d)
 	if err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	}
@@ -196,28 +196,23 @@ func (b *backend) pathImpersonatedAccountList(ctx context.Context, req *logical.
 	return logical.ListResponse(accounts), nil
 }
 
-func (b *backend) parseImpersonateInformation(prevValues *ImpersonatedAccount, d *framework.FieldData) (*ImpersonatedAccount, []string, error) {
+func (b *backend) parseImpersonateInformation(prevValues ImpersonatedAccount, d *framework.FieldData) (*ImpersonatedAccount, []string, error) {
 	var warnings []string
-
-	input := prevValues
-	if prevValues == nil {
-		input = &ImpersonatedAccount{}
-	}
 
 	nameRaw, ok := d.GetOk("name")
 	if !ok {
 		return nil, nil, fmt.Errorf("name is required")
 	}
-	input.Name = nameRaw.(string)
+	prevValues.Name = nameRaw.(string)
 
-	ws, err := input.parseOkInputServiceAccountEmail(d)
+	ws, err := prevValues.parseOkInputServiceAccountEmail(d)
 	if err != nil {
 		return nil, nil, err
 	} else if len(ws) > 0 {
 		warnings = append(warnings, ws...)
 	}
 
-	ws, err = input.parseOkInputTokenScopes(d)
+	ws, err = prevValues.parseOkInputTokenScopes(d)
 	if err != nil {
 		return nil, nil, err
 	} else if len(ws) > 0 {
@@ -226,10 +221,10 @@ func (b *backend) parseImpersonateInformation(prevValues *ImpersonatedAccount, d
 
 	ttl, ok := d.GetOk("ttl")
 	if ok {
-		input.Ttl = ttl.(int)
+		prevValues.Ttl = ttl.(int)
 	}
 
-	return input, warnings, nil
+	return &prevValues, warnings, nil
 }
 
 const pathImpersonatedAccountHelpSyn = `Register and manage a GCP service account to generate credentials under`

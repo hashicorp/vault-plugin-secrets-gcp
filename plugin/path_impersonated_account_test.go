@@ -96,6 +96,70 @@ func TestPathImpersonate_TTL(t *testing.T) {
 	testImpersonateDelete(t, td, impersonateName)
 }
 
+// Tests that fields can be updated
+func TestPathImpersonate_Update(t *testing.T) {
+	impersonateName := "test-imp-update"
+
+	td := setupTest(t, "0s", "2h")
+	defer cleanupImpersonate(t, td, impersonateName, util.StringSet{})
+
+	sa := createServiceAccount(t, td, impersonateName)
+	defer deleteServiceAccount(t, td, sa)
+
+	// 1. Read should return nothing
+	respData := testImpersonateRead(t, td, impersonateName)
+	if respData != nil {
+		t.Fatalf("expected impersonate account to not exist initially")
+	}
+
+	// 2. Create new impersonated account
+	testImpersonateCreate(t, td, impersonateName,
+		map[string]interface{}{
+			"service_account_email": sa.Email,
+			"token_scopes":          []string{iam.CloudPlatformScope},
+		})
+
+	// 3. Read impersonated account
+	respData = testImpersonateRead(t, td, impersonateName)
+	if respData == nil {
+		t.Fatalf("expected impersonate account to have been created")
+	}
+
+	verifyReadData(t, respData, map[string]interface{}{
+		"service_account_email":   sa.Email,
+		"service_account_project": sa.ProjectId,
+		"token_scopes":            []string{iam.CloudPlatformScope},
+	})
+
+	// 4. Verify these updates:
+	cases := []map[string]interface{}{
+		{
+			// Token scopes can be changed
+			"token_scopes": []string{"https://www.googleapis.com/auth/cloud-platform.read-only"},
+		},
+	}
+	for _, d := range cases {
+		resp, err := td.B.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.UpdateOperation,
+			Path:      fmt.Sprintf("%s/%s", impersonatedAccountPathPrefix, impersonateName),
+			Data:      d,
+			Storage:   td.S,
+		})
+		if err != nil || (resp != nil && !resp.IsError()) {
+			t.Fatalf("expected update not to fail; data: %v", d)
+		}
+
+		verifyReadData(t, testImpersonateRead(t, td, impersonateName), map[string]interface{}{
+			"service_account_email":   sa.Email,
+			"service_account_project": sa.ProjectId,
+			"token_scopes":            []string{"https://www.googleapis.com/auth/cloud-platform.read-only"},
+		})
+	}
+
+	// 5. Delete impersonated account
+	testImpersonateDelete(t, td, impersonateName)
+}
+
 // Tests that some fields cannot be updated
 func TestPathImpersonate_UpdateDisallowed(t *testing.T) {
 	impersonateName := "test-imp-update-fail"
@@ -132,10 +196,15 @@ func TestPathImpersonate_UpdateDisallowed(t *testing.T) {
 	verifyReadData(t, respData, map[string]interface{}{
 		"service_account_email":   sa.Email,
 		"service_account_project": sa.ProjectId,
+		"token_scopes":            []string{iam.CloudPlatformScope},
 	})
 
 	// 4. Verify these updates don't work:
 	errCases := []map[string]interface{}{
+		{
+			// Token scopes cannot be empty
+			"token_scopes": []string{},
+		},
 		{
 			// Email cannot be changed
 			"service_account_email": saNew.Email,
