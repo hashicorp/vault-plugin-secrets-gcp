@@ -2,8 +2,21 @@
 
 CHANGES:
 
+* ADD YOUR CHANGE HERE [[GH-XXX](https://github.com/hashicorp/vault-plugin-secrets-gcp)]
+
+## v0.15.0
+
+IMPROVEMENTS:
+
+* Added support for impersonated accounts [[GH-129](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/129)}
+
+BUG FIXES:
+
+* Fix issue where IAM bindings were not preserved during policy update [[GH-114](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/114)]
+* Fix issue where duplicate service account keys would be created for rotate root
+  on standby or  [[GH-153](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/153)]
 * Changes user-agent header value to use correct Vault version information and include
-  the plugin type and name in the comment section.
+  the plugin type and name in the comment section. [[GH-164](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/164)]
 
 ## v0.14.0
 
