@@ -4,6 +4,9 @@ CHANGES:
 
 * ADD YOUR CHANGE HERE [[GH-XXX](https://github.com/hashicorp/vault-plugin-secrets-gcp)]
 
+IMPROVEMENTS:
+* Enable multiplexing [[GH-172](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/172)]
+
 ## v0.15.0
 
 IMPROVEMENTS:
