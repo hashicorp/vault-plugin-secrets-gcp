@@ -22,6 +22,8 @@ func main() {
 
 	err := plugin.ServeMultiplex(&plugin.ServeOpts{
 		BackendFactoryFunc: gcpsecrets.Factory,
+		// set the TLSProviderFunc so that the plugin maintains backwards
+		// compatibility with Vault versions that don’t support plugin AutoMTLS
 		TLSProviderFunc:    tlsProviderFunc,
 	})
 	if err != nil {
