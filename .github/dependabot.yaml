@@ -8,4 +8,4 @@ updates:
     schedule:
       interval: "monthly"
     reviewers:
-      - "hashicorp/vault-ecosystem"
+      - "hashicorp/vault-ecosystem-applications"
