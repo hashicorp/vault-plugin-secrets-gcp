@@ -46,12 +46,26 @@ func fieldSchemaRoleSetAccessToken() map[string]*framework.FieldSchema {
 
 func pathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern:        fmt.Sprintf("roleset/%s/key", framework.GenericNameRegex("roleset")),
+		Pattern: fmt.Sprintf("roleset/%s/key", framework.GenericNameRegex("roleset")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGCP,
+			OperationVerb:   "generate-key-under",
+		},
 		Fields:         fieldSchemaRoleSetServiceAccountKey(),
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathRoleSetSecretKey},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathRoleSetSecretKey},
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: b.pathRoleSetSecretKey,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: b.pathRoleSetSecretKey,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset-with-parameters",
+				},
+			},
 		},
 		HelpSynopsis:    pathServiceAccountKeySyn,
 		HelpDescription: pathServiceAccountKeyDesc,
@@ -60,13 +74,27 @@ func pathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 
 func deprecatedPathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern:        fmt.Sprintf("key/%s", framework.GenericNameRegex("roleset")),
+		Pattern: fmt.Sprintf("key/%s", framework.GenericNameRegex("roleset")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGCP,
+			OperationVerb:   "generate-key-under",
+		},
 		Deprecated:     true,
 		Fields:         fieldSchemaRoleSetServiceAccountKey(),
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathRoleSetSecretKey},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathRoleSetSecretKey},
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: b.pathRoleSetSecretKey,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset2",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: b.pathRoleSetSecretKey,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset-with-parameters2",
+				},
+			},
 		},
 		HelpSynopsis:    pathServiceAccountKeySyn,
 		HelpDescription: pathServiceAccountKeyDesc,
@@ -76,11 +104,25 @@ func deprecatedPathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 func pathRoleSetSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern:        fmt.Sprintf("roleset/%s/token", framework.GenericNameRegex("roleset")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGCP,
+			OperationVerb:   "generate-access-token-under",
+		},
 		Fields:         fieldSchemaRoleSetAccessToken(),
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathRoleSetSecretAccessToken},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathRoleSetSecretAccessToken},
+			logical.ReadOperation:   &framework.PathOperation{
+                Callback: b.pathRoleSetSecretAccessToken
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset",
+				},
+            },
+			logical.UpdateOperation: &framework.PathOperation{
+                Callback: b.pathRoleSetSecretAccessToken
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset-with-parameters",
+				},
+            },
 		},
 		HelpSynopsis:    pathTokenHelpSyn,
 		HelpDescription: pathTokenHelpDesc,
@@ -90,12 +132,26 @@ func pathRoleSetSecretAccessToken(b *backend) *framework.Path {
 func deprecatedPathRoleSetSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern:        fmt.Sprintf("token/%s", framework.GenericNameRegex("roleset")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGCP,
+			OperationVerb:   "generate-access-token-under",
+		},
 		Deprecated:     true,
 		Fields:         fieldSchemaRoleSetAccessToken(),
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathRoleSetSecretAccessToken},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathRoleSetSecretAccessToken},
+			logical.ReadOperation:   &framework.PathOperation{
+                Callback: b.pathRoleSetSecretAccessToken,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset2",
+				},
+            },
+			logical.UpdateOperation: &framework.PathOperation{
+                Callback: b.pathRoleSetSecretAccessToken,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset-with-parameters2",
+				},
+            },
 		},
 		HelpSynopsis:    pathTokenHelpSyn,
 		HelpDescription: pathTokenHelpDesc,
