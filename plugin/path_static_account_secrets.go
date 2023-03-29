@@ -15,7 +15,7 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s/key", staticAccountPathPrefix, framework.GenericNameRegex("name")),
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "generate-key-under",
 		},
 		Fields: map[string]*framework.FieldSchema{
@@ -61,7 +61,7 @@ func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s/token", staticAccountPathPrefix, framework.GenericNameRegex("name")),
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "generate-access-token-under",
 		},
 		Fields: map[string]*framework.FieldSchema{

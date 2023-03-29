@@ -48,7 +48,7 @@ func pathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("roleset/%s/key", framework.GenericNameRegex("roleset")),
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "generate-key-under",
 		},
 		Fields:         fieldSchemaRoleSetServiceAccountKey(),
@@ -76,7 +76,7 @@ func deprecatedPathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("key/%s", framework.GenericNameRegex("roleset")),
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "generate-key-under",
 		},
 		Deprecated:     true,
@@ -105,7 +105,7 @@ func pathRoleSetSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern:        fmt.Sprintf("roleset/%s/token", framework.GenericNameRegex("roleset")),
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "generate-access-token-under",
 		},
 		Fields:         fieldSchemaRoleSetAccessToken(),
@@ -133,7 +133,7 @@ func deprecatedPathRoleSetSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern:        fmt.Sprintf("token/%s", framework.GenericNameRegex("roleset")),
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "generate-access-token-under",
 		},
 		Deprecated:     true,

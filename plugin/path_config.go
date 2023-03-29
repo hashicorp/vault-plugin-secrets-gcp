@@ -18,7 +18,7 @@ func pathConfig(b *backend) *framework.Path {
 		Pattern: "config",
 
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 		},
 
 		Fields: map[string]*framework.FieldSchema{

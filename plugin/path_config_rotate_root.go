@@ -20,7 +20,7 @@ func pathConfigRotateRoot(b *backend) *framework.Path {
 		Pattern: "config/rotate-root",
 
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "rotate",
 			OperationSuffix: "root-credentials",
 		},

@@ -23,7 +23,7 @@ func pathStaticAccount(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s", staticAccountPathPrefix, framework.GenericNameRegex("name")),
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationSuffix: "static-account",
 		},
 		Fields: map[string]*framework.FieldSchema{
@@ -78,7 +78,7 @@ func pathStaticAccountList(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%ss?/?", staticAccountPathPrefix),
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "list",
 			OperationSuffix: "static-accounts",
 		},

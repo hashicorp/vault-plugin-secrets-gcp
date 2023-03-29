@@ -21,7 +21,7 @@ func pathImpersonatedAccount(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s", impersonatedAccountPathPrefix, framework.GenericNameRegex("name")),
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationSuffix: "impersonated-account",
 		},
 		Fields: map[string]*framework.FieldSchema{
@@ -67,7 +67,7 @@ func pathImpersonatedAccountList(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%ss?/?", impersonatedAccountPathPrefix),
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "list",
 			OperationSuffix: "impersonated-accounts",
 		},

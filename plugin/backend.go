@@ -31,8 +31,8 @@ const (
 	// must be less than 60 minutes.
 	cacheTime = 30 * time.Minute
 
-	// operationPrefixGCP is used as a prefix for OpenAPI operation id's.
-	operationPrefixGCP = "gcp"
+	// operationPrefixGoogleCloud is used as a prefix for OpenAPI operation id's.
+	operationPrefixGoogleCloud = "google-cloud"
 )
 
 type backend struct {

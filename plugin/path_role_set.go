@@ -21,7 +21,7 @@ func pathRoleSet(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("roleset/%s", framework.GenericNameRegex("name")),
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationSuffix: "roleset",
 		},
 		Fields: map[string]*framework.FieldSchema{
@@ -76,7 +76,7 @@ func pathRoleSetList(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: "rolesets?/?",
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "list",
 			OperationSuffix: "rolesets",
 		},
@@ -95,7 +95,7 @@ func pathRoleSetRotateAccount(b *backend) *framework.Path {
 		// Path to rotate role set service accounts
 		Pattern: fmt.Sprintf("roleset/%s/rotate", framework.GenericNameRegex("name")),
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "rotate",
 			OperationSuffix: "roleset",
 		},
@@ -122,7 +122,7 @@ func pathRoleSetRotateKey(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("roleset/%s/rotate-key", framework.GenericNameRegex("name")),
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "rotate",
 			OperationSuffix: "roleset-key",
 		},

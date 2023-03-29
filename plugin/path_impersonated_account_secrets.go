@@ -18,7 +18,7 @@ func pathImpersonatedAccountSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s/token", impersonatedAccountPathPrefix, framework.GenericNameRegex("name")),
 		DisplayAttrs: &framework.DisplayAttributes{
-			OperationPrefix: operationPrefixGCP,
+			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "generate-access-token-under",
 			OperationSuffix: "impersonated-account",
 		},
