@@ -16,7 +16,7 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 		Pattern: fmt.Sprintf("%s/%s/key", staticAccountPathPrefix, framework.GenericNameRegex("name")),
 		DisplayAttrs: &framework.DisplayAttributes{
 			OperationPrefix: operationPrefixGoogleCloud,
-			OperationVerb:   "generate-key-under",
+			OperationVerb:   "generate",
 		},
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
@@ -42,13 +42,13 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountSecretKey,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "static-account",
+					OperationSuffix: "static-account-key",
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountSecretKey,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "static-account-with-parameters",
+					OperationSuffix: "static-account-key-with-parameters",
 				},
 			},
 		},
@@ -62,7 +62,7 @@ func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 		Pattern: fmt.Sprintf("%s/%s/token", staticAccountPathPrefix, framework.GenericNameRegex("name")),
 		DisplayAttrs: &framework.DisplayAttributes{
 			OperationPrefix: operationPrefixGoogleCloud,
-			OperationVerb:   "generate-access-token-under",
+			OperationVerb:   "generate",
 		},
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
@@ -74,13 +74,13 @@ func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountAccessToken,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "static-account",
+					OperationSuffix: "static-account-access-token",
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountAccessToken,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "static-account-with-parameters",
+					OperationSuffix: "static-account-access-token-with-parameters",
 				},
 			},
 		},

@@ -49,7 +49,7 @@ func pathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 		Pattern: fmt.Sprintf("roleset/%s/key", framework.GenericNameRegex("roleset")),
 		DisplayAttrs: &framework.DisplayAttributes{
 			OperationPrefix: operationPrefixGoogleCloud,
-			OperationVerb:   "generate-key-under",
+			OperationVerb:   "generate",
 		},
 		Fields:         fieldSchemaRoleSetServiceAccountKey(),
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
@@ -57,13 +57,13 @@ func pathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretKey,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset",
+					OperationSuffix: "roleset-key",
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretKey,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset-with-parameters",
+					OperationSuffix: "roleset-key-with-parameters",
 				},
 			},
 		},
@@ -77,7 +77,7 @@ func deprecatedPathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 		Pattern: fmt.Sprintf("key/%s", framework.GenericNameRegex("roleset")),
 		DisplayAttrs: &framework.DisplayAttributes{
 			OperationPrefix: operationPrefixGoogleCloud,
-			OperationVerb:   "generate-key-under",
+			OperationVerb:   "generate",
 		},
 		Deprecated:     true,
 		Fields:         fieldSchemaRoleSetServiceAccountKey(),
@@ -86,13 +86,13 @@ func deprecatedPathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretKey,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset2",
+					OperationSuffix: "roleset-key2",
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretKey,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset-with-parameters2",
+					OperationSuffix: "roleset-key-with-parameters2",
 				},
 			},
 		},
@@ -106,7 +106,7 @@ func pathRoleSetSecretAccessToken(b *backend) *framework.Path {
 		Pattern:        fmt.Sprintf("roleset/%s/token", framework.GenericNameRegex("roleset")),
 		DisplayAttrs: &framework.DisplayAttributes{
 			OperationPrefix: operationPrefixGoogleCloud,
-			OperationVerb:   "generate-access-token-under",
+			OperationVerb:   "generate",
 		},
 		Fields:         fieldSchemaRoleSetAccessToken(),
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
@@ -114,13 +114,13 @@ func pathRoleSetSecretAccessToken(b *backend) *framework.Path {
 			logical.ReadOperation:   &framework.PathOperation{
                 Callback: b.pathRoleSetSecretAccessToken
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset",
+					OperationSuffix: "roleset-access-token",
 				},
             },
 			logical.UpdateOperation: &framework.PathOperation{
                 Callback: b.pathRoleSetSecretAccessToken
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset-with-parameters",
+					OperationSuffix: "roleset-access-token-with-parameters",
 				},
             },
 		},
@@ -134,7 +134,7 @@ func deprecatedPathRoleSetSecretAccessToken(b *backend) *framework.Path {
 		Pattern:        fmt.Sprintf("token/%s", framework.GenericNameRegex("roleset")),
 		DisplayAttrs: &framework.DisplayAttributes{
 			OperationPrefix: operationPrefixGoogleCloud,
-			OperationVerb:   "generate-access-token-under",
+			OperationVerb:   "generate",
 		},
 		Deprecated:     true,
 		Fields:         fieldSchemaRoleSetAccessToken(),
@@ -143,13 +143,13 @@ func deprecatedPathRoleSetSecretAccessToken(b *backend) *framework.Path {
 			logical.ReadOperation:   &framework.PathOperation{
                 Callback: b.pathRoleSetSecretAccessToken,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset2",
+					OperationSuffix: "roleset-access-token2",
 				},
             },
 			logical.UpdateOperation: &framework.PathOperation{
                 Callback: b.pathRoleSetSecretAccessToken,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset-with-parameters2",
+					OperationSuffix: "roleset-access-token-with-parameters2",
 				},
             },
 		},
