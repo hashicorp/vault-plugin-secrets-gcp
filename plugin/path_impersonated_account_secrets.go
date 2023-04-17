@@ -20,7 +20,6 @@ func pathImpersonatedAccountSecretAccessToken(b *backend) *framework.Path {
 		DisplayAttrs: &framework.DisplayAttributes{
 			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "generate",
-			OperationSuffix: "impersonated-account-access-token",
 		},
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
@@ -29,8 +28,18 @@ func pathImpersonatedAccountSecretAccessToken(b *backend) *framework.Path {
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathImpersonatedAccountAccessToken},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathImpersonatedAccountAccessToken},
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: b.pathImpersonatedAccountAccessToken,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "impersonated-account-access-token",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: b.pathImpersonatedAccountAccessToken,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "impersonated-account-access-token2",
+				},
+			},
 		},
 		HelpSynopsis:    pathTokenHelpSyn,
 		HelpDescription: pathTokenHelpDesc,
