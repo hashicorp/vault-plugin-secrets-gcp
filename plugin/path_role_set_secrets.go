@@ -46,12 +46,26 @@ func fieldSchemaRoleSetAccessToken() map[string]*framework.FieldSchema {
 
 func pathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern:        fmt.Sprintf("roleset/%s/key", framework.GenericNameRegex("roleset")),
+		Pattern: fmt.Sprintf("roleset/%s/key", framework.GenericNameRegex("roleset")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "generate",
+		},
 		Fields:         fieldSchemaRoleSetServiceAccountKey(),
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathRoleSetSecretKey},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathRoleSetSecretKey},
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: b.pathRoleSetSecretKey,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset-key",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: b.pathRoleSetSecretKey,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset-key-with-parameters",
+				},
+			},
 		},
 		HelpSynopsis:    pathServiceAccountKeySyn,
 		HelpDescription: pathServiceAccountKeyDesc,
@@ -60,13 +74,27 @@ func pathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 
 func deprecatedPathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern:        fmt.Sprintf("key/%s", framework.GenericNameRegex("roleset")),
+		Pattern: fmt.Sprintf("key/%s", framework.GenericNameRegex("roleset")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "generate",
+		},
 		Deprecated:     true,
 		Fields:         fieldSchemaRoleSetServiceAccountKey(),
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathRoleSetSecretKey},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathRoleSetSecretKey},
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: b.pathRoleSetSecretKey,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset-key2",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: b.pathRoleSetSecretKey,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset-key-with-parameters2",
+				},
+			},
 		},
 		HelpSynopsis:    pathServiceAccountKeySyn,
 		HelpDescription: pathServiceAccountKeyDesc,
@@ -75,12 +103,26 @@ func deprecatedPathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 
 func pathRoleSetSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern:        fmt.Sprintf("roleset/%s/token", framework.GenericNameRegex("roleset")),
+		Pattern: fmt.Sprintf("roleset/%s/token", framework.GenericNameRegex("roleset")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "generate",
+		},
 		Fields:         fieldSchemaRoleSetAccessToken(),
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathRoleSetSecretAccessToken},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathRoleSetSecretAccessToken},
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: b.pathRoleSetSecretAccessToken,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset-access-token",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: b.pathRoleSetSecretAccessToken,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset-access-token-with-parameters",
+				},
+			},
 		},
 		HelpSynopsis:    pathTokenHelpSyn,
 		HelpDescription: pathTokenHelpDesc,
@@ -89,13 +131,27 @@ func pathRoleSetSecretAccessToken(b *backend) *framework.Path {
 
 func deprecatedPathRoleSetSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern:        fmt.Sprintf("token/%s", framework.GenericNameRegex("roleset")),
+		Pattern: fmt.Sprintf("token/%s", framework.GenericNameRegex("roleset")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "generate",
+		},
 		Deprecated:     true,
 		Fields:         fieldSchemaRoleSetAccessToken(),
 		ExistenceCheck: b.pathRoleSetExistenceCheck("roleset"),
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathRoleSetSecretAccessToken},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathRoleSetSecretAccessToken},
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: b.pathRoleSetSecretAccessToken,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset-access-token2",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: b.pathRoleSetSecretAccessToken,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "roleset-access-token-with-parameters2",
+				},
+			},
 		},
 		HelpSynopsis:    pathTokenHelpSyn,
 		HelpDescription: pathTokenHelpDesc,

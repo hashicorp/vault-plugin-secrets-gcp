@@ -14,6 +14,10 @@ import (
 func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s/key", staticAccountPathPrefix, framework.GenericNameRegex("name")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "generate",
+		},
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
 				Type:        framework.TypeString,
@@ -35,8 +39,18 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathStaticAccountSecretKey},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathStaticAccountSecretKey},
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: b.pathStaticAccountSecretKey,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "static-account-key",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: b.pathStaticAccountSecretKey,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "static-account-key-with-parameters",
+				},
+			},
 		},
 		HelpSynopsis:    pathServiceAccountKeySyn,
 		HelpDescription: pathServiceAccountKeyDesc,
@@ -46,6 +60,10 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s/token", staticAccountPathPrefix, framework.GenericNameRegex("name")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "generate",
+		},
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
 				Type:        framework.TypeString,
@@ -53,8 +71,18 @@ func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathStaticAccountAccessToken},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathStaticAccountAccessToken},
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: b.pathStaticAccountAccessToken,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "static-account-access-token",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: b.pathStaticAccountAccessToken,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "static-account-access-token-with-parameters",
+				},
+			},
 		},
 		HelpSynopsis:    pathTokenHelpSyn,
 		HelpDescription: pathTokenHelpDesc,

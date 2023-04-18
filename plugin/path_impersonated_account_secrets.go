@@ -17,6 +17,10 @@ import (
 func pathImpersonatedAccountSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s/token", impersonatedAccountPathPrefix, framework.GenericNameRegex("name")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "generate",
+		},
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
 				Type:        framework.TypeString,
@@ -24,8 +28,18 @@ func pathImpersonatedAccountSecretAccessToken(b *backend) *framework.Path {
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathImpersonatedAccountAccessToken},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathImpersonatedAccountAccessToken},
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: b.pathImpersonatedAccountAccessToken,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "impersonated-account-access-token",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: b.pathImpersonatedAccountAccessToken,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "impersonated-account-access-token2",
+				},
+			},
 		},
 		HelpSynopsis:    pathTokenHelpSyn,
 		HelpDescription: pathTokenHelpDesc,

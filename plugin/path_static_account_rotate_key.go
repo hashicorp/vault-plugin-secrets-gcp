@@ -14,6 +14,11 @@ import (
 func pathStaticAccountRotateKey(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s/rotate-key", staticAccountPathPrefix, framework.GenericNameRegex("name")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "rotate",
+			OperationSuffix: "static-account-key",
+		},
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
 				Type:        framework.TypeString,

@@ -20,6 +20,10 @@ const (
 func pathImpersonatedAccount(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s", impersonatedAccountPathPrefix, framework.GenericNameRegex("name")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationSuffix: "impersonated-account",
+		},
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
 				Type:        framework.TypeString,
@@ -62,6 +66,11 @@ func pathImpersonatedAccountList(b *backend) *framework.Path {
 	// Paths for listing impersonated accounts
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%ss?/?", impersonatedAccountPathPrefix),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "list",
+			OperationSuffix: "impersonated-accounts",
+		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ListOperation: &framework.PathOperation{
 				Callback: b.pathImpersonatedAccountList,
