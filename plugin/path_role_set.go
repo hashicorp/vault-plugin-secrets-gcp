@@ -78,7 +78,7 @@ func pathRoleSetList(b *backend) *framework.Path {
 		DisplayAttrs: &framework.DisplayAttributes{
 			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "list",
-			OperationSuffix: "rolesets",
+			OperationSuffix: "rolesets|rolesets2",
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ListOperation: &framework.PathOperation{

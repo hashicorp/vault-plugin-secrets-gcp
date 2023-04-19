@@ -69,7 +69,7 @@ func pathImpersonatedAccountList(b *backend) *framework.Path {
 		DisplayAttrs: &framework.DisplayAttributes{
 			OperationPrefix: operationPrefixGoogleCloud,
 			OperationVerb:   "list",
-			OperationSuffix: "impersonated-accounts",
+			OperationSuffix: "impersonated-accounts|impersonated-accounts2",
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ListOperation: &framework.PathOperation{
