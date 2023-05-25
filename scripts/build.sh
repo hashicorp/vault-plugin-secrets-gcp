@@ -36,7 +36,7 @@ go build \
     -ldflags "${LD_FLAGS} -X github.com/hashicorp/${TOOL}/version.GitCommit='${GIT_COMMIT}${GIT_DIRTY}'" \
     -o "bin/${TOOL}" \
     -tags="${BUILD_TAGS}" \
-    .
+    "cmd/${TOOL}/main.go"
 
 # Done!
 echo

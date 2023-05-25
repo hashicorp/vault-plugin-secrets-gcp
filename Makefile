@@ -22,7 +22,7 @@ default: dev
 # is only put into /bin/
 .PHONY: quickdev
 quickdev: generate
-	@CGO_ENABLED=0 go build -i -tags='$(BUILD_TAGS)' -o bin/vault-plugin-secrets-gcp
+	@CGO_ENABLED=0 go build -tags='$(BUILD_TAGS)' -o bin/vault-plugin-secrets-gcp cmd/vault-plugin-secrets-gcp/main.go
 .PHONY: dev
 dev: fmtcheck generate
 	@CGO_ENABLED=0 BUILD_TAGS='$(BUILD_TAGS)' VAULT_DEV_BUILD=1 sh -c "'$(CURDIR)/scripts/build.sh'"
@@ -89,4 +89,3 @@ configure: dev
 	$(PLUGIN_NAME) \
 	$(PLUGIN_PATH) \
 	$(GOOGLE_TEST_CREDENTIALS)
-

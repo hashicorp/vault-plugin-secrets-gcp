@@ -1,11 +1,15 @@
 ## Unreleased
 
-CHANGES:
-
-* ADD YOUR CHANGE HERE [[GH-XXX](https://github.com/hashicorp/vault-plugin-secrets-gcp)]
+## v0.16.0
 
 IMPROVEMENTS:
 * Enable multiplexing [[GH-172](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/172)]
+* Updated dependencies:
+   * `github.com/hashicorp/go-hclog` v1.4.0 -> v1.5.0
+   * `github.com/hashicorp/vault/api` v1.8.3 -> v1.9.1
+   * `github.com/hashicorp/vault/sdk` v0.7.0 -> v0.9.0
+   * `golang.org/x/oauth2` v0.4.0 -> v0.8.0
+   * `google.golang.org/api` v0.109.0 -> v0.124.0
 
 ## v0.15.0
 

@@ -31,7 +31,7 @@ function cleanup {
 trap cleanup EXIT
 
 echo "--> Building"
-go build -o "${SCRATCH}/plugins/${PLUGIN_NAME}"
+go build "cmd/${PLUGIN_NAME}/main.go" -o "${SCRATCH}/plugins/${PLUGIN_NAME}"
 
 echo "--> Starting server"
 
