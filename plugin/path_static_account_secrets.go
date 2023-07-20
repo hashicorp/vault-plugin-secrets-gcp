@@ -27,15 +27,18 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 				Type:        framework.TypeString,
 				Description: fmt.Sprintf(`Private key algorithm for service account key. Defaults to %s."`, keyAlgorithmRSA2k),
 				Default:     keyAlgorithmRSA2k,
+				Query:       true,
 			},
 			"key_type": {
 				Type:        framework.TypeString,
 				Description: fmt.Sprintf(`Private key type for service account key. Defaults to %s."`, privateKeyTypeJson),
 				Default:     privateKeyTypeJson,
+				Query:       true,
 			},
 			"ttl": {
 				Type:        framework.TypeDurationSecond,
 				Description: "Lifetime of the service account key",
+				Query:       true,
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
