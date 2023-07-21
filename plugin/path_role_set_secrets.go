@@ -21,15 +21,18 @@ func fieldSchemaRoleSetServiceAccountKey() map[string]*framework.FieldSchema {
 			Type:        framework.TypeString,
 			Description: fmt.Sprintf(`Private key algorithm for service account key - defaults to %s"`, keyAlgorithmRSA2k),
 			Default:     keyAlgorithmRSA2k,
+			Query:       true,
 		},
 		"key_type": {
 			Type:        framework.TypeString,
 			Description: fmt.Sprintf(`Private key type for service account key - defaults to %s"`, privateKeyTypeJson),
 			Default:     privateKeyTypeJson,
+			Query:       true,
 		},
 		"ttl": {
 			Type:        framework.TypeDurationSecond,
 			Description: "Lifetime of the service account key",
+			Query:       true,
 		},
 	}
 }
