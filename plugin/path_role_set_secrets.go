@@ -60,13 +60,13 @@ func pathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretKey,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset-key",
+					OperationSuffix: "roleset-key2",
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretKey,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset-key-with-parameters",
+					OperationSuffix: "roleset-key",
 				},
 			},
 		},
@@ -89,13 +89,13 @@ func deprecatedPathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretKey,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset-key2",
+					OperationSuffix: "roleset-key4",
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretKey,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset-key-with-parameters2",
+					OperationSuffix: "roleset-key3",
 				},
 			},
 		},
@@ -117,13 +117,13 @@ func pathRoleSetSecretAccessToken(b *backend) *framework.Path {
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretAccessToken,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset-access-token",
+					OperationSuffix: "roleset-access-token2",
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretAccessToken,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset-access-token-with-parameters",
+					OperationSuffix: "roleset-access-token",
 				},
 			},
 		},
@@ -146,13 +146,13 @@ func deprecatedPathRoleSetSecretAccessToken(b *backend) *framework.Path {
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretAccessToken,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset-access-token2",
+					OperationSuffix: "roleset-access-token4",
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretAccessToken,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "roleset-access-token-with-parameters2",
+					OperationSuffix: "roleset-access-token3",
 				},
 			},
 		},

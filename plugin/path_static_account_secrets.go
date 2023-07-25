@@ -45,13 +45,13 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountSecretKey,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "static-account-key",
+					OperationSuffix: "static-account-key2",
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountSecretKey,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "static-account-key-with-parameters",
+					OperationSuffix: "static-account-key",
 				},
 			},
 		},
@@ -77,13 +77,13 @@ func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountAccessToken,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "static-account-access-token",
+					OperationSuffix: "static-account-access-token2",
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountAccessToken,
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "static-account-access-token-with-parameters",
+					OperationSuffix: "static-account-access-token",
 				},
 			},
 		},
