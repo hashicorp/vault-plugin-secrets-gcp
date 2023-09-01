@@ -6,6 +6,7 @@ package gcpsecrets
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"strings"
 	"testing"
 	"time"
@@ -18,7 +19,7 @@ import (
 const impersonateAccountDisplayNameTmpl = "Test Impersonated Account for Vault secrets backend %s"
 
 func TestPathImpersonate_Basic(t *testing.T) {
-	impersonateName := "test-impersonated-basic"
+	impersonateName := "basic"
 
 	td := setupTest(t, "0s", "2h")
 	defer cleanupImpersonate(t, td, impersonateName, util.StringSet{})
@@ -57,7 +58,7 @@ func TestPathImpersonate_Basic(t *testing.T) {
 }
 
 func TestPathImpersonate_TTL(t *testing.T) {
-	impersonateName := "test-impersonated-basic"
+	impersonateName := "ttl"
 
 	td := setupTest(t, "0s", "2h")
 	defer cleanupImpersonate(t, td, impersonateName, util.StringSet{})
@@ -101,7 +102,7 @@ func TestPathImpersonate_TTL(t *testing.T) {
 
 // Tests that fields can be updated
 func TestPathImpersonate_Update(t *testing.T) {
-	impersonateName := "test-imp-update"
+	impersonateName := "update"
 
 	td := setupTest(t, "0s", "2h")
 	defer cleanupImpersonate(t, td, impersonateName, util.StringSet{})
@@ -165,7 +166,7 @@ func TestPathImpersonate_Update(t *testing.T) {
 
 // Tests that some fields cannot be updated
 func TestPathImpersonate_UpdateDisallowed(t *testing.T) {
-	impersonateName := "test-imp-update-fail"
+	impersonateName := "fail"
 
 	td := setupTest(t, "0s", "2h")
 	defer cleanupImpersonate(t, td, impersonateName, util.StringSet{})
@@ -173,8 +174,8 @@ func TestPathImpersonate_UpdateDisallowed(t *testing.T) {
 	sa := createServiceAccount(t, td, impersonateName)
 	defer deleteServiceAccount(t, td, sa)
 
-	saNew := createServiceAccount(t, td, impersonateName+"-new")
-	defer cleanupImpersonate(t, td, impersonateName+"-new", util.StringSet{})
+	saNew := createServiceAccount(t, td, "new-"+impersonateName)
+	defer cleanupImpersonate(t, td, "new-"+impersonateName, util.StringSet{})
 	defer deleteServiceAccount(t, td, saNew)
 
 	// 1. Read should return nothing
@@ -230,8 +231,7 @@ func TestPathImpersonate_UpdateDisallowed(t *testing.T) {
 }
 
 func createServiceAccount(t *testing.T, td *testData, roleName string) *iam.ServiceAccount {
-	intSuffix := fmt.Sprintf("%d", time.Now().Unix())
-	fullName := fmt.Sprintf("%s-%s", roleName, intSuffix)
+	fullName := fmt.Sprintf("%s-%d", roleName, rand.Int())
 	if len(fullName) > 30 {
 		fullName = fullName[0:30]
 	}
@@ -247,7 +247,8 @@ func createServiceAccount(t *testing.T, td *testData, roleName string) *iam.Serv
 	if err != nil {
 		t.Fatalf("could not create impersonated service account %q", err)
 	}
-
+	// GCP accounts don't always work immediately.
+	time.Sleep(1.0 * time.Second)
 	return sa
 }
 
