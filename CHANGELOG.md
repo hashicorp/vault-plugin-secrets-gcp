@@ -1,5 +1,19 @@
 ## Unreleased
 
+## v0.17.0
+
+CHANGES:
+* Shuffle around operation IDs to present the best generated client library interface [[GH-190](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/190)]
+
+IMPROVEMENTS:
+* Add missing `Query: true` metadata to API definitions [[GH-189](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/189)]
+* Updated dependencies [[GH-191](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/191)]:
+   * `github.com/hashicorp/hcl` v1.0.0 -> v1.0.1-vault-5
+   * `github.com/hashicorp/vault/api` v1.9.1 -> v1.9.2
+   * `github.com/hashicorp/vault/sdk` v0.9.0 -> v0.9.2
+   * `golang.org/x/oauth2` v0.8.0 -> v0.11.0
+   * `google.golang.org/api` v0.124.0 -> v0.138.0
+
 ## v0.16.0
 
 IMPROVEMENTS:
