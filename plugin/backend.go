@@ -205,7 +205,7 @@ func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
 }
 
 func (b *backend) FetchWorkloadIdentityToken(ctx context.Context, cfg *config) error {
-	resp, err := b.System().GenerateIdentityToken(namespace.ContextWithNamespace(ctx, cfg.Namespace), pluginutil.IdentityTokenRequest{
+	resp, err := b.System().GenerateIdentityToken(namespace.ContextWithNamespace(ctx, cfg.Namespace), &pluginutil.IdentityTokenRequest{
 		Audience: cfg.IdentityTokenAudience,
 		TTL:      cfg.IdentityTokenTTL,
 	})
