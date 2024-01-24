@@ -319,7 +319,6 @@ func (b *backend) tryDeleteRoleSetResources(ctx context.Context, req *logical.Re
 // Note this is the name rather than the full email (i.e. string before @)
 //
 // As an example, for roleset "my-role" this returns `vaultmy-role-1234613`
-//
 func generateAccountNameForRoleSet(rsName string) (name string) {
 	// Sanitize role name
 	rsName = serviceAccountRegex.ReplaceAllString(rsName, "-")

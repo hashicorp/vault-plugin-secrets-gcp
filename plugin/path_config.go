@@ -6,12 +6,19 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
+	"github.com/hashicorp/vault/helper/namespace"
 	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
+const (
+	stsTokenURL                = "https://sts.googleapis.com/v1/token"
+	defaultJWTSubjectTokenType = "urn:ietf:params:oauth:token-type:jwt"
+)
+
 func pathConfig(b *backend) *framework.Path {
-	return &framework.Path{
+	p := &framework.Path{
 		Pattern: "config",
 		Fields: map[string]*framework.FieldSchema{
 			"credentials": {
@@ -25,6 +32,10 @@ func pathConfig(b *backend) *framework.Path {
 			"max_ttl": {
 				Type:        framework.TypeDurationSecond,
 				Description: "Maximum time a service account key is valid for. If <= 0, will use system default.",
+			},
+			"project_id": {
+				Type:        framework.TypeString,
+				Description: `Project ID for the Google Project.`,
 			},
 		},
 
@@ -40,6 +51,9 @@ func pathConfig(b *backend) *framework.Path {
 		HelpSynopsis:    pathConfigHelpSyn,
 		HelpDescription: pathConfigHelpDesc,
 	}
+	pluginidentityutil.AddPluginIdentityTokenFields(p.Fields)
+
+	return p
 }
 
 func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
@@ -51,11 +65,15 @@ func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, data
 		return nil, nil
 	}
 
+	configData := map[string]interface{}{
+		"ttl":     int64(cfg.TTL / time.Second),
+		"max_ttl": int64(cfg.MaxTTL / time.Second),
+	}
+
+	cfg.PopulatePluginIdentityTokenData(configData)
+
 	return &logical.Response{
-		Data: map[string]interface{}{
-			"ttl":     int64(cfg.TTL / time.Second),
-			"max_ttl": int64(cfg.MaxTTL / time.Second),
-		},
+		Data: configData,
 	}, nil
 }
 
@@ -75,6 +93,24 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 			return logical.ErrorResponse(fmt.Sprintf("invalid credentials JSON file: %v", err)), nil
 		}
 		cfg.CredentialsRaw = credentialsRaw.(string)
+	}
+
+	// set namespace to config
+	ns, err := namespace.FromContext(ctx)
+	if err != nil {
+		return logical.ErrorResponse(fmt.Sprintf("failed to get namespace from context: %v", err)), nil
+	}
+	cfg.Namespace = ns
+
+	// set plugin identity token fields
+	if err := cfg.ParsePluginIdentityTokenFields(data); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
+
+	// set project ID
+	projectID, ok := data.GetOk("project_id")
+	if ok {
+		cfg.ProjectID = projectID.(string)
 	}
 
 	// Update token TTL.
@@ -106,9 +142,29 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 
 type config struct {
 	CredentialsRaw string
+	Namespace      *namespace.Namespace
 
 	TTL    time.Duration
 	MaxTTL time.Duration
+
+	pluginidentityutil.PluginIdentityTokenParams
+	ProjectID             string
+	SubjectTokenType      string
+	TokenURL              string
+	WorkloadIdentityToken string
+}
+
+func (c *config) GetExternalAccountConfig() *gcputil.ExternalAccountCredential {
+	cred := &gcputil.ExternalAccountCredential{
+		Audience:              c.IdentityTokenAudience,
+		ProjectID:             c.ProjectID,
+		SubjectTokenType:      c.SubjectTokenType,
+		TokenURL:              c.TokenURL,
+		Scopes:                []string{"https://www.googleapis.com/auth/cloud-platform"},
+		WorkloadIdentityToken: c.WorkloadIdentityToken,
+	}
+
+	return cred
 }
 
 func getConfig(ctx context.Context, s logical.Storage) (*config, error) {
