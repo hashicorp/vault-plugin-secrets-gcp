@@ -11,6 +11,7 @@ IMPROVEMENTS:
 * Bump github.com/go-jose/go-jose/v3 from 3.0.0 to 3.0.1: [GH-196](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/196)
 * Bump google.golang.org/grpc from 1.57.0 to 1.57.1: [GH-195](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/195)
 * Bump golang.org/x/net from 0.14.0 to 0.17.0: [GH-194](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/194)
+* Bump github.com/docker/docker from 24.0.5+incompatible to 24.0.7+incompatible: [GH-199](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/199)
 
 ## v0.17.0
 
