@@ -1,3 +1,8 @@
+## Unreleased
+
+IMPROVEMENTS:
+* Bump github.com/hashicorp/go-plugin from v1.5.2 to v1.6.0 to enable running the plugin in containers: [GH-207](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/207)
+
 ## v0.18.0
 
 IMPROVEMENTS:
