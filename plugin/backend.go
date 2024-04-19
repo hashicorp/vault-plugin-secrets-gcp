@@ -10,7 +10,6 @@ import (
 
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-cleanhttp"
-	"github.com/hashicorp/vault/helper/namespace"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/pluginutil"
 	"github.com/hashicorp/vault/sdk/helper/useragent"
@@ -178,14 +177,13 @@ func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
 			}
 		} else if cfg.IdentityTokenAudience != "" {
 			// Fetch Identity Token
+			b.Logger().Info("using workload identity credential provider")
 			err := b.FetchWorkloadIdentityToken(ctx, cfg)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching ID Token from plugin system view: %v", err)
 			}
 
-			// can be cleaned up a bit more
-			externalCred := cfg.GetExternalAccountConfig()
-			creds, err = externalCred.GetCredentials(ctx)
+			creds, err = cfg.GetExternalAccountConfig().GetCredentials(ctx)
 			if err != nil {
 				return nil, fmt.Errorf(fmt.Sprintf("failed to fetch external account credentials: %s", err))
 			}
@@ -205,7 +203,7 @@ func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
 }
 
 func (b *backend) FetchWorkloadIdentityToken(ctx context.Context, cfg *config) error {
-	resp, err := b.System().GenerateIdentityToken(namespace.ContextWithNamespace(ctx, cfg.Namespace), &pluginutil.IdentityTokenRequest{
+	resp, err := b.System().GenerateIdentityToken(ctx, &pluginutil.IdentityTokenRequest{
 		Audience: cfg.IdentityTokenAudience,
 		TTL:      cfg.IdentityTokenTTL,
 	})
@@ -219,9 +217,6 @@ func (b *backend) FetchWorkloadIdentityToken(ctx context.Context, cfg *config) e
 			"requested", cfg.IdentityTokenTTL.Seconds(), "actual", resp.TTL)
 	}
 
-	b.Logger().Debug(fmt.Sprintf("got token from sysView: %s", resp.Token.Token()))
-	cfg.SubjectTokenType = defaultJWTSubjectTokenType
-	cfg.TokenURL = stsTokenURL
 	cfg.WorkloadIdentityToken = resp.Token.Token()
 
 	return nil

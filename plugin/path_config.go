@@ -2,19 +2,15 @@ package gcpsecrets
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
-	"github.com/hashicorp/vault/helper/namespace"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
+	"github.com/hashicorp/vault/sdk/helper/pluginutil"
 	"github.com/hashicorp/vault/sdk/logical"
-)
-
-const (
-	stsTokenURL                = "https://sts.googleapis.com/v1/token"
-	defaultJWTSubjectTokenType = "urn:ietf:params:oauth:token-type:jwt"
 )
 
 func pathConfig(b *backend) *framework.Path {
@@ -33,9 +29,9 @@ func pathConfig(b *backend) *framework.Path {
 				Type:        framework.TypeDurationSecond,
 				Description: "Maximum time a service account key is valid for. If <= 0, will use system default.",
 			},
-			"project_id": {
+			"service_account_email": {
 				Type:        framework.TypeString,
-				Description: `Project ID for the Google Project.`,
+				Description: `Email ID for the Service Account to impersonate for Workload Identity Federation.`,
 			},
 		},
 
@@ -66,8 +62,9 @@ func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, data
 	}
 
 	configData := map[string]interface{}{
-		"ttl":     int64(cfg.TTL / time.Second),
-		"max_ttl": int64(cfg.MaxTTL / time.Second),
+		"ttl":                   int64(cfg.TTL / time.Second),
+		"max_ttl":               int64(cfg.MaxTTL / time.Second),
+		"service_account_email": cfg.ServiceAccountEmail,
 	}
 
 	cfg.PopulatePluginIdentityTokenData(configData)
@@ -95,22 +92,36 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 		cfg.CredentialsRaw = credentialsRaw.(string)
 	}
 
-	// set namespace to config
-	ns, err := namespace.FromContext(ctx)
-	if err != nil {
-		return logical.ErrorResponse(fmt.Sprintf("failed to get namespace from context: %v", err)), nil
-	}
-	cfg.Namespace = ns
-
 	// set plugin identity token fields
 	if err := cfg.ParsePluginIdentityTokenFields(data); err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	}
 
-	// set project ID
-	projectID, ok := data.GetOk("project_id")
+	// set Service Account email
+	saEmail, ok := data.GetOk("service_account_email")
 	if ok {
-		cfg.ProjectID = projectID.(string)
+		cfg.ServiceAccountEmail = saEmail.(string)
+	}
+
+	if cfg.IdentityTokenAudience != "" && cfg.CredentialsRaw != "" {
+		return logical.ErrorResponse("only one of 'credentials' or 'identity_token_audience' can be set"), nil
+	}
+
+	if cfg.IdentityTokenAudience != "" && cfg.ServiceAccountEmail == "" {
+		return logical.ErrorResponse("missing required 'service_account_email' when 'identity_token_audience' is set"), nil
+	}
+
+	// generate token to check if WIF is enabled on this edition of Vault
+	if cfg.IdentityTokenAudience != "" {
+		_, err := b.System().GenerateIdentityToken(ctx, &pluginutil.IdentityTokenRequest{
+			Audience: cfg.IdentityTokenAudience,
+		})
+		if err != nil {
+			if errors.Is(err, pluginidentityutil.ErrPluginWorkloadIdentityUnsupported) {
+				return logical.ErrorResponse(err.Error()), nil
+			}
+			return nil, err
+		}
 	}
 
 	// Update token TTL.
@@ -142,25 +153,19 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 
 type config struct {
 	CredentialsRaw string
-	Namespace      *namespace.Namespace
 
 	TTL    time.Duration
 	MaxTTL time.Duration
 
 	pluginidentityutil.PluginIdentityTokenParams
-	ProjectID             string
-	SubjectTokenType      string
-	TokenURL              string
+	ServiceAccountEmail   string
 	WorkloadIdentityToken string
 }
 
 func (c *config) GetExternalAccountConfig() *gcputil.ExternalAccountCredential {
 	cred := &gcputil.ExternalAccountCredential{
+		ServiceAccountEmail:   c.ServiceAccountEmail,
 		Audience:              c.IdentityTokenAudience,
-		ProjectID:             c.ProjectID,
-		SubjectTokenType:      c.SubjectTokenType,
-		TokenURL:              c.TokenURL,
-		Scopes:                []string{"https://www.googleapis.com/auth/cloud-platform"},
 		WorkloadIdentityToken: c.WorkloadIdentityToken,
 	}
 
