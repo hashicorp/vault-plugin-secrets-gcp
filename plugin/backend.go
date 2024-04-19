@@ -183,7 +183,7 @@ func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
 				return nil, fmt.Errorf("error fetching ID Token from plugin system view: %v", err)
 			}
 
-			creds, err = cfg.GetExternalAccountConfig().GetCredentials(ctx)
+			creds, err = cfg.GetExternalAccountConfig().GetCredentials()
 			if err != nil {
 				return nil, fmt.Errorf(fmt.Sprintf("failed to fetch external account credentials: %s", err))
 			}
