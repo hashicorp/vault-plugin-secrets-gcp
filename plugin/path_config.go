@@ -162,16 +162,6 @@ type config struct {
 	WorkloadIdentityToken string
 }
 
-func (c *config) GetExternalAccountConfig() *gcputil.ExternalAccountCredential {
-	cred := &gcputil.ExternalAccountCredential{
-		ServiceAccountEmail:   c.ServiceAccountEmail,
-		Audience:              c.IdentityTokenAudience,
-		WorkloadIdentityToken: c.WorkloadIdentityToken,
-	}
-
-	return cred
-}
-
 func getConfig(ctx context.Context, s logical.Storage) (*config, error) {
 	var cfg config
 	cfgRaw, err := s.Get(ctx, "config")

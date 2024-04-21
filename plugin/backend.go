@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/pluginutil"
 	"github.com/hashicorp/vault/sdk/helper/useragent"
@@ -176,14 +177,7 @@ func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
 				return nil, errwrap.Wrapf("failed to parse credentials: {{err}}", err)
 			}
 		} else if cfg.IdentityTokenAudience != "" {
-			// Fetch Identity Token
-			b.Logger().Info("using workload identity credential provider")
-			err := b.FetchWorkloadIdentityToken(ctx, cfg)
-			if err != nil {
-				return nil, fmt.Errorf("error fetching ID Token from plugin system view: %v", err)
-			}
-
-			creds, err = cfg.GetExternalAccountConfig().GetCredentials()
+			creds, err = b.GetExternalAccountConfig(cfg).GetCredentials()
 			if err != nil {
 				return nil, fmt.Errorf(fmt.Sprintf("failed to fetch external account credentials: %s", err))
 			}
@@ -202,24 +196,35 @@ func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
 	return creds.(*google.Credentials), nil
 }
 
-func (b *backend) FetchWorkloadIdentityToken(ctx context.Context, cfg *config) error {
+func (b *backend) GetExternalAccountConfig(c *config) *gcputil.ExternalAccountConfig {
+	b.Logger().Info("adding web identity token fetcher")
+	cfg := &gcputil.ExternalAccountConfig{
+		ServiceAccountEmail:   c.ServiceAccountEmail,
+		Audience:              c.IdentityTokenAudience,
+		TTL: c.IdentityTokenTTL,
+		TokenFetcher: b.FetchWorkloadIdentityToken,
+	}
+
+	return cfg
+}
+
+func (b *backend) FetchWorkloadIdentityToken(ctx context.Context, cfg *gcputil.ExternalAccountConfig) (string, error) {
+	b.Logger().Info("fetching new plugin identity token")
 	resp, err := b.System().GenerateIdentityToken(ctx, &pluginutil.IdentityTokenRequest{
-		Audience: cfg.IdentityTokenAudience,
-		TTL:      cfg.IdentityTokenTTL,
+		Audience: cfg.Audience,
+		TTL:      cfg.TTL,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to generate plugin identity token: %w", err)
+		return "", fmt.Errorf("failed to generate plugin identity token: %w", err)
 	}
 	b.Logger().Info("fetched new plugin identity token")
 
-	if resp.TTL < cfg.IdentityTokenTTL {
+	if resp.TTL < cfg.TTL {
 		b.Logger().Debug("generated plugin identity token has shorter TTL than requested",
-			"requested", cfg.IdentityTokenTTL.Seconds(), "actual", resp.TTL)
+			"requested", cfg.TTL.Seconds(), "actual", resp.TTL)
 	}
 
-	cfg.WorkloadIdentityToken = resp.Token.Token()
-
-	return nil
+	return resp.Token.Token(), nil
 }
 
 // ClearCaches deletes all cached clients and credentials.
