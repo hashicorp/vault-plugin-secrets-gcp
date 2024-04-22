@@ -124,13 +124,11 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 		}
 	}
 
-	// if token audience or TTL is being updated, ensure cached credentials/token sources are cleared
+	// if token audience or TTL is being updated, ensure cached credentials are cleared
 	_, audOk := data.GetOk("identity_token_audience")
 	_, ttlOk := data.GetOk("identity_token_ttl")
-	if (cfg.IdentityTokenAudience != "" && audOk) || (cfg.IdentityTokenTTL != 0 && ttlOk) {
-		// clear cache and re-fetch clients/credentials
-		b.Logger().Info("plugin token params updated; clearing cached credentials")
-		b.cache.Clear()
+	if audOk || ttlOk {
+		setNewCreds = true
 	}
 
 	// Update token TTL.
