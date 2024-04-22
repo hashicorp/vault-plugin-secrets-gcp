@@ -167,8 +167,7 @@ type config struct {
 	MaxTTL time.Duration
 
 	pluginidentityutil.PluginIdentityTokenParams
-	ServiceAccountEmail   string
-	WorkloadIdentityToken string
+	ServiceAccountEmail string
 }
 
 func getConfig(ctx context.Context, s logical.Storage) (*config, error) {
