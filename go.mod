@@ -7,7 +7,7 @@ toolchain go1.21.5
 require (
 	github.com/hashicorp/errwrap v1.1.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
-	github.com/hashicorp/go-gcp-common v0.8.1-0.20240124022842-d7cdd48f6e55
+	github.com/hashicorp/go-gcp-common v0.8.1-0.20240423002041-8e718f653393
 	github.com/hashicorp/go-hclog v1.6.2
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
