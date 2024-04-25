@@ -5,19 +5,20 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/format"
+	"io"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"text/template"
 
-	"github.com/hashicorp/errwrap"
-	"github.com/hashicorp/go-cleanhttp"
-	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
 	"google.golang.org/api/discovery/v1"
 )
@@ -199,12 +200,7 @@ func addToConfig(resourceKey, service, version string, r iamutil.RestResource, c
 }
 
 func generateConfig() error {
-	docsClient, err := discovery.New(cleanhttp.DefaultClient())
-	if err != nil {
-		return err
-	}
-
-	docs, err := docsClient.Apis.List().Do()
+	docs, err := getURL[discovery.DirectoryList]("https://www.googleapis.com/discovery/v1/apis")
 	if err != nil {
 		return err
 	}
@@ -214,33 +210,28 @@ func generateConfig() error {
 
 	config := make(iamutil.GeneratedResources)
 
-	var mErr *multierror.Error
+	var mErr error
 	for _, docMeta := range docs.Items {
-		doc, docErr := docsClient.Apis.GetRest(docMeta.Name, docMeta.Version).Fields(
-			"name",
-			"resources",
-			"rootUrl",
-			"schemas",
-			"servicePath",
-			"version",
-		).Do()
+		if versions, ok := resourceSkips[docMeta.Name]; ok {
+			if _, ok := versions[docMeta.Version]; ok {
+				log.Printf("skipping %q (version %q)", docMeta.Name, docMeta.Version)
+				continue
+			}
+		}
+		doc, docErr := getURL[discovery.RestDescription](docMeta.DiscoveryRestUrl)
 		if docErr != nil || doc == nil {
-			mErr = multierror.Append(mErr,
-				errwrap.Wrapf(
-					fmt.Sprintf("[WARNING] Unable to add '%s' (version '%s'), could not find doc - {{err}}", docMeta.Name, docMeta.Version), docErr))
+			mErr = errors.Join(mErr, fmt.Errorf("unable to add %q (version %q), could not find doc - %w", docMeta.Name, docMeta.Version, docErr))
 			continue
 		}
 
 		for rName, resource := range doc.Resources {
 			if resErr := checkResource(rName, rName, &resource, doc, docMeta, config); resErr != nil {
-				mErr = multierror.Append(mErr,
-					errwrap.Wrapf(
-						fmt.Sprintf("[WARNING] Unable to add '%s' (version '%s'): {{err}}", docMeta.Name, docMeta.Version), resErr))
+				mErr = errors.Join(mErr, fmt.Errorf("unable to add %q (version %q): %w", docMeta.Name, docMeta.Version, resErr))
 			}
 		}
 	}
-	if mErr.ErrorOrNil() != nil {
-		return mErr.ErrorOrNil()
+	if mErr != nil {
+		return fmt.Errorf("errors while generating config: \n%s", mErr)
 	}
 
 	// Inject overrides that use ACLs instead of IAM policies
@@ -255,9 +246,29 @@ func generateConfig() error {
 	return nil
 }
 
-func writeConfig(config iamutil.GeneratedResources) error {
+func getURL[T any](url string) (*T, error) {
+	var t T
+	listResp, err := http.Get(url)
+	if err != nil {
+		return &t, err
+	}
+	defer listResp.Body.Close()
+	if listResp.StatusCode != http.StatusOK {
+		return &t, fmt.Errorf("unexpected status code %d from GET %s", listResp.StatusCode, url)
+	}
+	listBody, err := io.ReadAll(listResp.Body)
+	if err != nil {
+		return &t, err
+	}
+	if err := json.Unmarshal(listBody, &t); err != nil {
+		return &t, err
+	}
 
-	tpl, err := template.ParseFiles(fmt.Sprintf("internal/%s", templateFile))
+	return &t, nil
+}
+
+func writeConfig(config iamutil.GeneratedResources) error {
+	tpl, err := template.ParseFiles(filepath.Join("plugin", "iamutil", "internal", templateFile))
 	if err != nil {
 		return err
 	}
@@ -269,11 +280,11 @@ func writeConfig(config iamutil.GeneratedResources) error {
 
 	srcBytes, err := format.Source(buf.Bytes())
 	if err != nil {
-		log.Printf("[ERROR] Outputting unformatted src:\n %s\n", string(buf.Bytes()))
-		return errwrap.Wrapf("error formatting generated code: {{err}}", err)
+		log.Printf("[ERROR] Outputting unformatted src:\n %s\n", buf.String())
+		return fmt.Errorf("error formatting generated code: %w", err)
 	}
 
-	dst, err := os.Create(outputFile)
+	dst, err := os.Create(filepath.Join("plugin", "iamutil", outputFile))
 	defer dst.Close()
 	if err != nil {
 		return err

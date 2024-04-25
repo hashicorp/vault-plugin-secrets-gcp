@@ -35,3 +35,8 @@ var resourceOverrides = map[string]map[string]map[string]iamutil.RestResource{
 		},
 	},
 }
+
+var resourceSkips = map[string]map[string]struct{}{
+	"poly":            {"v1": {}},      // Advertised as available at https://poly.googleapis.com/$discovery/rest?alt=json&prettyPrint=false&version=v1, but returns a 502
+	"realtimebidding": {"v1alpha": {}}, // Advertised as available at https://realtimebidding.googleapis.com/$discovery/rest?alt=json&prettyPrint=false&version=v1alpha, but returns a 404
+}
