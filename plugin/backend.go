@@ -188,7 +188,7 @@ func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
 
 			creds, err = b.GetExternalAccountConfig(cfg, ts).GetExternalAccountCredentials(ctx)
 			if err != nil {
-				return nil, fmt.Errorf(fmt.Sprintf("failed to fetch external account credentials: %s", err))
+				return nil, fmt.Errorf("failed to fetch external account credentials: %w", err)
 			}
 		} else {
 			creds, err = google.FindDefaultCredentials(ctx, iam.CloudPlatformScope)
