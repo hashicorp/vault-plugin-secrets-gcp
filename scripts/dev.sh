@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 set -eEuo pipefail
 
 MNT_PATH="gcp"
@@ -28,7 +31,7 @@ function cleanup {
 trap cleanup EXIT
 
 echo "--> Building"
-go build -o "${SCRATCH}/plugins/${PLUGIN_NAME}"
+go build "cmd/${PLUGIN_NAME}/main.go" -o "${SCRATCH}/plugins/${PLUGIN_NAME}"
 
 echo "--> Starting server"
 

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package gcpsecrets
 
 import (
@@ -26,10 +29,15 @@ import (
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
 )
 
+const userAgentPluginName = "secrets-gcp"
+
 const (
 	// cacheTime is the duration for which to cache clients and credentials. This
 	// must be less than 60 minutes.
 	cacheTime = 30 * time.Minute
+
+	// operationPrefixGoogleCloud is used as a prefix for OpenAPI operation id's.
+	operationPrefixGoogleCloud = "google-cloud"
 )
 
 type backend struct {
@@ -39,10 +47,14 @@ type backend struct {
 	// cache directly.
 	cache *cache.Cache
 
+	// pluginEnv contains Vault version information. It is used in user-agent headers.
+	pluginEnv *logical.PluginEnvironment
+
 	resources iamutil.ResourceParser
 
-	rolesetLock       sync.Mutex
-	staticAccountLock sync.Mutex
+	rolesetLock             sync.Mutex
+	staticAccountLock       sync.Mutex
+	impersonatedAccountLock sync.Mutex
 }
 
 // Factory returns a new backend as logical.Backend.
@@ -91,6 +103,10 @@ func Backend() *backend {
 				pathStaticAccountRotateKey(b),
 				pathStaticAccountSecretAccessToken(b),
 				pathStaticAccountSecretServiceAccountKey(b),
+				// Impersonate
+				pathImpersonatedAccount(b),
+				pathImpersonatedAccountList(b),
+				pathImpersonatedAccountSecretAccessToken(b),
 			},
 		),
 		Secrets: []*framework.Secret{
@@ -98,12 +114,23 @@ func Backend() *backend {
 			secretServiceAccountKey(b),
 		},
 
+		InitializeFunc:    b.initialize,
 		Invalidate:        b.invalidate,
 		WALRollback:       b.walRollback,
 		WALRollbackMinAge: 5 * time.Minute,
 	}
 
 	return b
+}
+
+func (b *backend) initialize(ctx context.Context, _ *logical.InitializationRequest) error {
+	pluginEnv, err := b.System().PluginEnv(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read plugin environment: %w", err)
+	}
+	b.pluginEnv = pluginEnv
+
+	return nil
 }
 
 // IAMAdminClient returns a new IAM client. The client is cached.
@@ -118,7 +145,7 @@ func (b *backend) IAMAdminClient(s logical.Storage) (*iam.Service, error) {
 		if err != nil {
 			return nil, errwrap.Wrapf("failed to create IAM client: {{err}}", err)
 		}
-		client.UserAgent = useragent.String()
+		client.UserAgent = useragent.PluginString(b.pluginEnv, userAgentPluginName)
 
 		return client, nil
 	})

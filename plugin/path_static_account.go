@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package gcpsecrets
 
 import (
@@ -19,6 +22,10 @@ const (
 func pathStaticAccount(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s", staticAccountPathPrefix, framework.GenericNameRegex("name")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationSuffix: "static-account",
+		},
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
 				Type:        framework.TypeString,
@@ -70,6 +77,11 @@ func pathStaticAccountList(b *backend) *framework.Path {
 	// Paths for listing static accounts
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%ss?/?", staticAccountPathPrefix),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "list",
+			OperationSuffix: "static-accounts|static-accounts2",
+		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ListOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountList,

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package gcpsecrets
 
 import (
@@ -217,7 +220,7 @@ func (b *backend) updateStaticAccount(ctx context.Context, req *logical.Request,
 	}
 
 	if !madeChange {
-		return []string{"no changes to bindings or token_scopes detected, no update needed"}, nil
+		return nil, nil
 	}
 
 	if err := a.save(ctx, req.Storage); err != nil {

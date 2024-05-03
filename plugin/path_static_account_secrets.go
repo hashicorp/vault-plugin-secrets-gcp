@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package gcpsecrets
 
 import (
@@ -11,6 +14,10 @@ import (
 func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s/key", staticAccountPathPrefix, framework.GenericNameRegex("name")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "generate",
+		},
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
 				Type:        framework.TypeString,
@@ -20,20 +27,33 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 				Type:        framework.TypeString,
 				Description: fmt.Sprintf(`Private key algorithm for service account key. Defaults to %s."`, keyAlgorithmRSA2k),
 				Default:     keyAlgorithmRSA2k,
+				Query:       true,
 			},
 			"key_type": {
 				Type:        framework.TypeString,
 				Description: fmt.Sprintf(`Private key type for service account key. Defaults to %s."`, privateKeyTypeJson),
 				Default:     privateKeyTypeJson,
+				Query:       true,
 			},
 			"ttl": {
 				Type:        framework.TypeDurationSecond,
 				Description: "Lifetime of the service account key",
+				Query:       true,
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathStaticAccountSecretKey},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathStaticAccountSecretKey},
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: b.pathStaticAccountSecretKey,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "static-account-key2",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: b.pathStaticAccountSecretKey,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "static-account-key",
+				},
+			},
 		},
 		HelpSynopsis:    pathServiceAccountKeySyn,
 		HelpDescription: pathServiceAccountKeyDesc,
@@ -43,6 +63,10 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s/token", staticAccountPathPrefix, framework.GenericNameRegex("name")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "generate",
+		},
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
 				Type:        framework.TypeString,
@@ -50,8 +74,18 @@ func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathStaticAccountAccessToken},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathStaticAccountAccessToken},
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: b.pathStaticAccountAccessToken,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "static-account-access-token2",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: b.pathStaticAccountAccessToken,
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "static-account-access-token",
+				},
+			},
 		},
 		HelpSynopsis:    pathTokenHelpSyn,
 		HelpDescription: pathTokenHelpDesc,

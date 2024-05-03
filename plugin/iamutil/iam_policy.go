@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package iamutil
 
 import (
@@ -81,8 +84,9 @@ func (p *Policy) ChangeBindings(toAdd *PolicyDelta, toRemove *PolicyDelta) (chan
 
 		if len(memberSet) > 0 {
 			newBindings = append(newBindings, &Binding{
-				Role:    bind.Role,
-				Members: memberSet.ToSlice(),
+				Role:      bind.Role,
+				Members:   memberSet.ToSlice(),
+				Condition: bind.Condition,
 			})
 		}
 	}

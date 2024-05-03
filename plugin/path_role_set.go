@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package gcpsecrets
 
 import (
@@ -17,6 +20,10 @@ const (
 func pathRoleSet(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("roleset/%s", framework.GenericNameRegex("name")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationSuffix: "roleset",
+		},
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
 				Type:        framework.TypeString,
@@ -68,6 +75,11 @@ func pathRoleSetList(b *backend) *framework.Path {
 	// Paths for listing role sets
 	return &framework.Path{
 		Pattern: "rolesets?/?",
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "list",
+			OperationSuffix: "rolesets|rolesets2",
+		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ListOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetList,
@@ -82,6 +94,11 @@ func pathRoleSetRotateAccount(b *backend) *framework.Path {
 	return &framework.Path{
 		// Path to rotate role set service accounts
 		Pattern: fmt.Sprintf("roleset/%s/rotate", framework.GenericNameRegex("name")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "rotate",
+			OperationSuffix: "roleset",
+		},
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
 				Type:        framework.TypeString,
@@ -104,6 +121,11 @@ func pathRoleSetRotateAccount(b *backend) *framework.Path {
 func pathRoleSetRotateKey(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("roleset/%s/rotate-key", framework.GenericNameRegex("name")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloud,
+			OperationVerb:   "rotate",
+			OperationSuffix: "roleset-key",
+		},
 		Fields: map[string]*framework.FieldSchema{
 			"name": {
 				Type:        framework.TypeString,
