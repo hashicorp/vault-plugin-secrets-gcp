@@ -2,7 +2,7 @@ module github.com/hashicorp/vault-plugin-secrets-gcp
 
 go 1.21
 
-toolchain go1.22.2
+toolchain go1.21.5
 
 require (
 	github.com/hashicorp/errwrap v1.1.0
