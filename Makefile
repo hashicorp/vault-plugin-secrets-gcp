@@ -49,6 +49,7 @@ testacc:
 .PHONY: generate
 generate:
 	pwd
+	find . -type f
 	go generate $(go list ./... | grep -v /vendor/)
 
 # bootstrap the build by downloading additional tools
