@@ -50,7 +50,8 @@ testacc:
 generate:
 	pwd
 	find . -type f
-	go generate $(go list ./... | grep -v /vendor/)
+	go list ./...
+	go generate $(go list ./...)
 
 # bootstrap the build by downloading additional tools
 .PHONY: bootstrap
