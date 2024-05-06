@@ -51,7 +51,7 @@ generate:
 	pwd
 	find . -type f
 	go list ./...
-	go generate $(go list ./...)
+	go generate $(shell go list ./plugin/... | grep -v /vendor/)
 
 # bootstrap the build by downloading additional tools
 .PHONY: bootstrap
