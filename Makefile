@@ -25,7 +25,7 @@ quickdev: generate
 	@CGO_ENABLED=0 go build -tags='$(BUILD_TAGS)' -o bin/vault-plugin-secrets-gcp cmd/vault-plugin-secrets-gcp/main.go
 .PHONY: dev
 dev: fmtcheck generate
-	@CGO_ENABLED=0 BUILD_TAGS='$(BUILD_TAGS)' VAULT_DEV_BUILD=1 sh -c "'$(CURDIR)/scripts/build.sh'"
+	CGO_ENABLED=0 BUILD_TAGS='$(BUILD_TAGS)' VAULT_DEV_BUILD=1 sh -c "'$(CURDIR)/scripts/build.sh'"
 .PHONY: dev-dynamic
 dev-dynamic: generate
 	@CGO_ENABLED=1 BUILD_TAGS='$(BUILD_TAGS)' VAULT_DEV_BUILD=1 sh -c "'$(CURDIR)/scripts/build.sh'"
@@ -48,7 +48,7 @@ testacc:
 # source files.
 .PHONY: generate
 generate:
-	@go generate $(go list ./... | grep -v /vendor/)
+	go generate $(go list ./... | grep -v /vendor/)
 
 # bootstrap the build by downloading additional tools
 .PHONY: bootstrap
@@ -60,7 +60,7 @@ bootstrap:
 
 .PHONY: fmtcheck
 fmtcheck:
-	@sh -c "'$(CURDIR)/scripts/gofmtcheck.sh'"
+	sh -c "'$(CURDIR)/scripts/gofmtcheck.sh'"
 
 .PHONY: fmt
 fmt:
