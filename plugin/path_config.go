@@ -5,16 +5,19 @@ package gcpsecrets
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
+	"github.com/hashicorp/vault/sdk/helper/pluginutil"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
 func pathConfig(b *backend) *framework.Path {
-	return &framework.Path{
+	p := &framework.Path{
 		Pattern: "config",
 
 		DisplayAttrs: &framework.DisplayAttributes{
@@ -33,6 +36,10 @@ func pathConfig(b *backend) *framework.Path {
 			"max_ttl": {
 				Type:        framework.TypeDurationSecond,
 				Description: "Maximum time a service account key is valid for. If <= 0, will use system default.",
+			},
+			"service_account_email": {
+				Type:        framework.TypeString,
+				Description: `Email ID for the Service Account to impersonate for Workload Identity Federation.`,
 			},
 		},
 
@@ -55,6 +62,9 @@ func pathConfig(b *backend) *framework.Path {
 		HelpSynopsis:    pathConfigHelpSyn,
 		HelpDescription: pathConfigHelpDesc,
 	}
+	pluginidentityutil.AddPluginIdentityTokenFields(p.Fields)
+
+	return p
 }
 
 func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
@@ -66,11 +76,16 @@ func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, data
 		return nil, nil
 	}
 
+	configData := map[string]interface{}{
+		"ttl":                   int64(cfg.TTL / time.Second),
+		"max_ttl":               int64(cfg.MaxTTL / time.Second),
+		"service_account_email": cfg.ServiceAccountEmail,
+	}
+
+	cfg.PopulatePluginIdentityTokenData(configData)
+
 	return &logical.Response{
-		Data: map[string]interface{}{
-			"ttl":     int64(cfg.TTL / time.Second),
-			"max_ttl": int64(cfg.MaxTTL / time.Second),
-		},
+		Data: configData,
 	}, nil
 }
 
@@ -90,6 +105,45 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 			return logical.ErrorResponse(fmt.Sprintf("invalid credentials JSON file: %v", err)), nil
 		}
 		cfg.CredentialsRaw = credentialsRaw.(string)
+	}
+
+	// set plugin identity token fields
+	if err := cfg.ParsePluginIdentityTokenFields(data); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
+
+	// set Service Account email
+	saEmail, ok := data.GetOk("service_account_email")
+	if ok {
+		cfg.ServiceAccountEmail = saEmail.(string)
+	}
+
+	if cfg.IdentityTokenAudience != "" && cfg.CredentialsRaw != "" {
+		return logical.ErrorResponse("only one of 'credentials' or 'identity_token_audience' can be set"), nil
+	}
+
+	if cfg.IdentityTokenAudience != "" && cfg.ServiceAccountEmail == "" {
+		return logical.ErrorResponse("missing required 'service_account_email' when 'identity_token_audience' is set"), nil
+	}
+
+	// generate token to check if WIF is enabled on this edition of Vault
+	if cfg.IdentityTokenAudience != "" {
+		_, err := b.System().GenerateIdentityToken(ctx, &pluginutil.IdentityTokenRequest{
+			Audience: cfg.IdentityTokenAudience,
+		})
+		if err != nil {
+			if errors.Is(err, pluginidentityutil.ErrPluginWorkloadIdentityUnsupported) {
+				return logical.ErrorResponse(err.Error()), nil
+			}
+			return nil, err
+		}
+	}
+
+	// if token audience or TTL is being updated, ensure cached credentials are cleared
+	_, audOk := data.GetOk("identity_token_audience")
+	_, ttlOk := data.GetOk("identity_token_ttl")
+	if audOk || ttlOk {
+		setNewCreds = true
 	}
 
 	// Update token TTL.
@@ -124,6 +178,9 @@ type config struct {
 
 	TTL    time.Duration
 	MaxTTL time.Duration
+
+	pluginidentityutil.PluginIdentityTokenParams
+	ServiceAccountEmail string
 }
 
 func getConfig(ctx context.Context, s logical.Storage) (*config, error) {
