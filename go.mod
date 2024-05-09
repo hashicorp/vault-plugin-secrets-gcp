@@ -2,6 +2,8 @@ module github.com/hashicorp/vault-plugin-secrets-gcp
 
 go 1.21
 
+toolchain go1.22.2
+
 require (
 	github.com/hashicorp/errwrap v1.1.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
