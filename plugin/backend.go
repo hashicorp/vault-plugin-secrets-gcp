@@ -233,7 +233,7 @@ func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
 }
 
 func (b *backend) GetExternalAccountConfig(c *config, ts *PluginIdentityTokenSupplier) *gcputil.ExternalAccountConfig {
-	b.Logger().Info("adding web identity token fetcher")
+	b.Logger().Debug("adding web identity token fetcher")
 	cfg := &gcputil.ExternalAccountConfig{
 		ServiceAccountEmail: c.ServiceAccountEmail,
 		Audience:            c.IdentityTokenAudience,
