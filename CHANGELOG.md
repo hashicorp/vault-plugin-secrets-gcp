@@ -1,7 +1,19 @@
 ## Unreleased
 
+## v0.19.0
+
 IMPROVEMENTS:
 * Bump github.com/hashicorp/go-plugin from v1.5.2 to v1.6.0 to enable running the plugin in containers: [GH-207](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/207)
+* Support Workload Identity Federation: [GH-210](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/210)
+* Bump `golang.org/x/net` from 0.20.0 to 0.23.0: [GH-209](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/209)
+* Bump `github.com/docker/docker` from  v24.0.7+incompatible to  v24.0.9+incompatible: [GH-212](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/212)
+* Updated dependencies [[GH-206](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/206)]:
+  * `github.com/hashicorp/go-hclog` v1.6.2 -> v1.6.3
+  * `github.com/hashicorp/vault/api` v1.11.0 -> v1.13.0
+  * `github.com/hashicorp/vault/sdk` v0.10.2 -> v0.12.0
+  * `golang.org/x/oauth2` v0.16.0 -> v0.19.0
+  * `google.golang.org/api` v0.161.0 -> v0.177.0
+  * `github.com/go-jose/go-jose/v3` -> `github.com/go-jose/go-jose/v4`
 
 ## v0.18.0
 
