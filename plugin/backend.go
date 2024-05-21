@@ -13,15 +13,20 @@ import (
 
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-cleanhttp"
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/cache"
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
+	"github.com/hashicorp/go-gcp-common/gcputil"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/helper/pluginutil"
 	"github.com/hashicorp/vault/sdk/helper/useragent"
 	"github.com/hashicorp/vault/sdk/logical"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth2/google/externalaccount"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
+
+	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/cache"
+	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
 )
 
 const userAgentPluginName = "secrets-gcp"
@@ -200,6 +205,18 @@ func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
 			if err != nil {
 				return nil, errwrap.Wrapf("failed to parse credentials: {{err}}", err)
 			}
+		} else if cfg.IdentityTokenAudience != "" {
+			ts := &PluginIdentityTokenSupplier{
+				sys:      b.System(),
+				logger:   b.Logger(),
+				audience: cfg.IdentityTokenAudience,
+				ttl:      cfg.IdentityTokenTTL,
+			}
+
+			creds, err = b.GetExternalAccountConfig(cfg, ts).GetExternalAccountCredentials(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to fetch external account credentials: %w", err)
+			}
 		} else {
 			creds, err = google.FindDefaultCredentials(ctx, iam.CloudPlatformScope)
 			if err != nil {
@@ -213,6 +230,45 @@ func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
 		return nil, err
 	}
 	return creds.(*google.Credentials), nil
+}
+
+func (b *backend) GetExternalAccountConfig(c *config, ts *PluginIdentityTokenSupplier) *gcputil.ExternalAccountConfig {
+	b.Logger().Debug("adding web identity token fetcher")
+	cfg := &gcputil.ExternalAccountConfig{
+		ServiceAccountEmail: c.ServiceAccountEmail,
+		Audience:            c.IdentityTokenAudience,
+		TTL:                 c.IdentityTokenTTL,
+		TokenSupplier:       ts,
+	}
+
+	return cfg
+}
+
+type PluginIdentityTokenSupplier struct {
+	sys      logical.SystemView
+	logger   hclog.Logger
+	audience string
+	ttl      time.Duration
+}
+
+var _ externalaccount.SubjectTokenSupplier = (*PluginIdentityTokenSupplier)(nil)
+
+func (p *PluginIdentityTokenSupplier) SubjectToken(ctx context.Context, opts externalaccount.SupplierOptions) (string, error) {
+	p.logger.Info("fetching new plugin identity token")
+	resp, err := p.sys.GenerateIdentityToken(ctx, &pluginutil.IdentityTokenRequest{
+		Audience: p.audience,
+		TTL:      p.ttl,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to generate plugin identity token: %w", err)
+	}
+
+	if resp.TTL < p.ttl {
+		p.logger.Debug("generated plugin identity token has shorter TTL than requested",
+			"requested", p.ttl.Seconds(), "actual", resp.TTL)
+	}
+
+	return resp.Token.Token(), nil
 }
 
 // ClearCaches deletes all cached clients and credentials.
