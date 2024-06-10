@@ -284,7 +284,7 @@ func getURL[T any](url string) (*T, error) {
 }
 
 func writeConfig(config iamutil.GeneratedResources) error {
-	tpl, err := template.ParseFiles(filepath.Join("plugin", "iamutil", "internal", templateFile))
+	tpl, err := template.ParseFiles(filepath.Join("internal", templateFile))
 	if err != nil {
 		return err
 	}
@@ -300,7 +300,7 @@ func writeConfig(config iamutil.GeneratedResources) error {
 		return fmt.Errorf("error formatting generated code: %w", err)
 	}
 
-	dst, err := os.Create(filepath.Join("plugin", "iamutil", outputFile))
+	dst, err := os.Create(filepath.Join(outputFile))
 	defer dst.Close()
 	if err != nil {
 		return err
