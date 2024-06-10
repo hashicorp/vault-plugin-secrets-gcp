@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-//go:generate go run internal/generate_resources.go
+//go:generate go run github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil/internal/
 package iamutil
 
 import (
