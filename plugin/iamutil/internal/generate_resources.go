@@ -19,14 +19,25 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
 	"google.golang.org/api/discovery/v1"
+
+	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
 )
 
 const (
 	templateFile = "resource_config_template"
 	outputFile   = "resources_generated.go"
 )
+
+// allowedPolicyRefs lists all the possible $ref values
+// that the policy key may take in the different Google APIs
+var allowedPolicyRefs = map[string]bool{
+	"Policy":              true,
+	"GoogleIamV1Policy":   true,
+	"ApigatewayPolicy":    true,
+	"IamPolicy":           true,
+	"GoogleIamV1__Policy": true,
+}
 
 var sanizitedCollectionIds = map[string]string{
 	// Storage doesn't use properly RESTful resource path in request.
@@ -54,7 +65,7 @@ func main() {
 
 func checkResource(name string, fullPath string, resource *discovery.RestResource, doc *discovery.RestDescription, docMeta *discovery.DirectoryListItems, config iamutil.GeneratedResources) error {
 	for rName, child := range resource.Resources {
-		checkResource(rName, fullPath+"/"+rName, &child, doc, docMeta, config)
+		return checkResource(rName, fullPath+"/"+rName, &child, doc, docMeta, config)
 	}
 
 	getM, hasGet := resource.Methods["getIamPolicy"]
@@ -65,15 +76,20 @@ func checkResource(name string, fullPath string, resource *discovery.RestResourc
 	}
 
 	getK := strings.Join(getM.ParameterOrder, "/")
+	typeKey, replacementMap, err := parseTypeKey(doc.RootUrl+doc.ServicePath, &getM)
+	if err != nil {
+		return err
+	}
+
+	// if an override is available for this resource, no need to check
+	if _, ok := resourceOverrides[typeKey]; ok {
+		return nil
+	}
+
 	setK := strings.Join(setM.ParameterOrder, "/")
 
 	if getK != setK {
 		return fmt.Errorf("unexpected method formats, get parameters: %s, set parameters: %s", getK, setK)
-	}
-
-	typeKey, replacementMap, err := parseTypeKey(doc.RootUrl+doc.ServicePath, &getM)
-	if err != nil {
-		return err
 	}
 
 	var requestTmpl string
@@ -174,7 +190,7 @@ func parseTypeKeyFromPattern(pattern string) string {
 }
 
 func getPolicyReplacementString(sch *discovery.JsonSchema) string {
-	if sch.Id == "Policy" || sch.Ref == "Policy" {
+	if sch.Id == "Policy" || allowedPolicyRefs[sch.Ref] {
 		return "%s"
 	}
 
