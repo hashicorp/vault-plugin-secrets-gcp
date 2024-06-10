@@ -21,10 +21,10 @@ default: dev
 # into ./bin/ as well as $GOPATH/bin, except for quickdev which
 # is only put into /bin/
 .PHONY: quickdev
-quickdev: generate
+quickdev:
 	@CGO_ENABLED=0 go build -tags='$(BUILD_TAGS)' -o bin/vault-plugin-secrets-gcp cmd/vault-plugin-secrets-gcp/main.go
 .PHONY: dev
-dev: fmtcheck generate
+dev: fmtcheck
 	@CGO_ENABLED=0 BUILD_TAGS='$(BUILD_TAGS)' VAULT_DEV_BUILD=1 sh -c "'$(CURDIR)/scripts/build.sh'"
 .PHONY: dev-dynamic
 dev-dynamic: generate
