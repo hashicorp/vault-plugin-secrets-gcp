@@ -65,13 +65,17 @@ func main() {
 
 func checkResource(name string, fullPath string, resource *discovery.RestResource, doc *discovery.RestDescription, docMeta *discovery.DirectoryListItems, config iamutil.GeneratedResources) error {
 	for rName, child := range resource.Resources {
-		return checkResource(rName, fullPath+"/"+rName, &child, doc, docMeta, config)
+		err := checkResource(rName, fullPath+"/"+rName, &child, doc, docMeta, config)
+		if err != nil {
+			return err
+		}
 	}
 
 	getM, hasGet := resource.Methods["getIamPolicy"]
 	setM, hasSet := resource.Methods["setIamPolicy"]
 
-	if !hasGet && !hasSet {
+	if !hasGet || !hasSet {
+		// Can't manage anything without both setIamPolicy and getIamPolicy
 		return nil
 	}
 
@@ -246,9 +250,6 @@ func generateConfig() error {
 			}
 		}
 	}
-	if mErr != nil {
-		return fmt.Errorf("errors while generating config: \n%s", mErr)
-	}
 
 	// Inject overrides that use ACLs instead of IAM policies
 	for k, v := range resourceOverrides {
@@ -259,6 +260,9 @@ func generateConfig() error {
 		return err
 	}
 
+	if mErr != nil {
+		return fmt.Errorf("errors while generating config: \n%s", mErr)
+	}
 	return nil
 }
 
