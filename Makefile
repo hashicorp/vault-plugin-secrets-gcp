@@ -68,11 +68,7 @@ fmt:
 
 .PHONY: update-resources
 update-resources:
-	pushd $(CURDIR)/plugin/iamutil && \
-	go build -o generate ./internal && \
-	./generate && \
-	rm generate && \
-	popd
+	go run ./plugin/iamutil/internal
 
 .PHONY: setup-env
 setup-env:

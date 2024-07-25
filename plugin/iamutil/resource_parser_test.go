@@ -103,7 +103,7 @@ func constructSelfLink(relName string, cfg RestResource) (string, error) {
 	if startI < 0 {
 		return "", fmt.Errorf("unexpected request URL in resource does not have proper parameter to be replaced: %s", reqUrl)
 	}
-	return reqUrl[:startI] + relName, nil
+	return reqUrl[:endI] + relName, nil
 }
 
 func TestEnabledIamResources_SelfLink(t *testing.T) {
