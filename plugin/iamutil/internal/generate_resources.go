@@ -304,7 +304,7 @@ func writeConfig(config iamutil.GeneratedResources) error {
 		return fmt.Errorf("error formatting generated code: %w", err)
 	}
 
-	dst, err := os.Create(filepath.Join(outputFile))
+	dst, err := os.Create(outputFile)
 	defer dst.Close()
 	if err != nil {
 		return err
