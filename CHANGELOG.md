@@ -1,5 +1,16 @@
 ## Unreleased
 
+## v0.20.0
+IMPROVEMENTS:
+* Bump `github.com/docker/docker` from 24.0.9+incompatible to 25.0.6+incompatible: [GH-221](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/221)
+* Bump `github.com/hashicorp/go-retryablehttp` from 0.7.1 to 0.7.7: [GH-217](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/217)
+* Updated dependencies [[GH-223](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/223)]:
+  * `google.golang.org/api` v0.192.0 -> v0.195.0
+
+BUG FIXES:
+* Fix resource generation target: [GH-216](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/216)
+* Add missing generated resources: [GH-218](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/218)
+
 ## v0.19.0
 
 IMPROVEMENTS:
