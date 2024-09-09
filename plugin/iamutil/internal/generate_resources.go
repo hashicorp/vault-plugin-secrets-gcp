@@ -240,7 +240,11 @@ func generateConfig() error {
 		}
 		doc, docErr := getURL[discovery.RestDescription](docMeta.DiscoveryRestUrl)
 		if docErr != nil || doc == nil {
-			mErr = errors.Join(mErr, fmt.Errorf("unable to add %q (version %q), could not find doc - %w", docMeta.Name, docMeta.Version, docErr))
+			// Endpoints that are dynamically added by Google can be unpredictable
+			// and at times will return unexpected status code errors.
+			// We do not want to break the plugin build for this, we can
+			// skip adding these resources to the config until they are resolved by GCP
+			log.Printf("skipping %q (version %q), could not find doc - %s", docMeta.Name, docMeta.Version, docErr)
 			continue
 		}
 
