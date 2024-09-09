@@ -27,8 +27,6 @@ import (
 const (
 	templateFile = "resource_config_template"
 	outputFile   = "resources_generated.go"
-
-	errUnexpectedStatusCode = "unexpected status code"
 )
 
 // allowedPolicyRefs lists all the possible $ref values
