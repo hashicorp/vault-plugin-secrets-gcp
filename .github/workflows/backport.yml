@@ -1,0 +1,19 @@
+name: Backport assistant runner
+
+on:
+  pull_request_target:
+    types:
+      - closed
+      - labeled
+
+jobs:
+  backport:
+    runs-on: ubuntu-latest
+    container: hashicorpdev/backport-assistant:0.4.3
+    steps:
+      - name: Backport changes to targeted release branch
+        run: backport-assistant backport -merge-method=squash
+        env:
+          BACKPORT_LABEL_REGEXP: "backport/vault-(?P<target>\\d+\\.\\d+\\.\\w+)"
+          BACKPORT_TARGET_TEMPLATE: "release/vault-{{.target}}"
+          GITHUB_TOKEN: ${{ secrets.VAULT_ECO_GITHUB_TOKEN }}
