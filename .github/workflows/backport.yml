@@ -1,10 +1,11 @@
 name: Backport assistant runner
 
 on:
-  pull_request_target:
-    types:
-      - closed
-      - labeled
+  pull_request:
+#  pull_request_target:
+#    types:
+#      - closed
+#      - labeled
 
 jobs:
   backport:
