@@ -12,8 +12,9 @@ jobs:
     container: hashicorpdev/backport-assistant:0.4.3
     steps:
       - name: Backport changes to targeted release branch
-        run: backport-assistant backport
+        run: backport-assistant backport -merge-method=squash -gh-automerge
         env:
           BACKPORT_LABEL_REGEXP: "backport/vault-(?P<target>\\d+\\.\\d+\\.\\w+)"
           BACKPORT_TARGET_TEMPLATE: "release/vault-{{.target}}"
+          BACKPORT_MERGE_COMMIT: true
           GITHUB_TOKEN: ${{ secrets.VAULT_ECO_GITHUB_TOKEN }}
