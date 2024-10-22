@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     container: hashicorpdev/backport-assistant:0.4.3
     steps:
+      - name: Configure git with a token that has sufficient privileges
+        run: |
+          git config --global url."https://${{ secrets.VAULT_ECO_GITHUB_TOKEN }}@github.com".insteadOf https://github.com
       - name: Backport changes to targeted release branch
         run: backport-assistant backport -merge-method=squash -gh-automerge
         env:
