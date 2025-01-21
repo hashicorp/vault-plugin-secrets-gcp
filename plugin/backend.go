@@ -67,7 +67,7 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 }
 
 func Backend() *backend {
-	var b = &backend{
+	b := &backend{
 		cache:     cache.New(),
 		resources: iamutil.GetEnabledResources(),
 	}
@@ -114,8 +114,10 @@ func Backend() *backend {
 			secretServiceAccountKey(b),
 		},
 
-		InitializeFunc:    b.initialize,
-		Invalidate:        b.invalidate,
+		InitializeFunc:   b.initialize,
+		Invalidate:       b.invalidate,
+		RotateCredential: b.rotateRootCredential,
+
 		WALRollback:       b.walRollback,
 		WALRollbackMinAge: 5 * time.Minute,
 	}

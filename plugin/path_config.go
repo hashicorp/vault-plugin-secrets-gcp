@@ -11,10 +11,14 @@ import (
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/helper/automatedrotationutil"
 	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
 	"github.com/hashicorp/vault/sdk/helper/pluginutil"
 	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/hashicorp/vault/sdk/rotation"
 )
+
+const rootRotationJobName = "gcp-secrets-root-creds"
 
 func pathConfig(b *backend) *framework.Path {
 	p := &framework.Path{
@@ -62,7 +66,9 @@ func pathConfig(b *backend) *framework.Path {
 		HelpSynopsis:    pathConfigHelpSyn,
 		HelpDescription: pathConfigHelpDesc,
 	}
+
 	pluginidentityutil.AddPluginIdentityTokenFields(p.Fields)
+	automatedrotationutil.AddAutomatedRotationFields(p.Fields)
 
 	return p
 }
@@ -83,6 +89,7 @@ func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, data
 	}
 
 	cfg.PopulatePluginIdentityTokenData(configData)
+	cfg.PopulateAutomatedRotationData(configData)
 
 	return &logical.Response{
 		Data: configData,
@@ -109,6 +116,11 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 
 	// set plugin identity token fields
 	if err := cfg.ParsePluginIdentityTokenFields(data); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
+
+	// set automated root rotation fields
+	if err := cfg.ParseAutomatedRotationFields(data); err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	}
 
@@ -167,6 +179,42 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 		return nil, err
 	}
 
+	// Now that the root config is set up, register the rotation job if it's required.
+	if cfg.ShouldRegisterRotationJob() {
+		cfgReq := &rotation.RotationJobConfigureRequest{
+			Name:             rootRotationJobName,
+			MountPoint:       req.MountPoint,
+			ReqPath:          req.Path,
+			RotationSchedule: cfg.RotationSchedule,
+			RotationWindow:   cfg.RotationWindow,
+			RotationPeriod:   cfg.RotationPeriod,
+		}
+
+		rotationJob, err := rotation.ConfigureRotationJob(cfgReq)
+		if err != nil {
+			return logical.ErrorResponse("error configuring rotation job: %s", err), nil
+		}
+
+		b.Logger().Debug("Registering rotation job", "mount", req.MountPoint+req.Path)
+		rotationID, err := b.System().RegisterRotationJob(ctx, rotationJob)
+		if err != nil {
+			return logical.ErrorResponse("error registering rotation job: %s", err), nil
+		}
+
+		cfg.RotationID = rotationID
+
+		// Create/update the storage entry
+		entry, err := logical.StorageEntryJSON("config", cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate JSON configuration: %w", err)
+		}
+
+		// Save the storage entry
+		if err := req.Storage.Put(ctx, entry); err != nil {
+			return nil, fmt.Errorf("failed to persist configuration to storage: %w", err)
+		}
+	}
+
 	if setNewCreds {
 		b.ClearCaches()
 	}
@@ -179,8 +227,9 @@ type config struct {
 	TTL    time.Duration
 	MaxTTL time.Duration
 
-	pluginidentityutil.PluginIdentityTokenParams
 	ServiceAccountEmail string
+	pluginidentityutil.PluginIdentityTokenParams
+	automatedrotationutil.AutomatedRotationParams
 }
 
 func getConfig(ctx context.Context, s logical.Storage) (*config, error) {
