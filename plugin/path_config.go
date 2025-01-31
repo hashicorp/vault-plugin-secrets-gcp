@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
 	"github.com/hashicorp/vault/sdk/helper/pluginutil"
 	"github.com/hashicorp/vault/sdk/logical"
-	"github.com/hashicorp/vault/sdk/rotation"
 )
 
 const rootRotationJobName = "gcp-secrets-root-creds"
@@ -105,6 +104,22 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 		cfg = &config{}
 	}
 
+	backupCfg, err := getConfig(ctx, req.Storage)
+	if err != nil {
+		return nil, err
+	}
+	revertConfigFunc := func() error {
+		// Attempt to back out the storage update
+		entry, err := logical.StorageEntryJSON("config", backupCfg)
+		if err != nil {
+			return err
+		}
+		if err := req.Storage.Put(ctx, entry); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	credentialsRaw, setNewCreds := data.GetOk("credentials")
 	if setNewCreds {
 		_, err := gcputil.Credentials(credentialsRaw.(string))
@@ -179,40 +194,34 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 		return nil, err
 	}
 
-	// Disable Automated Rotation and Deregister credentials if required
+	// Example passing in revertStorageFunc
+	if resp := cfg.HandleRotationJobOperation(ctx, b.Backend, req, revertConfigFunc); resp != nil {
+		return resp, nil
+	}
+	// End example
+
+	// Example with two different helpers
 	if cfg.DisableAutomatedRotation {
-		// Ensure de-registering only occurs on updates and if
-		// a credential has actually been registered (rotation_period or rotation_schedule is set)
-		deregisterReq := &rotation.RotationJobDeregisterRequest{
-			MountType: req.MountType,
-			ReqPath:   req.Path,
+		if err := cfg.HandleRegisterRotationJob(ctx, b.Backend, req); err != nil {
+			resp := logical.ErrorResponse("error registering rotation job but config was successfully updated: %s", err)
+			resp.AddWarning("config was successfully updated despite failing to enable automated rotation")
+
+			if err := revertConfigFunc(); err != nil {
+				return resp, nil
+			}
 		}
-		// if previousCfgExists && previousCfg.ShouldRegisterRotationJob() {
-		b.Logger().Debug("Deregistering rotation job", "mount", req.MountPoint+req.Path)
-		err := b.System().DeregisterRotationJob(ctx, deregisterReq)
-		if err != nil {
-			return logical.ErrorResponse("error de-registering rotation job: %s", err), nil
-		}
-		//}
 	} else {
-		// Now that the root config is set up, register the rotation job if it's required.
-		if cfg.ShouldRegisterRotationJob() {
-			cfgReq := &rotation.RotationJobConfigureRequest{
-				Name:             rootRotationJobName,
-				MountType:        req.MountType,
-				ReqPath:          req.Path,
-				RotationSchedule: cfg.RotationSchedule,
-				RotationWindow:   cfg.RotationWindow,
-				RotationPeriod:   cfg.RotationPeriod,
+		if err := cfg.HandleDeregisterRotationJob(ctx, b.Backend, req); err != nil {
+			resp := logical.ErrorResponse("error deregistering rotation job but config was successfully updated: %s", err)
+			resp.AddWarning("config was successfully updated despite failing to disable automated rotation")
+
+			if err := revertConfigFunc(); err != nil {
+				return resp, nil
 			}
 
-			b.Logger().Debug("Registering rotation job", "mount", req.MountPoint+req.Path)
-			_, err = b.System().RegisterRotationJob(ctx, cfgReq)
-			if err != nil {
-				return logical.ErrorResponse("error registering rotation job: %s", err), nil
-			}
 		}
 	}
+	// End example
 
 	if setNewCreds {
 		b.ClearCaches()
