@@ -35,11 +35,15 @@ func TestConfig(t *testing.T) {
 	})
 
 	expected := map[string]interface{}{
-		"ttl":                     int64(0),
-		"max_ttl":                 int64(0),
-		"service_account_email":   "",
-		"identity_token_audience": "",
-		"identity_token_ttl":      int64(0),
+		"ttl":                        int64(0),
+		"max_ttl":                    int64(0),
+		"service_account_email":      "",
+		"identity_token_audience":    "",
+		"identity_token_ttl":         int64(0),
+		"rotation_window":            int64(0),
+		"rotation_period":            int64(0),
+		"rotation_schedule":          "",
+		"disable_automated_rotation": false,
 	}
 
 	testConfigRead(t, b, reqStorage, expected)
