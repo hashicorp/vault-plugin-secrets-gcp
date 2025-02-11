@@ -1,5 +1,9 @@
 ## Unreleased
 
+## v0.21.0
+IMPROVEMENTS:
+* Add support for Vault Enterprise automated root rotation
+
 ## v0.20.0
 IMPROVEMENTS:
 * Bump `github.com/docker/docker` from 24.0.9+incompatible to 25.0.6+incompatible: [GH-221](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/221)

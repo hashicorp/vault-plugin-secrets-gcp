@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/vault/sdk/helper/pluginutil"
 	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/hashicorp/vault/sdk/rotation"
 )
 
 // TestConfig_PluginIdentityToken_ent tests parsing and validation of
@@ -120,4 +121,8 @@ type testSystemViewEnt struct {
 
 func (d testSystemViewEnt) GenerateIdentityToken(_ context.Context, _ *pluginutil.IdentityTokenRequest) (*pluginutil.IdentityTokenResponse, error) {
 	return &pluginutil.IdentityTokenResponse{}, nil
+}
+
+func (d testSystemViewEnt) DeregisterRotationJob(_ context.Context, _ *rotation.RotationJobDeregisterRequest) error {
+	return nil
 }
