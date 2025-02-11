@@ -15,9 +15,8 @@ import (
 	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
 	"github.com/hashicorp/vault/sdk/helper/pluginutil"
 	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/hashicorp/vault/sdk/rotation"
 )
-
-const rootRotationJobName = "gcp-secrets-root-creds"
 
 func pathConfig(b *backend) *framework.Path {
 	p := &framework.Path{
@@ -96,28 +95,13 @@ func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, data
 }
 
 func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	// Check for existing config.
 	cfg, err := getConfig(ctx, req.Storage)
 	if err != nil {
 		return nil, err
 	}
 	if cfg == nil {
 		cfg = &config{}
-	}
-
-	backupCfg, err := getConfig(ctx, req.Storage)
-	if err != nil {
-		return nil, err
-	}
-	revertConfigFunc := func() error {
-		// Attempt to back out the storage update
-		entry, err := logical.StorageEntryJSON("config", backupCfg)
-		if err != nil {
-			return err
-		}
-		if err := req.Storage.Put(ctx, entry); err != nil {
-			return err
-		}
-		return nil
 	}
 
 	credentialsRaw, setNewCreds := data.GetOk("credentials")
@@ -185,43 +169,53 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 		cfg.MaxTTL = time.Duration(maxTTLRaw.(int)) * time.Second
 	}
 
+	var performedRotationManagerOpern string
+	if cfg.ShouldDeregisterRotationJob() {
+		performedRotationManagerOpern = "deregistration"
+		// Disable Automated Rotation and Deregister credentials if required
+		deregisterReq := &rotation.RotationJobDeregisterRequest{
+			MountPoint: req.MountPoint,
+			ReqPath:    req.Path,
+		}
+
+		b.Logger().Debug("Deregistering rotation job", "mount", req.MountPoint+req.Path)
+		if err := b.System().DeregisterRotationJob(ctx, deregisterReq); err != nil {
+			return logical.ErrorResponse("error deregistering rotation job: %s", err), nil
+		}
+	} else if cfg.ShouldRegisterRotationJob() {
+		performedRotationManagerOpern = "registration"
+		// Register the rotation job if it's required.
+		cfgReq := &rotation.RotationJobConfigureRequest{
+			MountPoint:       req.MountPoint,
+			ReqPath:          req.Path,
+			RotationSchedule: cfg.RotationSchedule,
+			RotationWindow:   cfg.RotationWindow,
+			RotationPeriod:   cfg.RotationPeriod,
+		}
+
+		b.Logger().Debug("Registering rotation job", "mount", req.MountPoint+req.Path)
+		if _, err = b.System().RegisterRotationJob(ctx, cfgReq); err != nil {
+			return logical.ErrorResponse("error registering rotation job: %s", err), nil
+		}
+	}
+
 	entry, err := logical.StorageEntryJSON("config", cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	if err := req.Storage.Put(ctx, entry); err != nil {
-		return nil, err
-	}
+		wrappedError := err
+		if performedRotationManagerOpern != "" {
+			b.Logger().Error("write to storage failed but the rotation manager still succeeded.",
+				"operation", performedRotationManagerOpern, "mount", req.MountPoint, "path", req.Path)
 
-	// Example passing in revertStorageFunc
-	if resp := cfg.HandleRotationJobOperation(ctx, b.Backend, req, revertConfigFunc); resp != nil {
-		return resp, nil
-	}
-	// End example
-
-	// Example with two different helpers
-	if cfg.DisableAutomatedRotation {
-		if err := cfg.HandleRegisterRotationJob(ctx, b.Backend, req); err != nil {
-			resp := logical.ErrorResponse("error registering rotation job but config was successfully updated: %s", err)
-			resp.AddWarning("config was successfully updated despite failing to enable automated rotation")
-
-			if err := revertConfigFunc(); err != nil {
-				return resp, nil
-			}
+			wrappedError = fmt.Errorf("write to storage failed but the rotation manager still succeeded; "+
+				"operation=%s, mount=%s, path=%s, storageError=%s", performedRotationManagerOpern, req.MountPoint, req.Path, err)
 		}
-	} else {
-		if err := cfg.HandleDeregisterRotationJob(ctx, b.Backend, req); err != nil {
-			resp := logical.ErrorResponse("error deregistering rotation job but config was successfully updated: %s", err)
-			resp.AddWarning("config was successfully updated despite failing to disable automated rotation")
 
-			if err := revertConfigFunc(); err != nil {
-				return resp, nil
-			}
-
-		}
+		return nil, wrappedError
 	}
-	// End example
 
 	if setNewCreds {
 		b.ClearCaches()
