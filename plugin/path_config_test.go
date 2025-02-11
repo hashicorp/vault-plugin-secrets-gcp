@@ -159,6 +159,6 @@ func (d testSystemView) GenerateIdentityToken(_ context.Context, _ *pluginutil.I
 	return nil, pluginidentityutil.ErrPluginWorkloadIdentityUnsupported
 }
 
-func (d testSystemView) DeregisterRotationJob(ctx context.Context, r *rotation.RotationJobDeregisterRequest) error {
+func (d testSystemView) DeregisterRotationJob(_ context.Context, _ *rotation.RotationJobDeregisterRequest) error {
 	return nil
 }
