@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -39,31 +38,53 @@ func pathConfigRotateRoot(b *backend) *framework.Path {
 }
 
 func (b *backend) pathConfigRotateRootWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	if err := b.rotateRootCredential(ctx, req); err != nil {
+		return nil, err
+	}
+
+	cfg, err := getConfig(ctx, req.Storage)
+	if err != nil {
+		return nil, fmt.Errorf("rotated credentials but failed to reload config: %w", err)
+	}
+
+	// Parse the credential JSON to extract the private key ID to return in the response.
+	creds, err := gcputil.Credentials(cfg.CredentialsRaw)
+	if err != nil {
+		return nil, fmt.Errorf("rotated credentials but failed to unmarshal: %w", err)
+	}
+
+	return &logical.Response{
+		Data: map[string]interface{}{
+			"private_key_id": creds.PrivateKeyId,
+		},
+	}, nil
+}
+
+func (b *backend) rotateRootCredential(ctx context.Context, req *logical.Request) error {
 	// Get the current configuration
 	cfg, err := getConfig(ctx, req.Storage)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if cfg == nil {
-		return nil, fmt.Errorf("no configuration")
+		return fmt.Errorf("no configuration")
 	}
 	if cfg.CredentialsRaw == "" {
-		return nil, fmt.Errorf("configuration does not have credentials - this " +
+		return fmt.Errorf("configuration does not have credentials - this " +
 			"endpoint only works with user-provided JSON credentials explicitly " +
 			"provided via the config/ endpoint")
 	}
 
-	// Parse the credential JSON to extract the email (we need it for the API
-	// call)
+	// Parse the credential JSON to extract the email (we need it for the API call)
 	creds, err := gcputil.Credentials(cfg.CredentialsRaw)
 	if err != nil {
-		return nil, errwrap.Wrapf("credentials are invalid: {{err}}", err)
+		return fmt.Errorf("credentials are invalid: %w", err)
 	}
 
 	// Generate a new service account key
 	iamAdmin, err := b.IAMAdminClient(req.Storage)
 	if err != nil {
-		return nil, errwrap.Wrapf("failed to create iam client: {{err}}", err)
+		return fmt.Errorf("failed to create iam client: %w", err)
 	}
 
 	saName := "projects/-/serviceAccounts/" + creds.ClientEmail
@@ -75,29 +96,29 @@ func (b *backend) pathConfigRotateRootWrite(ctx context.Context, req *logical.Re
 		Context(ctx).
 		Do()
 	if err != nil {
-		return nil, errwrap.Wrapf("failed to create new key: {{err}}", err)
+		return fmt.Errorf("failed to create new key: %w", err)
 	}
 
 	// Base64-decode the private key data (it's the JSON file)
 	newCredsJSON, err := base64.StdEncoding.DecodeString(newKey.PrivateKeyData)
 	if err != nil {
-		return nil, errwrap.Wrapf("failed to decode credentials: {{err}}", err)
+		return fmt.Errorf("failed to decode credentials: %w", err)
 	}
 
 	// Verify creds are valid
 	newCreds, err := gcputil.Credentials(string(newCredsJSON))
 	if err != nil {
-		return nil, errwrap.Wrapf("api returned invalid credentials: {{err}}", err)
+		return fmt.Errorf("api returned invalid credentials: %w", err)
 	}
 
 	// Update the configuration
 	cfg.CredentialsRaw = string(newCredsJSON)
 	entry, err := logical.StorageEntryJSON("config", cfg)
 	if err != nil {
-		return nil, errwrap.Wrapf("failed to generate new configuration: {{err}}", err)
+		return fmt.Errorf("failed to generate new configuration: %w", err)
 	}
 	if err := req.Storage.Put(ctx, entry); err != nil {
-		return nil, errwrap.Wrapf("failed to save new configuration: {{err}}", err)
+		return fmt.Errorf("failed to save new configuration: %w", err)
 	}
 
 	// Clear caches to pick up the new credentials
@@ -112,18 +133,12 @@ func (b *backend) pathConfigRotateRootWrite(ctx context.Context, req *logical.Re
 		Delete(oldKeyName).
 		Context(ctx).
 		Do(); err != nil {
-		return nil, errwrap.Wrapf(fmt.Sprintf(
-			"failed to delete old service account key (%q) - the new service "+
-				"account key (%q) is active, but the old one still exists: {{err}}",
-			creds.PrivateKeyId, newCreds.PrivateKeyId), err)
+		return fmt.Errorf("failed to delete old service account key (%q) - the new service "+
+			"account key (%q) is active, but the old one still exists: %w",
+			creds.PrivateKeyId, newCreds.PrivateKeyId, err)
 	}
 
-	// We did it!
-	return &logical.Response{
-		Data: map[string]interface{}{
-			"private_key_id": newCreds.PrivateKeyId,
-		},
-	}, nil
+	return nil
 }
 
 const pathConfigRotateRootHelpSyn = `

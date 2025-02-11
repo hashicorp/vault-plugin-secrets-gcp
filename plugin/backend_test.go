@@ -32,9 +32,11 @@ func getTestBackend(tb testing.TB) (*backend, logical.Storage) {
 	config := logical.TestBackendConfig()
 	config.StorageView = new(logical.InmemStorage)
 	config.Logger = hclog.New(nil)
-	config.System = &logical.StaticSystemView{
-		DefaultLeaseTTLVal: defaultLeaseTTLHr * time.Hour,
-		MaxLeaseTTLVal:     maxLeaseTTLHr * time.Hour,
+	config.System = &testSystemView{
+		StaticSystemView: logical.StaticSystemView{
+			DefaultLeaseTTLVal: defaultLeaseTTLHr * time.Hour,
+			MaxLeaseTTLVal:     maxLeaseTTLHr * time.Hour,
+		},
 	}
 
 	b, err := Factory(context.Background(), config)
@@ -83,7 +85,6 @@ func setupTestCredentials(t *testing.T) *testData {
 }
 
 func setupTestBackend(t *testing.T, td *testData, ttl, maxTTL string) {
-
 	b, reqStorage := getTestBackend(t)
 	td.B = b
 	td.S = reqStorage
@@ -93,7 +94,6 @@ func setupTestBackend(t *testing.T, td *testData, ttl, maxTTL string) {
 		"ttl":         ttl,
 		"max_ttl":     maxTTL,
 	})
-
 }
 
 func setupTest(t *testing.T, ttl, maxTTL string) *testData {
