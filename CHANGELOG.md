@@ -4,6 +4,7 @@
 IMPROVEMENTS:
 * Add support for Vault Enterprise automated root rotation
 * Update dependencies [GH-228](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/228)
+* Update Go version to 1.23.3
 
 ## v0.20.0
 IMPROVEMENTS:
