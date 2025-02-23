@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	gauth "cloud.google.com/go/auth/credentials"
+	"cloud.google.com/go/auth/oauth2adapt"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-gcp-common/gcputil"
@@ -142,8 +144,18 @@ func (b *backend) IAMAdminClient(s logical.Storage) (*iam.Service, error) {
 		return nil, errwrap.Wrapf("failed to create IAM HTTP client: {{err}}", err)
 	}
 
+	ctx := context.Background()
+
+	cfg, err := getConfig(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+	if cfg == nil {
+		cfg = &config{}
+	}
+
 	client, err := b.cache.Fetch("iam", cacheTime, func() (interface{}, error) {
-		client, err := iam.NewService(context.Background(), option.WithHTTPClient(httpClient))
+		client, err := iam.NewService(context.Background(), option.WithHTTPClient(httpClient), option.WithUniverseDomain(cfg.UniverseDomain))
 		if err != nil {
 			return nil, errwrap.Wrapf("failed to create IAM client: {{err}}", err)
 		}
@@ -203,10 +215,16 @@ func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
 		// default application credentials.
 		var creds *google.Credentials
 		if len(credBytes) > 0 {
-			creds, err = google.CredentialsFromJSON(ctx, credBytes, iam.CloudPlatformScope)
+			scopes := []string{"openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/cloud-platform", "https://www.googleapis.com/auth/appengine.admin", "https://www.googleapis.com/auth/sqlservice.login", "https://www.googleapis.com/auth/compute"}
+			gcred, err := gauth.DetectDefault(&gauth.DetectOptions{
+				Scopes:           scopes,
+				CredentialsJSON:  credBytes,
+				UseSelfSignedJWT: true,
+				UniverseDomain:   cfg.UniverseDomain})
 			if err != nil {
 				return nil, errwrap.Wrapf("failed to parse credentials: {{err}}", err)
 			}
+			creds = oauth2adapt.Oauth2CredentialsFromAuthCredentials(gcred)
 		} else if cfg.IdentityTokenAudience != "" {
 			ts := &PluginIdentityTokenSupplier{
 				sys:      b.System(),
