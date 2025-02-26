@@ -1,5 +1,12 @@
 ## Unreleased
 
+## v0.21.1
+IMPROVEMENTS:
+* Update dependencies:
+  * `golang.org/x/crypto` v0.33.0 -> v0.35.0
+  * `github.com/go-jose/go-jose/v4` v4.0.4 -> v4.0.5
+  * `github.com/hashicorp/vault/sdk` v0.15.0 -> v0.15.2
+
 ## v0.21.0
 IMPROVEMENTS:
 * Add support for Vault Enterprise automated root rotation
