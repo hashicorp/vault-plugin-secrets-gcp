@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/errwrap"
@@ -26,6 +27,8 @@ const (
 	serviceAccountDisplayNameHashLen = 8
 	serviceAccountDisplayNameMaxLen  = 100
 	serviceAccountDisplayNameTmpl    = "Service account for Vault secrets backend role set %s"
+
+	errDoesNotExist = "does not exist"
 )
 
 type RoleSet struct {
@@ -164,6 +167,32 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, req *logical.Re
 	sa, err := b.createServiceAccount(ctx, req, newResources.accountId.Project, newSaName, fmt.Sprintf("role set %s", rs.Name))
 	if err != nil {
 		return nil, err
+	}
+
+	// Service accounts in GCP are eventually consistent, and can take over 60s
+	// to be ready for use. Attempt to GET the service account in a retry loop
+	// to ensure the service account is ready for use before continuing on
+	// and creating IAM bindings.
+	_, err = retryWithExponentialBackoff(ctx, func() (interface{}, bool, error) {
+		iamAdmin, err := b.IAMAdminClient(req.Storage)
+		if err != nil {
+			return nil, false, err
+		}
+		gcpAcct, err := b.getServiceAccount(iamAdmin, &gcputil.ServiceAccountId{
+			Project:   sa.ProjectId,
+			EmailOrId: sa.Email,
+		})
+
+		// Propagation delays within GCP can cause this error occasionally, so don't quit on it.
+		if err != nil && (strings.Contains(err.Error(), errDoesNotExist)) {
+			return nil, false, nil
+		}
+
+		return gcpAcct, true, err
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error getting service account after creation: %w", err)
 	}
 
 	// Create new IAM bindings.
