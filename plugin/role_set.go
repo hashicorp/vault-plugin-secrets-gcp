@@ -29,6 +29,11 @@ const (
 	serviceAccountDisplayNameTmpl    = "Service account for Vault secrets backend role set %s"
 
 	errDoesNotExist = "does not exist"
+	errCode404      = "Code: 404"
+	errCode500      = "Code: 500"
+	errCode502      = "Code: 502"
+	errCode503      = "Code: 503"
+	errCode504      = "Code: 504"
 )
 
 type RoleSet struct {
@@ -184,10 +189,18 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, req *logical.Re
 		})
 
 		// Propagation delays within GCP can cause this error occasionally, so don't quit on it.
-		if err != nil && (strings.Contains(err.Error(), errDoesNotExist)) {
-			return nil, false, nil
+		// Retry on all error codes documented by the IAM API
+		// https://cloud.google.com/iam/docs/retry-strategy#errors-to-retry
+		if err != nil {
+			if strings.Contains(err.Error(), errDoesNotExist) ||
+				strings.Contains(err.Error(), errCode500) ||
+				strings.Contains(err.Error(), errCode502) ||
+				strings.Contains(err.Error(), errCode503) ||
+				strings.Contains(err.Error(), errCode504) ||
+				strings.Contains(err.Error(), errCode404) {
+				return nil, false, nil
+			}
 		}
-
 		return gcpAcct, true, err
 	})
 
