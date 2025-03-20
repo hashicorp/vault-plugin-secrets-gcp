@@ -18,6 +18,8 @@ import (
 	"github.com/hashicorp/vault/sdk/rotation"
 )
 
+const DefaultUniverseDomain = "googleapis.com"
+
 func pathConfig(b *backend) *framework.Path {
 	p := &framework.Path{
 		Pattern: "config",
@@ -42,6 +44,12 @@ func pathConfig(b *backend) *framework.Path {
 			"service_account_email": {
 				Type:        framework.TypeString,
 				Description: `Email ID for the Service Account to impersonate for Workload Identity Federation.`,
+			},
+			"universe_domain": {
+				Type:        framework.TypeString,
+				Required:    false,
+				Default:     "googleapis.com",
+				Description: `universe_domain specifies the Google Cloud environment a client connects to, enabling specialized offerings and sovereign controls beyond the default googleapis.com`,
 			},
 		},
 
@@ -84,6 +92,7 @@ func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, data
 		"ttl":                   int64(cfg.TTL / time.Second),
 		"max_ttl":               int64(cfg.MaxTTL / time.Second),
 		"service_account_email": cfg.ServiceAccountEmail,
+		"universe_domain":       cfg.UniverseDomain,
 	}
 
 	cfg.PopulatePluginIdentityTokenData(configData)
@@ -198,6 +207,13 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 			return logical.ErrorResponse("error registering rotation job: %s", err), nil
 		}
 	}
+	// Update Universe-Domain.
+	UniverseDomainRaw, ok := data.GetOk("universe_domain")
+	if ok {
+		cfg.UniverseDomain = UniverseDomainRaw.(string)
+	} else {
+		cfg.UniverseDomain = DefaultUniverseDomain
+	}
 
 	entry, err := logical.StorageEntryJSON("config", cfg)
 	if err != nil {
@@ -232,6 +248,7 @@ type config struct {
 	ServiceAccountEmail string
 	pluginidentityutil.PluginIdentityTokenParams
 	automatedrotationutil.AutomatedRotationParams
+	UniverseDomain string
 }
 
 func getConfig(ctx context.Context, s logical.Storage) (*config, error) {
