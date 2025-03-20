@@ -1,5 +1,14 @@
 ## Unreleased
 
+## v0.21.2
+IMPROVEMENTS:
+* Update dependencies:
+  * `golang.org/x/net` v0.35.0 -> v0.36.0: [GH-245](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/245)
+  * Update Go version to 1.23.6
+
+BUG FIXES:
+* Ensure service accounts are fully propagated in GCP before creating IAM bindings: [GH-246](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/246)
+
 ## v0.21.1
 IMPROVEMENTS:
 * Update dependencies:

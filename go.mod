@@ -1,6 +1,6 @@
 module github.com/hashicorp/vault-plugin-secrets-gcp
 
-go 1.23.3
+go 1.23.6
 
 require (
 	github.com/hashicorp/errwrap v1.1.0
