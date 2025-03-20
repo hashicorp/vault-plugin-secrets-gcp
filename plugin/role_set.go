@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/errwrap"
@@ -26,6 +27,13 @@ const (
 	serviceAccountDisplayNameHashLen = 8
 	serviceAccountDisplayNameMaxLen  = 100
 	serviceAccountDisplayNameTmpl    = "Service account for Vault secrets backend role set %s"
+
+	errDoesNotExist = "does not exist"
+	errCode404      = "Code: 404"
+	errCode500      = "Code: 500"
+	errCode502      = "Code: 502"
+	errCode503      = "Code: 503"
+	errCode504      = "Code: 504"
 )
 
 type RoleSet struct {
@@ -164,6 +172,40 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, req *logical.Re
 	sa, err := b.createServiceAccount(ctx, req, newResources.accountId.Project, newSaName, fmt.Sprintf("role set %s", rs.Name))
 	if err != nil {
 		return nil, err
+	}
+
+	// Service accounts in GCP are eventually consistent, and can take over 60s
+	// to be ready for use. Attempt to GET the service account in a retry loop
+	// to ensure the service account is ready for use before continuing on
+	// and creating IAM bindings.
+	_, err = retryWithExponentialBackoff(ctx, func() (interface{}, bool, error) {
+		iamAdmin, err := b.IAMAdminClient(req.Storage)
+		if err != nil {
+			return nil, false, err
+		}
+		gcpAcct, err := b.getServiceAccount(iamAdmin, &gcputil.ServiceAccountId{
+			Project:   sa.ProjectId,
+			EmailOrId: sa.Email,
+		})
+
+		// Propagation delays within GCP can cause this error occasionally, so don't quit on it.
+		// Retry on all error codes documented by the IAM API
+		// https://cloud.google.com/iam/docs/retry-strategy#errors-to-retry
+		if err != nil {
+			if strings.Contains(err.Error(), errDoesNotExist) ||
+				strings.Contains(err.Error(), errCode500) ||
+				strings.Contains(err.Error(), errCode502) ||
+				strings.Contains(err.Error(), errCode503) ||
+				strings.Contains(err.Error(), errCode504) ||
+				strings.Contains(err.Error(), errCode404) {
+				return nil, false, nil
+			}
+		}
+		return gcpAcct, true, err
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error getting service account after creation: %w", err)
 	}
 
 	// Create new IAM bindings.

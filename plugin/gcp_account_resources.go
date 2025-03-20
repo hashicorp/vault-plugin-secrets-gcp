@@ -8,6 +8,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"math"
+	"math/rand"
+	"time"
 
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
@@ -23,6 +26,9 @@ import (
 const (
 	flagCanDeleteServiceAccount = true
 	flagMustKeepServiceAccount  = false
+
+	maxBackoff   = 32 * time.Second
+	retryTimeout = 80 * time.Second
 )
 
 type (
@@ -258,6 +264,50 @@ func (b *backend) deleteServiceAccount(ctx context.Context, iamAdmin *iam.Servic
 		return errwrap.Wrapf("unable to delete service account: {{err}}", err)
 	}
 	return nil
+}
+
+// retryWithExponentialBackoff will repeatedly call f until one of:
+//
+//   - f returns true
+//   - the context is cancelled
+//   - 80 seconds elapses. Vault's default request timeout is 90s; we want to expire before then.
+//
+// Delays are calculated using an exponential backoff with jitter, with a max backoff of 32s.
+// This function is based on recommended GCP docs here: https://cloud.google.com/iam/docs/retry-strategy#algorithm
+func retryWithExponentialBackoff(ctx context.Context, f func() (interface{}, bool, error)) (interface{}, error) {
+	delayTimer := time.NewTimer(0)
+	if _, hasTimeout := ctx.Deadline(); !hasTimeout {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, retryTimeout)
+		defer cancel()
+	}
+	var lastErr error
+	i := 0
+	for {
+		select {
+		case <-delayTimer.C:
+			result, done, err := f()
+			if done {
+				return result, err
+			}
+			lastErr = err
+
+			// Add jitter to the backoff to avoid retry collisions.
+			jitter := time.Duration(rand.Float64())
+			// Calculate the backoff interval using exponential backoff with a base time.
+			backoff := time.Duration(math.Min((math.Pow(2, float64(i)))+float64(jitter), float64(maxBackoff)))
+			delayTimer.Reset(backoff)
+
+			// update i for next iteration
+			i++
+		case <-ctx.Done():
+			err := lastErr
+			if err == nil {
+				err = ctx.Err()
+			}
+			return nil, fmt.Errorf("retry failed: %w", err)
+		}
+	}
 }
 
 func isGoogleAccountNotFoundErr(err error) bool {
