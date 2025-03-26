@@ -1,7 +1,7 @@
 ## Unreleased
 
 BUG FIXES:
-* Forward Performance Secondary requests when configuring root credentials: [GH-249](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/249)
+* Fix a panic when a performance standby node attempts to write/update config: [GH-249](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/249)
 
 ## v0.21.2
 IMPROVEMENTS:
