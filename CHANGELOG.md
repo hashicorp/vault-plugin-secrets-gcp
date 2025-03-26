@@ -1,5 +1,8 @@
 ## Unreleased
 
+BUG FIXES:
+* Forward Performance Secondary requests when configuring root credentials: [GH-246](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/246)
+
 ## v0.21.2
 IMPROVEMENTS:
 * Update dependencies:
