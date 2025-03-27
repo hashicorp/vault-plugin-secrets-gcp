@@ -1,5 +1,7 @@
 ## Unreleased
 
+## v0.21.3
+
 BUG FIXES:
 * Fix a panic when a performance standby node attempts to write/update config: [GH-249](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/249)
 
