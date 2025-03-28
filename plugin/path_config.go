@@ -58,6 +58,8 @@ func pathConfig(b *backend) *framework.Path {
 				DisplayAttrs: &framework.DisplayAttributes{
 					OperationVerb: "configure",
 				},
+				ForwardPerformanceSecondary: true,
+				ForwardPerformanceStandby:   true,
 			},
 		},
 
