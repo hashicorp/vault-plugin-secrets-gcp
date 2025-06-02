@@ -1,5 +1,10 @@
 ## Unreleased
 
+## v0.22.0
+
+IMPROVEMENTS:
+* Update Go version to 1.24.3
+
 ## v0.21.3
 
 BUG FIXES:
