@@ -8,11 +8,12 @@ import (
 	"encoding/base64"
 	"time"
 
+	gauth "cloud.google.com/go/auth/credentials"
+	"cloud.google.com/go/auth/oauth2adapt"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 )
 
 func (b *backend) secretAccessTokenResponse(ctx context.Context, s logical.Storage, tokenGen *TokenGenerator) (*logical.Response, error) {
@@ -40,12 +41,17 @@ func (tg *TokenGenerator) getAccessToken(ctx context.Context) (*oauth2.Token, er
 		return nil, errwrap.Wrapf("could not b64-decode key data: {{err}}", err)
 	}
 
-	cfg, err := google.JWTConfigFromJSON(jsonBytes, tg.Scopes...)
+	gcred, err := gauth.DetectDefault(&gauth.DetectOptions{
+		Scopes:           tg.Scopes,
+		CredentialsJSON:  jsonBytes,
+		UseSelfSignedJWT: true,
+	})
 	if err != nil {
 		return nil, errwrap.Wrapf("could not generate token JWT config: {{err}}", err)
 	}
+	cfg := oauth2adapt.Oauth2CredentialsFromAuthCredentials(gcred)
 
-	tkn, err := cfg.TokenSource(ctx).Token()
+	tkn, err := cfg.TokenSource.Token()
 	if err != nil {
 		return nil, errwrap.Wrapf("got error while creating OAuth2 token: {{err}}", err)
 	}
