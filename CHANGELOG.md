@@ -3,7 +3,7 @@
 ## v0.22.0
 
 IMPROVEMENTS:
-* Update Go version to 1.24.3
+* Update Go version to 1.24.3 and generated resources: [GH-252](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/252)
 
 ## v0.21.3
 
