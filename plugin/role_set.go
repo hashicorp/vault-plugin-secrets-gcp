@@ -187,7 +187,6 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, req *logical.Re
 			Project:   sa.ProjectId,
 			EmailOrId: sa.Email,
 		})
-
 		// Propagation delays within GCP can cause this error occasionally, so don't quit on it.
 		// Retry on all error codes documented by the IAM API
 		// https://cloud.google.com/iam/docs/retry-strategy#errors-to-retry
@@ -201,16 +200,18 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, req *logical.Re
 				return nil, false, nil
 			}
 		}
+
+		// Create new IAM bindings. This is included in the retry loop because
+		// even if the service account comes back from getServiceAccount(), it
+		// is sometimes not available to the IAM API yet.
+		if err := b.createIamBindings(ctx, req, sa.Email, newResources.bindings); err != nil {
+			return nil, false, err
+		}
+
 		return gcpAcct, true, err
 	})
-
 	if err != nil {
-		return nil, fmt.Errorf("error getting service account after creation: %w", err)
-	}
-
-	// Create new IAM bindings.
-	if err := b.createIamBindings(ctx, req, sa.Email, newResources.bindings); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting service account and creating IAM bindings after creation: %w", err)
 	}
 
 	// Create new token gen if a stubbed tokenGenerator (with scopes) is given.
