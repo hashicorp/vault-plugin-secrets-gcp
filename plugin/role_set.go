@@ -205,10 +205,6 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, req *logical.Re
 		// even if the service account comes back from getServiceAccount(), it
 		// is sometimes not available to the IAM API yet.
 		if err := b.createIamBindings(ctx, req, sa.Email, newResources.bindings); err != nil {
-			b.Logger().Debug("TVORAN: failed to create IAM bindings for new service account",
-				"serviceAccount", sa.Email,
-				"bindings", newResources.bindings,
-				"error", err)
 			return nil, false, err
 		}
 
