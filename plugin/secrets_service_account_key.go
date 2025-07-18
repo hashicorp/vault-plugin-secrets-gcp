@@ -55,7 +55,7 @@ func (b *backend) secretKeyRenew(ctx context.Context, req *logical.Request, d *f
 	// available in the service account keys API, so we retry a few times.
 	r, err := retryWithExponentialBackoff(ctx, func() (interface{}, bool, error) {
 		resp, err := b.verifySecretServiceKeyExists(ctx, req)
-		if err != nil {
+		if err != nil || (resp != nil && resp.IsError()) {
 			return resp, false, err
 		}
 		if resp == nil {
