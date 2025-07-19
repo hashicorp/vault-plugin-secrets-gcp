@@ -18,12 +18,6 @@ then
     exit 1
 fi
 
-if [[ -z $GOOGLE_CLOUD_PROJECT_NAME ]]
-then
-    echo "GOOGLE_CLOUD_PROJECT_NAME env is not set. Exiting.."
-    exit 1
-fi
-
 if [[ -z $GOOGLE_APPLICATION_CREDENTIALS ]]
 then
     echo "GOOGLE_APPLICATION_CREDENTIALS env is not set. Exiting.."
@@ -35,11 +29,11 @@ export SETUP_TEARDOWN_OUTFILE=/tmp/output.log
 setup(){
     { # Braces used to redirect all setup logs.
     # 1. Write bindings file.
-    cat > tests/acceptance/configs/mybindings.hcl <<EOF
-    resource "//cloudresourcemanager.googleapis.com/projects/${GOOGLE_CLOUD_PROJECT_NAME}" {
-        roles = ["roles/viewer"]
-    }
-    EOF
+    cat <<EOF > tests/acceptance/configs/mybindings.hcl
+resource "//cloudresourcemanager.googleapis.com/projects/${GOOGLE_CLOUD_PROJECT_ID}" {
+    roles = ["roles/viewer"]
+}
+EOF
     # 2. Copy credentials file.
     cp $GOOGLE_APPLICATION_CREDENTIALS ./creds.json
 
@@ -175,4 +169,39 @@ teardown(){
           token_scopes="https://www.googleapis.com/auth/cloud-platform" \
           bindings=@tests/acceptance/configs/mybindings.hcl
     [ "${status?}" -eq 0 ]
+}
+
+@test "Can renew lease for a service account key for a new service account (10x)" {
+    vault write gcp/config \
+        credentials=@creds.json
+
+    bats::on_failure() {
+        for x in $(seq 1 10); do
+            vault delete ${GCP_MOUNT}/static-account/static-test-${x}
+            gcloud iam service-accounts delete test-account-${x}@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com --quiet || true
+        done
+    }
+
+    for x in $(seq 1 10); do
+        GCP_MOUNT=gcp
+        GCP_ACCOUNT=test-account-${x}
+        gcloud iam service-accounts create ${GCP_ACCOUNT} \
+            --description="testing gcp secrets" \
+            --display-name="${GCP_ACCOUNT}"
+
+        vault write ${GCP_MOUNT}/static-account/static-test-${x} \
+            service_account_email="${GCP_ACCOUNT}@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com" \
+            secret_type="service_account_key"  \
+            bindings=@tests/acceptance/configs/mybindings.hcl
+
+        LEASE_ID=$(vault read -format=json ${GCP_MOUNT}/static-account/static-test-${x}/key | jq -r .lease_id)
+
+        vault lease renew ${LEASE_ID}
+
+        vault lease revoke ${LEASE_ID}
+
+        vault delete ${GCP_MOUNT}/static-account/static-test-${x}
+
+        gcloud iam service-accounts delete ${GCP_ACCOUNT}@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com --quiet
+    done
 }

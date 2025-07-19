@@ -51,13 +51,22 @@ func secretServiceAccountKey(b *backend) *framework.Secret {
 }
 
 func (b *backend) secretKeyRenew(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	resp, err := b.verifySecretServiceKeyExists(ctx, req)
+	// If the service account was recently created, it may not be immediately
+	// available in the service account keys API, so we retry a few times.
+	r, err := retryWithExponentialBackoff(ctx, func() (interface{}, bool, error) {
+		resp, err := b.verifySecretServiceKeyExists(ctx, req)
+		if err != nil || (resp != nil && resp.IsError()) {
+			return resp, false, err
+		}
+		if resp == nil {
+			resp = &logical.Response{}
+		}
+		return resp, true, nil
+	})
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	if resp == nil {
-		resp = &logical.Response{}
-	}
+	resp := r.(*logical.Response)
 	cfg, err := getConfig(ctx, req.Storage)
 	if err != nil {
 		return nil, err
@@ -204,8 +213,9 @@ func (b *backend) createServiceAccountKeySecret(ctx context.Context, s logical.S
 	return resp, nil
 }
 
-const pathServiceAccountKeySyn = `Generate a service account private key secret.`
-const pathServiceAccountKeyDesc = `
+const (
+	pathServiceAccountKeySyn  = `Generate a service account private key secret.`
+	pathServiceAccountKeyDesc = `
 This path will generate a new service account key for accessing GCP APIs.
 
 Either specify "roleset/my-roleset" or "static/my-account" to generate a key corresponding
@@ -214,3 +224,4 @@ to a roleset or static account respectively.
 Please see backend documentation for more information:
 https://www.vaultproject.io/docs/secrets/gcp/index.html
 `
+)
