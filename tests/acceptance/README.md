@@ -28,7 +28,7 @@ bats ./tests/acceptance/gcp-secrets.bats
 
 ### Output
 
-```shell
+```
 ✓ Can successfully write GCP Secrets Config
 ✓ Can successfully write token roleset
 ✓ Can successfully generate oAuth tokens
