@@ -177,7 +177,7 @@ teardown(){
 
     bats::on_failure() {
         for x in {1..10}; do
-            vault delete ${GCP_MOUNT}/static-account/static-test-${x}
+            vault delete gcp/static-account/static-test-${x}
             gcloud iam service-accounts delete test-account-${x}@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com --quiet || true
         done
     }
