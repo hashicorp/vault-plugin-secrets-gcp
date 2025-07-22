@@ -1,9 +1,32 @@
 ## Unreleased
 
+BUG FIXES:
+* Address more eventual consistency issues in GCP with rolesets and static-account's [GH-257](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/257), [GH-258](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/258), [GH-260](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/260)
+
+## v0.22.1
+
+IMPROVEMENTS:
+* Update Go version to 1.24.5: [GH-264](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/264)
+
+BUG FIXES:
+* Address more eventual consistency issues in GCP with rolesets and static-account's [GH-262](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/262)
+
 ## v0.22.0
 
 IMPROVEMENTS:
 * Update Go version to 1.24.3 and generated resources: [GH-252](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/252)
+
+## v0.21.4
+
+IMPROVEMENTS:
+* Update Go version to 1.24.5 and x/net dependencies: [GH-263](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/263)
+  * `golang.org/x/crypto` v0.36.0 -> v0.40.0
+  * `golang.org/x/net` v0.37.0 -> v0.42.0
+  * `golang.org/x/sys` v0.31.0 -> v0.34.0
+  * `golang.org/x/text` v0.23.0 -> v0.27.0
+
+BUG FIXES:
+* Address more eventual consistency issues in GCP with rolesets and static-account's [GH-261](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/261)
 
 ## v0.21.3
 
