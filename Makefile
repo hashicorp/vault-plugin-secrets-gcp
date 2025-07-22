@@ -30,6 +30,9 @@ dev: fmtcheck generate
 dev-dynamic: generate
 	@CGO_ENABLED=1 BUILD_TAGS='$(BUILD_TAGS)' VAULT_DEV_BUILD=1 sh -c "'$(CURDIR)/scripts/build.sh'"
 
+devtest: fmtcheck
+	@CGO_ENABLED=0 BUILD_TAGS='$(BUILD_TAGS)' VAULT_DEV_BUILD=1 sh -c "'$(CURDIR)/scripts/build.sh'"
+
 .PHONY: testcompile
 testcompile: fmtcheck generate
 	@for pkg in $(TEST) ; do \
