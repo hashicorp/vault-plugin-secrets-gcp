@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/go-secure-stdlib/strutil"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
+	"google.golang.org/api/iam/v1"
 )
 
 func (b *backend) getStaticAccount(name string, ctx context.Context, s logical.Storage) (*StaticAccount, error) {
@@ -107,17 +108,26 @@ func (b *backend) createStaticAccount(ctx context.Context, req *logical.Request,
 		return err
 	}
 
-	gcpAcct, err := b.getServiceAccount(iamAdmin, &gcputil.ServiceAccountId{
-		Project:   gcpServiceAccountInferredProject,
-		EmailOrId: input.serviceAccountEmail,
+	r, err := retryWithExponentialBackoff(ctx, func() (interface{}, bool, error) {
+		gcpAcct, err := b.getServiceAccount(iamAdmin, &gcputil.ServiceAccountId{
+			Project:   gcpServiceAccountInferredProject,
+			EmailOrId: input.serviceAccountEmail,
+		})
+		if err != nil {
+			if isGoogleAccountNotFoundErr(err) {
+				return nil, false, fmt.Errorf("unable to create static account, service account %q should exist", input.serviceAccountEmail)
+			}
+			return nil, false, fmt.Errorf("unable to create static account, could not confirm service account %q exists: %w", input.serviceAccountEmail, err)
+		}
+		return gcpAcct, true, nil
 	})
 	if err != nil {
-		if isGoogleAccountNotFoundErr(err) {
-			return fmt.Errorf("unable to create static account, service account %q should exist", input.serviceAccountEmail)
-		}
-		return errwrap.Wrapf(fmt.Sprintf("unable to create static account, could not confirm service account %q exists: {{err}}", input.serviceAccountEmail), err)
+		return fmt.Errorf("failed to confirm service account %q exists: %w", input.serviceAccountEmail, err)
 	}
-
+	if r == nil {
+		return fmt.Errorf("unexpected nil service account returned from getServiceAccount() retry")
+	}
+	gcpAcct := r.(*iam.ServiceAccount)
 	acctId := gcputil.ServiceAccountId{
 		Project:   gcpAcct.ProjectId,
 		EmailOrId: gcpAcct.Email,
@@ -142,7 +152,13 @@ func (b *backend) createStaticAccount(ctx context.Context, req *logical.Request,
 	}
 
 	// Create new IAM bindings.
-	if err := b.createIamBindings(ctx, req, gcpAcct.Email, newResources.bindings); err != nil {
+	_, err = retryWithExponentialBackoff(ctx, func() (interface{}, bool, error) {
+		if err := b.createIamBindings(ctx, req, gcpAcct.Email, newResources.bindings); err != nil {
+			return nil, false, err
+		}
+		return nil, true, nil
+	})
+	if err != nil {
 		return err
 	}
 
