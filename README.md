@@ -22,7 +22,7 @@ contacting us at [security@hashicorp.com](mailto:security@hashicorp.com).
 
 This is a [Vault plugin](https://www.vaultproject.io/docs/internals/plugins.html)
 and is meant to work with Vault. This guide assumes you have already installed Vault
-and have a basic understanding of how Vault works. Otherwise, first read this guide on
+and have a basic understanding of how Vault works. Otherwise, please first read this guide on
 how to [get started with Vault](https://www.vaultproject.io/intro/getting-started/install.html).
 
 If you are just interested in using this plugin with Vault, it is packaged with Vault and
