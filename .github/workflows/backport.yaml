@@ -1,12 +1,10 @@
 name: Backport Assistant
-
 on:
   pull_request_target:
     types:
       - closed
-
+      - labeled
 permissions: write-all
-
 jobs:
   backport:
     # using `main` as the ref will keep your workflow up-to-date
