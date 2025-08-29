@@ -1,0 +1,5 @@
+kind: BUG FIXES
+body: Address more eventual consistency issues in GCP with rolesets and static-account's [GH-257](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/257)
+time: 2025-08-26T13:36:30.888997-07:00
+custom:
+    Issue: "257"
