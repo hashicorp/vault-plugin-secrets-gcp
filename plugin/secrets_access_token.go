@@ -20,10 +20,21 @@ func (b *backend) secretAccessTokenResponse(ctx context.Context, s logical.Stora
 		return logical.ErrorResponse("invalid token generator has no service account key"), nil
 	}
 
-	token, err := tokenGen.getAccessToken(ctx)
+	t, err := retryWithExponentialBackoff(ctx, func() (interface{}, bool, error) {
+		token, err := tokenGen.getAccessToken(ctx)
+		if err != nil {
+			return nil, false, err
+		}
+		return token, true, nil
+	})
 	if err != nil {
 		return logical.ErrorResponse("unable to generate token - make sure your roleset service account and key are still valid: %v", err), nil
 	}
+	if t == nil {
+		return logical.ErrorResponse("unable to generate token - got nil token"), nil
+	}
+
+	token := t.(*oauth2.Token)
 
 	return &logical.Response{
 		Data: map[string]interface{}{
@@ -59,8 +70,9 @@ engine and will be cleaned up now. Note that there is the chance that this acces
 will still be valid up to one hour.
 `
 
-const pathTokenHelpSyn = `Generate an OAuth2 access token secret.`
-const pathTokenHelpDesc = `
+const (
+	pathTokenHelpSyn  = `Generate an OAuth2 access token secret.`
+	pathTokenHelpDesc = `
 This path will generate a new OAuth2 access token for accessing GCP APIs.
 
 Either specify "roleset/my-roleset" or "static/my-account" to generate a key corresponding
@@ -69,6 +81,7 @@ to a roleset or static account respectively.
 Please see backend documentation for more information:
 https://www.vaultproject.io/docs/secrets/gcp/index.html
 `
+)
 
 // THIS SECRET TYPE IS DEPRECATED - future secret requests returns a response with no framework.Secret
 // We are keeping them as part of the created framework.Secret

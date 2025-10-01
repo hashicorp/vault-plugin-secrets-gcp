@@ -22,7 +22,7 @@ contacting us at [security@hashicorp.com](mailto:security@hashicorp.com).
 
 This is a [Vault plugin](https://www.vaultproject.io/docs/internals/plugins.html)
 and is meant to work with Vault. This guide assumes you have already installed Vault
-and have a basic understanding of how Vault works. Otherwise, first read this guide on
+and have a basic understanding of how Vault works. Otherwise, please first read this guide on
 how to [get started with Vault](https://www.vaultproject.io/intro/getting-started/install.html).
 
 If you are just interested in using this plugin with Vault, it is packaged with Vault and
@@ -267,3 +267,41 @@ you run into. It could be that the API is a non-standard form or we need to re-g
 See up-to-date [engine docs](https://www.vaultproject.io/docs/secrets/gcp/index.html)
 and general [API docs](https://www.vaultproject.io/api/secret/gcp/index.html).
 
+## Updating the Changelog
+
+All pull requests that introduce a user-facing change must include a changelog
+entry. We use the [changie](https://changie.dev/) tool to manage these entries
+and automate the release process.
+
+---
+### 1. Installing Changie
+
+You only need to do this once. If you don't have `changie` installed, choose one of the options below.
+
+* **Homebrew** (macOS):
+    ```shell
+    brew install changie
+    ```
+* **Go Install**:
+    ```shell
+    go install github.com/miniscruff/changie@latest
+    ```
+* **Other Methods**:
+  See the [official changie installation guide](https://changie.dev/guide/installation/) for other options, including pre-compiled binaries.
+
+---
+### 2. Creating an Entry
+
+Once your code changes are complete, create the changelog entry:
+
+1.  **Run the command** in your terminal:
+    ```shell
+    changie new
+    ```
+2.  **Follow the prompts.** An interactive prompt will ask you to select the
+    kind of change (e.g., `BREAKING CHANGES`, `NOTES`, `FEATURES`) and write a concise description of
+    what you changed.
+
+3.  **Commit the new file.** After you're done, `changie` will create a new
+    YAML file in the `.changie/unreleased` directory. Commit this file along with your other
+    code changes before submitting your pull request.
