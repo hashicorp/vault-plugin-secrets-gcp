@@ -32,7 +32,7 @@ bats ./tests/acceptance/gcp-secrets.bats
 ✓ Can successfully write GCP Secrets Config
 ✓ Can successfully write token roleset
 ✓ Can successfully generate oAuth tokens
-✓ Can successfully write key roleset
+✓ Can successfully write key roleset (10x)
 ✓ Can successfully generate dynamic keys
 ✓ Can successfully write access token static account
 ✓ Can successfully write service account key static account

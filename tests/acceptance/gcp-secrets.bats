@@ -121,16 +121,18 @@ teardown(){
     [ "${status?}" -eq 0 ]
 }
 
-@test "Can successfully write key roleset" {
+@test "Can successfully write key roleset (10x)" {
     run vault write gcp/config \
           credentials=@creds.json
 
-    run vault write gcp/roleset/my-key-roleset \
-          project=${GOOGLE_CLOUD_PROJECT_ID?} \
-          secret_type="service_account_key"  \
-          token_scopes="https://www.googleapis.com/auth/cloud-platform" \
-          bindings=@tests/acceptance/configs/mybindings.hcl
-    [ "${status?}" -eq 0 ]
+    for i in {1..10}; do
+        run vault write gcp/roleset/my-key-roleset-$i \
+              project=${GOOGLE_CLOUD_PROJECT_ID?} \
+              secret_type="service_account_key"  \
+              token_scopes="https://www.googleapis.com/auth/cloud-platform" \
+              bindings=@tests/acceptance/configs/mybindings.hcl
+        [ "${status?}" -eq 0 ]
+    done
 }
 
 @test "Can successfully generate dynamic keys" {
