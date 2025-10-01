@@ -29,7 +29,7 @@ export SETUP_TEARDOWN_OUTFILE=/tmp/output.log
 setup(){
     { # Braces used to redirect all setup logs.
     # 1. Write bindings file.
-    cat > tests/acceptance/configs/mybindings.hcl <<EOF
+    cat <<EOF > tests/acceptance/configs/mybindings.hcl
 resource "//cloudresourcemanager.googleapis.com/projects/${GOOGLE_CLOUD_PROJECT_ID}" {
     roles = ["roles/viewer"]
 }
