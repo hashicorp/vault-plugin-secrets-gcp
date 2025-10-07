@@ -6,7 +6,7 @@
 * update acceptance test for PR #257 (#259)
 * [COMPLIANCE] Add Copyright and License Headers (#273)
 * init changie (#272)
-* VAULT-36974: Updating backport assistant workflow (#270)
+* Updating backport assistant workflow (#270)
 * small change on readme (#266)
 * [Compliance] - PR Template Changes Required (#254)
 * updating backport gha (#256)
