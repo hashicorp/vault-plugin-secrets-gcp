@@ -1,3 +1,20 @@
+## v0.23.0
+### October 7, 2025
+
+* Bump go version to 1.25.1 (#274)
+* Automated dependency upgrades (#253)
+* update acceptance test for PR #257 (#259)
+* [COMPLIANCE] Add Copyright and License Headers (#273)
+* init changie (#272)
+* Updating backport assistant workflow (#270)
+* small change on readme (#266)
+* [Compliance] - PR Template Changes Required (#254)
+* updating backport gha (#256)
+* Update changelog for latest patch releases (#265)
+* retry oauth token creation (#260)
+* retry verifySecretServiceKeyExists() (#258)
+* roleset: Also retry createIamBindings() (#257)
+
 ## v0.22.1
 
 IMPROVEMENTS:
