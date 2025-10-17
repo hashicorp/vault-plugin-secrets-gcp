@@ -1,8 +1,0 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
-kind: BUG FIXES
-body: Address more eventual consistency issues in GCP with rolesets and static-account's [GH-257](https://github.com/hashicorp/vault-plugin-secrets-gcp/pull/260)
-time: 2025-08-26T13:36:55.36154-07:00
-custom:
-    Issue: "260"
