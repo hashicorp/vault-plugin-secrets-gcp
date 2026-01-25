@@ -44,6 +44,7 @@ func TestConfig(t *testing.T) {
 		"rotation_period":            float64(0),
 		"rotation_schedule":          "",
 		"disable_automated_rotation": false,
+		"universe_domain":            "googleapis.com",
 	}
 
 	testConfigRead(t, b, reqStorage, expected)
