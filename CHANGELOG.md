@@ -2,7 +2,7 @@
 ## March 18, 2026
 
 IMPROVEMENTS:
-Update dependencies #282:
+* Update dependencies #282:
   * go 1.25.1 => 1.26.1
   * `golang.org/x/time` v0.13.0 => v0.14.0
   * `github.com/hashicorp/vault/sdk` v0.19.0 => v0.23.0
@@ -17,6 +17,7 @@ Update dependencies #282:
   * `go.opentelemetry.io/otel/metric` v1.37.0 => v1.39.0
   * `go.opentelemetry.io/otel/trace` v1.37.0 => v1.39.0
   * `github.com/go-jose/go-jose/v4` v4.1.1 => v4.1.3
+* Regenerate iamutil resources
 
 ## v0.23.0
 ### October 7, 2025
