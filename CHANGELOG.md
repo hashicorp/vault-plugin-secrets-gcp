@@ -2,7 +2,7 @@
 ## March 18, 2026
 
 IMPROVEMENTS:
-Update dependencies:
+Update dependencies #282:
   * go 1.25.1 => 1.26.1
   * `golang.org/x/time` v0.13.0 => v0.14.0
   * `github.com/hashicorp/vault/sdk` v0.19.0 => v0.23.0

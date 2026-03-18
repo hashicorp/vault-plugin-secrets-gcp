@@ -43,6 +43,7 @@ func TestConfig(t *testing.T) {
 		"rotation_window":            float64(0),
 		"rotation_period":            float64(0),
 		"rotation_schedule":          "",
+		"rotation_policy":            "",
 		"disable_automated_rotation": false,
 	}
 
