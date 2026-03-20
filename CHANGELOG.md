@@ -1,4 +1,12 @@
 ## v0.24.0
+### March 20, 2026
+
+* prepare v0.24.0 release (#282)
+* [COMPLIANCE] Update Copyright and License Headers (#280)
+* chore: remove changie (#277)
+* Update changelog (#276)
+
+## v0.24.0
 ## March 18, 2026
 
 IMPROVEMENTS:
