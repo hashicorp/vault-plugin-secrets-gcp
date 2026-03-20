@@ -9662,6 +9662,56 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 			},
 		},
 	},
+	"projects/zones/reservationSubBlocks": {
+		"compute": {
+			"beta": RestResource{
+				Name:               "reservationSubBlocks",
+				TypeKey:            "projects/zones/reservationSubBlocks",
+				Service:            "compute",
+				IsPreferredVersion: false,
+				Parameters:         []string{"project", "zone", "parentResource", "resource"},
+				CollectionReplacementKeys: map[string]string{
+					"projects":             "project",
+					"reservationSubBlocks": "resource",
+					"zones":                "zone",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://compute.googleapis.com/compute/beta/",
+					Path:       "projects/{project}/zones/{zone}/{+parentResource}/reservationSubBlocks/{resource}/getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://compute.googleapis.com/compute/beta/",
+					Path:          "projects/{project}/zones/{zone}/{+parentResource}/reservationSubBlocks/{resource}/setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1": RestResource{
+				Name:               "reservationSubBlocks",
+				TypeKey:            "projects/zones/reservationSubBlocks",
+				Service:            "compute",
+				IsPreferredVersion: true,
+				Parameters:         []string{"project", "zone", "parentResource", "resource"},
+				CollectionReplacementKeys: map[string]string{
+					"projects":             "project",
+					"reservationSubBlocks": "resource",
+					"zones":                "zone",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://compute.googleapis.com/compute/v1/",
+					Path:       "projects/{project}/zones/{zone}/{+parentResource}/reservationSubBlocks/{resource}/getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://compute.googleapis.com/compute/v1/",
+					Path:          "projects/{project}/zones/{zone}/{+parentResource}/reservationSubBlocks/{resource}/setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
 	"projects/zones/reservations": {
 		"compute": {
 			"alpha": RestResource{

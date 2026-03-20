@@ -157,8 +157,9 @@ func parseTypeKey(rootUrl string, mtd *discovery.RestMethod) (string, map[string
 	replacementMap := make(map[string]string)
 	for _, paramName := range mtd.ParameterOrder {
 		expectedTkn := fmt.Sprintf("{%s}", paramName)
+		expandedExpectedTkn := fmt.Sprintf("{+%s}", paramName)
 		for pathIdx < len(pathTkns) {
-			if strings.HasPrefix(pathTkns[pathIdx], expectedTkn) {
+			if strings.HasPrefix(pathTkns[pathIdx], expectedTkn) || strings.HasPrefix(pathTkns[pathIdx], expandedExpectedTkn) {
 				break
 			}
 			pathIdx++
@@ -167,9 +168,13 @@ func parseTypeKey(rootUrl string, mtd *discovery.RestMethod) (string, map[string
 		if pathIdx <= 0 || pathIdx >= len(pathTkns) {
 			return "", nil, fmt.Errorf("path '%s' has {%s} at out-of-bounds index %d", mtd.Path, paramName, pathIdx)
 		}
-		typeKey += fmt.Sprintf("/%s", pathTkns[pathIdx-1])
-		replacementMap[pathTkns[pathIdx-1]] = paramName
-		saneColId, ok := sanizitedCollectionIds[pathTkns[pathIdx-1]]
+		colID := pathTkns[pathIdx-1]
+		if strings.HasPrefix(colID, "{") {
+			continue
+		}
+		typeKey += fmt.Sprintf("/%s", colID)
+		replacementMap[colID] = paramName
+		saneColId, ok := sanizitedCollectionIds[colID]
 		if ok {
 			replacementMap[saneColId] = paramName
 		}
