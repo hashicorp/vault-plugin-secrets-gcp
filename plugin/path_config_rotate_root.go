@@ -14,6 +14,12 @@ import (
 	"google.golang.org/api/iam/v1"
 )
 
+const (
+	// Event operations for root rotation
+	evtRootRotate     = "root-rotate"
+	evtRootRotateFail = "root-rotate-fail"
+)
+
 func pathConfigRotateRoot(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: "config/rotate-root",
@@ -50,8 +56,13 @@ func (b *backend) pathConfigRotateRootWrite(ctx context.Context, req *logical.Re
 	// Parse the credential JSON to extract the private key ID to return in the response.
 	creds, err := gcputil.Credentials(cfg.CredentialsRaw)
 	if err != nil {
+		// Send event notification for failed root rotation
+		b.gcpEvent(ctx, evtRootRotateFail, req.Path, "", true)
 		return nil, fmt.Errorf("rotated credentials but failed to unmarshal: %w", err)
 	}
+
+	// Send event notification for rotate root
+	b.gcpEvent(ctx, evtRootRotate, req.Path, "", true)
 
 	return &logical.Response{
 		Data: map[string]interface{}{

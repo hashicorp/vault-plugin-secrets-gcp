@@ -18,6 +18,11 @@ import (
 	"github.com/hashicorp/vault/sdk/rotation"
 )
 
+const (
+	// Event operations for config
+	evtConfigWrite = "config-write"
+)
+
 func pathConfig(b *backend) *framework.Path {
 	p := &framework.Path{
 		Pattern: "config",
@@ -222,6 +227,10 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 	if setNewCreds {
 		b.ClearCaches()
 	}
+
+	// Send event notification for config write
+	b.gcpEvent(ctx, evtConfigWrite, req.Path, "", true)
+
 	return nil, nil
 }
 

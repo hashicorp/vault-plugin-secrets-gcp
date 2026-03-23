@@ -287,6 +287,29 @@ func (b *backend) invalidate(ctx context.Context, key string) {
 	}
 }
 
+// gcpEvent sends an event notification for GCP operations.
+func (b *backend) gcpEvent(ctx context.Context,
+	operation string,
+	path string,
+	name string,
+	modified bool,
+	additionalMetadataPairs ...string,
+) {
+	metadata := []string{
+		logical.EventMetadataModified, fmt.Sprintf("%t", modified),
+		logical.EventMetadataOperation, operation,
+		logical.EventMetadataPath, path,
+	}
+	if name != "" {
+		metadata = append(metadata, "name", name)
+	}
+	metadata = append(metadata, additionalMetadataPairs...)
+	err := logical.SendEvent(ctx, b, fmt.Sprintf("gcp/%s", operation), metadata...)
+	if err != nil && err != framework.ErrNoEvents {
+		b.Logger().Error("Error sending event", "name", name, "operation", operation, "path", path, "error", err)
+	}
+}
+
 const backendHelp = `
 The GCP secrets engine dynamically generates Google Cloud service account keys
 and OAuth access tokens based on predefined Cloud IAM policies. This enables
