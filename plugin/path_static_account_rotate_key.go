@@ -39,6 +39,7 @@ func pathStaticAccountRotateKey(b *backend) *framework.Path {
 }
 
 func (b *backend) pathStaticAccountRotateKey(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	b.Metrics.GetNumRotationRequestsCounter().Inc()
 	nameRaw, ok := d.GetOk("name")
 	if !ok {
 		return logical.ErrorResponse("name is required"), nil
@@ -50,6 +51,7 @@ func (b *backend) pathStaticAccountRotateKey(ctx context.Context, req *logical.R
 
 	acct, err := b.getStaticAccount(name, ctx, req.Storage)
 	if err != nil {
+		b.Metrics.GetNumRotationErrorsCounter().Inc()
 		return nil, err
 	}
 	if acct == nil {
@@ -68,6 +70,7 @@ func (b *backend) pathStaticAccountRotateKey(ctx context.Context, req *logical.R
 	oldTokenGen := acct.TokenGen
 	oldWalId, err := b.addWalRoleSetServiceAccountKey(ctx, req, acct.Name, &acct.ServiceAccountId, oldTokenGen.KeyName)
 	if err != nil {
+		b.Metrics.GetNumRotationErrorsCounter().Inc()
 		return nil, err
 	}
 
@@ -76,6 +79,7 @@ func (b *backend) pathStaticAccountRotateKey(ctx context.Context, req *logical.R
 	// the old token generator, so we don't add a separate WAL for that.
 	newWalId, err := b.addWalRoleSetServiceAccountKey(ctx, req, acct.Name, &acct.ServiceAccountId, "")
 	if err != nil {
+		b.Metrics.GetNumRotationErrorsCounter().Inc()
 		return nil, err
 	}
 

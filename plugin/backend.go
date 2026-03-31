@@ -6,7 +6,6 @@ package gcpsecrets
 import (
 	"context"
 	"fmt"
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/metrics"
 	"net/http"
 	"strings"
 	"sync"
@@ -56,9 +55,6 @@ type backend struct {
 	rolesetLock             sync.Mutex
 	staticAccountLock       sync.Mutex
 	impersonatedAccountLock sync.Mutex
-
-	// add metrics to the backend
-	*metrics.PluginMetrics
 }
 
 // Factory returns a new backend as logical.Backend.
@@ -74,13 +70,6 @@ func Backend() *backend {
 	b := &backend{
 		cache:     cache.New(),
 		resources: iamutil.GetEnabledResources(),
-	}
-
-	// Initialize the plugin metrics
-	counters := metrics.GetBasicCounters(userAgentPluginName)
-	b.PluginMetrics = &metrics.PluginMetrics{
-		TotalRequests: counters[userAgentPluginName+"_total_requests"],
-		TotalErrors:   counters[userAgentPluginName+"_total_errors"],
 	}
 
 	b.Backend = &framework.Backend{
@@ -118,9 +107,6 @@ func Backend() *backend {
 				pathImpersonatedAccount(b),
 				pathImpersonatedAccountList(b),
 				pathImpersonatedAccountSecretAccessToken(b),
-
-				// Metrics
-				pathMetrics(b),
 			},
 		),
 		Secrets: []*framework.Secret{

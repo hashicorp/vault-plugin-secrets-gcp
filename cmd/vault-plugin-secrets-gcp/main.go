@@ -4,7 +4,9 @@
 package main
 
 import (
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
+	"net/http"
 	"os"
 
 	gcpsecrets "github.com/hashicorp/vault-plugin-secrets-gcp/plugin"
@@ -19,6 +21,12 @@ func main() {
 
 	tlsConfig := apiClientMeta.GetTLSConfig()
 	tlsProviderFunc := api.VaultPluginTLSProvider(tlsConfig)
+
+	// serve the metrics endpoint in a goroutine to not block plugin
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		_ = http.ListenAndServe("127.0.0.1:9090", nil)
+	}()
 
 	err := plugin.ServeMultiplex(&plugin.ServeOpts{
 		BackendFactoryFunc: gcpsecrets.Factory,

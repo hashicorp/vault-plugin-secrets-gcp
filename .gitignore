@@ -63,6 +63,9 @@ tags
 ui/dist
 ui/tmp
 
+# scratch files
+tmp/
+
 # dependencies
 ui/node_modules
 ui/bower_components

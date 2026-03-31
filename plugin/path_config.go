@@ -47,14 +47,14 @@ func pathConfig(b *backend) *framework.Path {
 
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation: &framework.PathOperation{
-				Callback: b.MetricsCallbackRequestWrapper(b.pathConfigRead),
+				Callback: b.pathConfigRead,
 				DisplayAttrs: &framework.DisplayAttributes{
 					OperationVerb:   "read",
 					OperationSuffix: "configuration",
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback: b.MetricsCallbackRequestWrapper(b.pathConfigWrite),
+				Callback: b.pathConfigWrite,
 				DisplayAttrs: &framework.DisplayAttributes{
 					OperationVerb: "configure",
 				},

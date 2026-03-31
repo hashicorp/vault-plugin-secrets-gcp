@@ -38,7 +38,9 @@ func pathConfigRotateRoot(b *backend) *framework.Path {
 }
 
 func (b *backend) pathConfigRotateRootWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	b.Metrics.GetNumRotationRequestsCounter().Inc()
 	if err := b.rotateRootCredential(ctx, req); err != nil {
+		b.Metrics.GetNumRotationErrorsCounter().Inc()
 		return nil, err
 	}
 
