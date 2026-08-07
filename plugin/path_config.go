@@ -47,15 +47,67 @@ func pathConfig(b *backend) *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathConfigRead,
+				Summary:  "Return the GCP secrets engine configuration.",
 				DisplayAttrs: &framework.DisplayAttributes{
 					OperationVerb:   "read",
 					OperationSuffix: "configuration",
 				},
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields: map[string]*framework.FieldSchema{
+							"ttl": {
+								Type:        framework.TypeInt,
+								Description: "Default lease for generated keys, in seconds.",
+							},
+							"max_ttl": {
+								Type:        framework.TypeInt,
+								Description: "Maximum lifetime of generated keys, in seconds.",
+							},
+							"service_account_email": {
+								Type:        framework.TypeString,
+								Description: "Email ID of the service account used for Workload Identity Federation.",
+							},
+							"identity_token_audience": {
+								Type:        framework.TypeString,
+								Description: "Audience of plugin identity tokens.",
+							},
+							"identity_token_ttl": {
+								Type:        framework.TypeInt,
+								Description: "Time-to-live of plugin identity tokens, in seconds.",
+							},
+							"rotation_schedule": {
+								Type:        framework.TypeString,
+								Description: "CRON-style schedule for automated root credential rotation.",
+							},
+							"rotation_window": {
+								Type:        framework.TypeInt,
+								Description: "Time window in seconds for automated rotation to complete.",
+							},
+							"rotation_period": {
+								Type:        framework.TypeInt,
+								Description: "Period in seconds between automated root credential rotations.",
+							},
+							"disable_automated_rotation": {
+								Type:        framework.TypeBool,
+								Description: "Whether automated rotation is disabled.",
+							},
+							"rotation_policy": {
+								Type:        framework.TypeString,
+								Description: "Name of the rotation policy for automated root credential rotation.",
+							},
+						},
+					}},
+				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathConfigWrite,
+				Summary:  "Configure the GCP secrets engine.",
 				DisplayAttrs: &framework.DisplayAttributes{
 					OperationVerb: "configure",
+				},
+				Responses: map[int][]framework.Response{
+					204: {{Description: "No Content"}},
 				},
 				ForwardPerformanceSecondary: true,
 				ForwardPerformanceStandby:   true,
@@ -222,9 +274,7 @@ func writeConfig(ctx context.Context, storage logical.Storage, config config) (e
 	return nil
 }
 
-const pathConfigHelpSyn = `
-Configure the GCP backend.
-`
+const pathConfigHelpSyn = `Configure the GCP secrets engine.`
 
 const pathConfigHelpDesc = `
 The GCP backend requires credentials for managing IAM service accounts and keys

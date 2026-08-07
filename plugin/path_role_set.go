@@ -51,17 +51,57 @@ func pathRoleSet(b *backend) *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.DeleteOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetDelete,
+				Summary:  "Delete a roleset.",
+				Responses: map[int][]framework.Response{
+					204: {{Description: "No Content"}},
+				},
 			},
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetRead,
+				Summary:  "Return a roleset.",
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields: map[string]*framework.FieldSchema{
+							"secret_type": {
+								Type:        framework.TypeString,
+								Description: "Type of secret generated for this roleset.",
+							},
+							"bindings": {
+								Type:        framework.TypeString,
+								Description: "Bindings configuration for the roleset.",
+							},
+							"service_account_email": {
+								Type:        framework.TypeString,
+								Description: "Email of the GCP service account for this roleset.",
+							},
+							"project": {
+								Type:        framework.TypeString,
+								Description: "GCP project of the roleset service account.",
+							},
+							"token_scopes": {
+								Type:        framework.TypeSlice,
+								Description: "OAuth scopes for access tokens generated under this roleset.",
+							},
+						},
+					}},
+				},
 			},
 			logical.CreateOperation: &framework.PathOperation{
 				Callback:                    b.pathRoleSetCreateUpdate,
+				Summary:                     "Create a roleset.",
+				Responses: map[int][]framework.Response{
+					204: {{Description: "No Content"}},
+				},
 				ForwardPerformanceStandby:   true,
 				ForwardPerformanceSecondary: true,
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback:                    b.pathRoleSetCreateUpdate,
+				Summary:                     "Update a roleset.",
+				Responses: map[int][]framework.Response{
+					204: {{Description: "No Content"}},
+				},
 				ForwardPerformanceStandby:   true,
 				ForwardPerformanceSecondary: true,
 			},
@@ -83,6 +123,18 @@ func pathRoleSetList(b *backend) *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ListOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetList,
+				Summary:  "List all rolesets.",
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields: map[string]*framework.FieldSchema{
+							"keys": {
+								Type:        framework.TypeSlice,
+								Description: "List of roleset names.",
+							},
+						},
+					}},
+				},
 			},
 		},
 		HelpSynopsis:    pathListRoleSetHelpSyn,
@@ -109,6 +161,10 @@ func pathRoleSetRotateAccount(b *backend) *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback:                    b.pathRoleSetRotateAccount,
+				Summary:                     "Rotate the service account for a roleset.",
+				Responses: map[int][]framework.Response{
+					204: {{Description: "No Content"}},
+				},
 				ForwardPerformanceStandby:   true,
 				ForwardPerformanceSecondary: true,
 			},
@@ -136,6 +192,10 @@ func pathRoleSetRotateKey(b *backend) *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback:                    b.pathRoleSetRotateKey,
+				Summary:                     "Rotate the service account key for a roleset.",
+				Responses: map[int][]framework.Response{
+					204: {{Description: "No Content"}},
+				},
 				ForwardPerformanceStandby:   true,
 				ForwardPerformanceSecondary: true,
 			},

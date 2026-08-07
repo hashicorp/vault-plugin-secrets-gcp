@@ -53,17 +53,57 @@ func pathStaticAccount(b *backend) *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.DeleteOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountDelete,
+				Summary:  "Delete a static account.",
+				Responses: map[int][]framework.Response{
+					204: {{Description: "No Content"}},
+				},
 			},
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountRead,
+				Summary:  "Return a static account.",
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields: map[string]*framework.FieldSchema{
+							"service_account_project": {
+								Type:        framework.TypeString,
+								Description: "GCP project of the static service account.",
+							},
+							"service_account_email": {
+								Type:        framework.TypeString,
+								Description: "Email of the static GCP service account.",
+							},
+							"secret_type": {
+								Type:        framework.TypeString,
+								Description: "Type of secret generated for this static account.",
+							},
+							"bindings": {
+								Type:        framework.TypeString,
+								Description: "Bindings configuration for the static account.",
+							},
+							"token_scopes": {
+								Type:        framework.TypeSlice,
+								Description: "OAuth scopes for access tokens generated under this static account.",
+							},
+						},
+					}},
+				},
 			},
 			logical.CreateOperation: &framework.PathOperation{
 				Callback:                    b.pathStaticAccountCreate,
+				Summary:                     "Create a static account.",
+				Responses: map[int][]framework.Response{
+					204: {{Description: "No Content"}},
+				},
 				ForwardPerformanceStandby:   true,
 				ForwardPerformanceSecondary: true,
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback:                    b.pathStaticAccountUpdate,
+				Summary:                     "Update a static account.",
+				Responses: map[int][]framework.Response{
+					204: {{Description: "No Content"}},
+				},
 				ForwardPerformanceStandby:   true,
 				ForwardPerformanceSecondary: true,
 			},
@@ -85,6 +125,18 @@ func pathStaticAccountList(b *backend) *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ListOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountList,
+				Summary:  "List all static accounts.",
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields: map[string]*framework.FieldSchema{
+							"keys": {
+								Type:        framework.TypeSlice,
+								Description: "List of static account names.",
+							},
+						},
+					}},
+				},
 			},
 		},
 		HelpSynopsis:    pathListStaticAccountHelpSyn,

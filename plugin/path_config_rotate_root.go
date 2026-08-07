@@ -27,6 +27,18 @@ func pathConfigRotateRoot(b *backend) *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback:                    b.pathConfigRotateRootWrite,
+				Summary:                     "Rotate the root credentials for the GCP secrets engine.",
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields: map[string]*framework.FieldSchema{
+							"private_key_id": {
+								Type:        framework.TypeString,
+								Description: "ID of the new GCP service account key.",
+							},
+						},
+					}},
+				},
 				ForwardPerformanceStandby:   true,
 				ForwardPerformanceSecondary: true,
 			},
@@ -141,9 +153,7 @@ func (b *backend) rotateRootCredential(ctx context.Context, req *logical.Request
 	return nil
 }
 
-const pathConfigRotateRootHelpSyn = `
-Request to rotate the GCP credentials used by Vault
-`
+const pathConfigRotateRootHelpSyn = `Request to rotate the GCP credentials used by Vault.`
 
 const pathConfigRotateRootHelpDesc = `
 This path attempts to rotate the GCP service account credentials used by Vault
