@@ -88,8 +88,8 @@ func pathRoleSet(b *backend) *framework.Path {
 				},
 			},
 			logical.CreateOperation: &framework.PathOperation{
-				Callback:                    b.pathRoleSetCreateUpdate,
-				Summary:                     "Create a roleset.",
+				Callback: b.pathRoleSetCreateUpdate,
+				Summary:  "Create a roleset.",
 				Responses: map[int][]framework.Response{
 					204: {{Description: "No Content"}},
 				},
@@ -97,8 +97,8 @@ func pathRoleSet(b *backend) *framework.Path {
 				ForwardPerformanceSecondary: true,
 			},
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback:                    b.pathRoleSetCreateUpdate,
-				Summary:                     "Update a roleset.",
+				Callback: b.pathRoleSetCreateUpdate,
+				Summary:  "Update a roleset.",
 				Responses: map[int][]framework.Response{
 					204: {{Description: "No Content"}},
 				},
@@ -160,8 +160,8 @@ func pathRoleSetRotateAccount(b *backend) *framework.Path {
 		ExistenceCheck: b.pathRoleSetExistenceCheck("name"),
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback:                    b.pathRoleSetRotateAccount,
-				Summary:                     "Rotate the service account for a roleset.",
+				Callback: b.pathRoleSetRotateAccount,
+				Summary:  "Rotate the service account for a roleset.",
 				Responses: map[int][]framework.Response{
 					204: {{Description: "No Content"}},
 				},
@@ -191,8 +191,8 @@ func pathRoleSetRotateKey(b *backend) *framework.Path {
 		ExistenceCheck: b.pathRoleSetExistenceCheck("name"),
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback:                    b.pathRoleSetRotateKey,
-				Summary:                     "Rotate the service account key for a roleset.",
+				Callback: b.pathRoleSetRotateKey,
+				Summary:  "Rotate the service account key for a roleset.",
 				Responses: map[int][]framework.Response{
 					204: {{Description: "No Content"}},
 				},

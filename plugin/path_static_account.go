@@ -90,8 +90,8 @@ func pathStaticAccount(b *backend) *framework.Path {
 				},
 			},
 			logical.CreateOperation: &framework.PathOperation{
-				Callback:                    b.pathStaticAccountCreate,
-				Summary:                     "Create a static account.",
+				Callback: b.pathStaticAccountCreate,
+				Summary:  "Create a static account.",
 				Responses: map[int][]framework.Response{
 					204: {{Description: "No Content"}},
 				},
@@ -99,8 +99,8 @@ func pathStaticAccount(b *backend) *framework.Path {
 				ForwardPerformanceSecondary: true,
 			},
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback:                    b.pathStaticAccountUpdate,
-				Summary:                     "Update a static account.",
+				Callback: b.pathStaticAccountUpdate,
+				Summary:  "Update a static account.",
 				Responses: map[int][]framework.Response{
 					204: {{Description: "No Content"}},
 				},

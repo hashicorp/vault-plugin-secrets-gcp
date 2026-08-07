@@ -28,8 +28,8 @@ func pathStaticAccountRotateKey(b *backend) *framework.Path {
 		ExistenceCheck: b.pathStaticAccountExistenceCheck,
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback:                    b.pathStaticAccountRotateKey,
-				Summary:                     "Rotate the service account key for a static account.",
+				Callback: b.pathStaticAccountRotateKey,
+				Summary:  "Rotate the service account key for a static account.",
 				Responses: map[int][]framework.Response{
 					204: {{Description: "No Content"}},
 				},

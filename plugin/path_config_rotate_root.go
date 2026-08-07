@@ -26,8 +26,8 @@ func pathConfigRotateRoot(b *backend) *framework.Path {
 
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.UpdateOperation: &framework.PathOperation{
-				Callback:                    b.pathConfigRotateRootWrite,
-				Summary:                     "Rotate the root credentials for the GCP secrets engine.",
+				Callback: b.pathConfigRotateRootWrite,
+				Summary:  "Rotate the root credentials for the GCP secrets engine.",
 				Responses: map[int][]framework.Response{
 					200: {{
 						Description: "OK",
