@@ -14,6 +14,23 @@ import (
 	"google.golang.org/api/option"
 )
 
+func responseFieldsImpersonatedAccountAccessToken() map[string]*framework.FieldSchema {
+	return map[string]*framework.FieldSchema{
+		"token": {
+			Type:        framework.TypeString,
+			Description: "OAuth2 access token.",
+		},
+		"token_ttl": {
+			Type:        framework.TypeInt,
+			Description: "Remaining lifetime of the token in seconds.",
+		},
+		"expires_at_seconds": {
+			Type:        framework.TypeInt,
+			Description: "Unix timestamp at which the token expires.",
+		},
+	}
+}
+
 func pathImpersonatedAccountSecretAccessToken(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s/token", impersonatedAccountPathPrefix, framework.GenericNameRegex("name")),
@@ -32,25 +49,12 @@ func pathImpersonatedAccountSecretAccessToken(b *backend) *framework.Path {
 				Callback: b.pathImpersonatedAccountAccessToken,
 				Summary:  "Generate an access token for an impersonated account.",
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "impersonated-account-access-token",
+					OperationSuffix: "impersonated-account-access-token2",
 				},
 				Responses: map[int][]framework.Response{
 					200: {{
 						Description: "OK",
-						Fields: map[string]*framework.FieldSchema{
-							"token": {
-								Type:        framework.TypeString,
-								Description: "OAuth2 access token.",
-							},
-							"token_ttl": {
-								Type:        framework.TypeInt,
-								Description: "Remaining lifetime of the token in seconds.",
-							},
-							"expires_at_seconds": {
-								Type:        framework.TypeInt,
-								Description: "Unix timestamp at which the token expires.",
-							},
-						},
+						Fields:      responseFieldsImpersonatedAccountAccessToken(),
 					}},
 				},
 			},
@@ -58,25 +62,12 @@ func pathImpersonatedAccountSecretAccessToken(b *backend) *framework.Path {
 				Callback: b.pathImpersonatedAccountAccessToken,
 				Summary:  "Generate an access token for an impersonated account.",
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "impersonated-account-access-token2",
+					OperationSuffix: "impersonated-account-access-token",
 				},
 				Responses: map[int][]framework.Response{
 					200: {{
 						Description: "OK",
-						Fields: map[string]*framework.FieldSchema{
-							"token": {
-								Type:        framework.TypeString,
-								Description: "OAuth2 access token.",
-							},
-							"token_ttl": {
-								Type:        framework.TypeInt,
-								Description: "Remaining lifetime of the token in seconds.",
-							},
-							"expires_at_seconds": {
-								Type:        framework.TypeInt,
-								Description: "Unix timestamp at which the token expires.",
-							},
-						},
+						Fields:      responseFieldsImpersonatedAccountAccessToken(),
 					}},
 				},
 			},

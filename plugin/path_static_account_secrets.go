@@ -11,6 +11,40 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
+func responseFieldsStaticAccountKey() map[string]*framework.FieldSchema {
+	return map[string]*framework.FieldSchema{
+		"private_key_data": {
+			Type:        framework.TypeString,
+			Description: "Base64-encoded private key data for the service account key.",
+		},
+		"key_algorithm": {
+			Type:        framework.TypeString,
+			Description: "Algorithm used to generate the service account key.",
+		},
+		"key_type": {
+			Type:        framework.TypeString,
+			Description: "Private key type of the service account key.",
+		},
+	}
+}
+
+func responseFieldsStaticAccountAccessToken() map[string]*framework.FieldSchema {
+	return map[string]*framework.FieldSchema{
+		"token": {
+			Type:        framework.TypeString,
+			Description: "OAuth2 access token.",
+		},
+		"token_ttl": {
+			Type:        framework.TypeInt,
+			Description: "Remaining lifetime of the token in seconds.",
+		},
+		"expires_at_seconds": {
+			Type:        framework.TypeInt,
+			Description: "Unix timestamp at which the token expires.",
+		},
+	}
+}
+
 func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("%s/%s/key", staticAccountPathPrefix, framework.GenericNameRegex("name")),
@@ -51,20 +85,7 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 				Responses: map[int][]framework.Response{
 					200: {{
 						Description: "OK",
-						Fields: map[string]*framework.FieldSchema{
-							"private_key_data": {
-								Type:        framework.TypeString,
-								Description: "Base64-encoded private key data for the service account key.",
-							},
-							"key_algorithm": {
-								Type:        framework.TypeString,
-								Description: "Algorithm used to generate the service account key.",
-							},
-							"key_type": {
-								Type:        framework.TypeString,
-								Description: "Private key type of the service account key.",
-							},
-						},
+						Fields:      responseFieldsStaticAccountKey(),
 					}},
 				},
 			},
@@ -77,20 +98,7 @@ func pathStaticAccountSecretServiceAccountKey(b *backend) *framework.Path {
 				Responses: map[int][]framework.Response{
 					200: {{
 						Description: "OK",
-						Fields: map[string]*framework.FieldSchema{
-							"private_key_data": {
-								Type:        framework.TypeString,
-								Description: "Base64-encoded private key data for the service account key.",
-							},
-							"key_algorithm": {
-								Type:        framework.TypeString,
-								Description: "Algorithm used to generate the service account key.",
-							},
-							"key_type": {
-								Type:        framework.TypeString,
-								Description: "Private key type of the service account key.",
-							},
-						},
+						Fields:      responseFieldsStaticAccountKey(),
 					}},
 				},
 			},
@@ -123,20 +131,7 @@ func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 				Responses: map[int][]framework.Response{
 					200: {{
 						Description: "OK",
-						Fields: map[string]*framework.FieldSchema{
-							"token": {
-								Type:        framework.TypeString,
-								Description: "OAuth2 access token.",
-							},
-							"token_ttl": {
-								Type:        framework.TypeInt,
-								Description: "Remaining lifetime of the token in seconds.",
-							},
-							"expires_at_seconds": {
-								Type:        framework.TypeInt,
-								Description: "Unix timestamp at which the token expires.",
-							},
-						},
+						Fields:      responseFieldsStaticAccountAccessToken(),
 					}},
 				},
 			},
@@ -149,20 +144,7 @@ func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 				Responses: map[int][]framework.Response{
 					200: {{
 						Description: "OK",
-						Fields: map[string]*framework.FieldSchema{
-							"token": {
-								Type:        framework.TypeString,
-								Description: "OAuth2 access token.",
-							},
-							"token_ttl": {
-								Type:        framework.TypeInt,
-								Description: "Remaining lifetime of the token in seconds.",
-							},
-							"expires_at_seconds": {
-								Type:        framework.TypeInt,
-								Description: "Unix timestamp at which the token expires.",
-							},
-						},
+						Fields:      responseFieldsStaticAccountAccessToken(),
 					}},
 				},
 			},
