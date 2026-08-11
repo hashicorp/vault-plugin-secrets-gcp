@@ -49,7 +49,7 @@ func pathImpersonatedAccountSecretAccessToken(b *backend) *framework.Path {
 				Callback: b.pathImpersonatedAccountAccessToken,
 				Summary:  "Generate an access token for an impersonated account.",
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "impersonated-account-access-token2",
+					OperationSuffix: "impersonated-account-access-token",
 				},
 				Responses: map[int][]framework.Response{
 					200: {{
@@ -62,7 +62,7 @@ func pathImpersonatedAccountSecretAccessToken(b *backend) *framework.Path {
 				Callback: b.pathImpersonatedAccountAccessToken,
 				Summary:  "Generate an access token for an impersonated account.",
 				DisplayAttrs: &framework.DisplayAttributes{
-					OperationSuffix: "impersonated-account-access-token",
+					OperationSuffix: "impersonated-account-access-token2",
 				},
 				Responses: map[int][]framework.Response{
 					200: {{
