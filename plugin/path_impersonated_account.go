@@ -46,15 +46,51 @@ func pathImpersonatedAccount(b *backend) *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.DeleteOperation: &framework.PathOperation{
 				Callback: b.pathImpersonatedAccountDelete,
+				Summary:  "Delete an impersonated account.",
+				Responses: map[int][]framework.Response{
+					204: {{Description: "No Content"}},
+				},
 			},
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathImpersonatedAccountRead,
+				Summary:  "Return an impersonated account.",
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields: map[string]*framework.FieldSchema{
+							"service_account_project": {
+								Type:        framework.TypeString,
+								Description: "GCP project of the impersonated service account.",
+							},
+							"service_account_email": {
+								Type:        framework.TypeString,
+								Description: "Email of the impersonated GCP service account.",
+							},
+							"token_scopes": {
+								Type:        framework.TypeSlice,
+								Description: "List of OAuth scopes assigned to access tokens.",
+							},
+							"ttl": {
+								Type:        framework.TypeInt,
+								Description: "Lifetime of the token in seconds.",
+							},
+						},
+					}},
+				},
 			},
 			logical.CreateOperation: &framework.PathOperation{
 				Callback: b.pathImpersonatedAccountCreate,
+				Summary:  "Create an impersonated account.",
+				Responses: map[int][]framework.Response{
+					204: {{Description: "No Content"}},
+				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathImpersonatedAccountUpdate,
+				Summary:  "Update an impersonated account.",
+				Responses: map[int][]framework.Response{
+					204: {{Description: "No Content"}},
+				},
 			},
 		},
 		HelpSynopsis:    pathImpersonatedAccountHelpSyn,
@@ -74,6 +110,18 @@ func pathImpersonatedAccountList(b *backend) *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ListOperation: &framework.PathOperation{
 				Callback: b.pathImpersonatedAccountList,
+				Summary:  "List all impersonated accounts.",
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields: map[string]*framework.FieldSchema{
+							"keys": {
+								Type:        framework.TypeSlice,
+								Description: "List of impersonated account names.",
+							},
+						},
+					}},
+				},
 			},
 		},
 		HelpSynopsis:    pathListImpersonatedAccountHelpSyn,

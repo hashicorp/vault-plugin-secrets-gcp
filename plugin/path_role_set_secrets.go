@@ -11,6 +11,40 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
+func responseFieldsRoleSetKey() map[string]*framework.FieldSchema {
+	return map[string]*framework.FieldSchema{
+		"private_key_data": {
+			Type:        framework.TypeString,
+			Description: "Base64-encoded private key data for the service account key.",
+		},
+		"key_algorithm": {
+			Type:        framework.TypeString,
+			Description: "Algorithm used to generate the service account key.",
+		},
+		"key_type": {
+			Type:        framework.TypeString,
+			Description: "Private key type of the service account key.",
+		},
+	}
+}
+
+func responseFieldsRoleSetAccessToken() map[string]*framework.FieldSchema {
+	return map[string]*framework.FieldSchema{
+		"token": {
+			Type:        framework.TypeString,
+			Description: "OAuth2 access token.",
+		},
+		"token_ttl": {
+			Type:        framework.TypeInt,
+			Description: "Remaining lifetime of the token in seconds.",
+		},
+		"expires_at_seconds": {
+			Type:        framework.TypeInt,
+			Description: "Unix timestamp at which the token expires.",
+		},
+	}
+}
+
 func fieldSchemaRoleSetServiceAccountKey() map[string]*framework.FieldSchema {
 	return map[string]*framework.FieldSchema{
 		"roleset": {
@@ -59,14 +93,28 @@ func pathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretKey,
+				Summary:  "Generate a service account key for a roleset.",
 				DisplayAttrs: &framework.DisplayAttributes{
 					OperationSuffix: "roleset-key2",
+				},
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields:      responseFieldsRoleSetKey(),
+					}},
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretKey,
+				Summary:  "Generate a service account key for a roleset.",
 				DisplayAttrs: &framework.DisplayAttributes{
 					OperationSuffix: "roleset-key",
+				},
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields:      responseFieldsRoleSetKey(),
+					}},
 				},
 			},
 		},
@@ -88,14 +136,28 @@ func deprecatedPathRoleSetSecretServiceAccountKey(b *backend) *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretKey,
+				Summary:  "Generate a service account key for a roleset.",
 				DisplayAttrs: &framework.DisplayAttributes{
 					OperationSuffix: "roleset-key4",
+				},
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields:      responseFieldsRoleSetKey(),
+					}},
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretKey,
+				Summary:  "Generate a service account key for a roleset.",
 				DisplayAttrs: &framework.DisplayAttributes{
 					OperationSuffix: "roleset-key3",
+				},
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields:      responseFieldsRoleSetKey(),
+					}},
 				},
 			},
 		},
@@ -116,14 +178,28 @@ func pathRoleSetSecretAccessToken(b *backend) *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretAccessToken,
+				Summary:  "Generate an access token for a roleset.",
 				DisplayAttrs: &framework.DisplayAttributes{
 					OperationSuffix: "roleset-access-token2",
+				},
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields:      responseFieldsRoleSetAccessToken(),
+					}},
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretAccessToken,
+				Summary:  "Generate an access token for a roleset.",
 				DisplayAttrs: &framework.DisplayAttributes{
 					OperationSuffix: "roleset-access-token",
+				},
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields:      responseFieldsRoleSetAccessToken(),
+					}},
 				},
 			},
 		},
@@ -145,14 +221,28 @@ func deprecatedPathRoleSetSecretAccessToken(b *backend) *framework.Path {
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretAccessToken,
+				Summary:  "Generate an access token for a roleset.",
 				DisplayAttrs: &framework.DisplayAttributes{
 					OperationSuffix: "roleset-access-token4",
+				},
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields:      responseFieldsRoleSetAccessToken(),
+					}},
 				},
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetSecretAccessToken,
+				Summary:  "Generate an access token for a roleset.",
 				DisplayAttrs: &framework.DisplayAttributes{
 					OperationSuffix: "roleset-access-token3",
+				},
+				Responses: map[int][]framework.Response{
+					200: {{
+						Description: "OK",
+						Fields:      responseFieldsRoleSetAccessToken(),
+					}},
 				},
 			},
 		},
