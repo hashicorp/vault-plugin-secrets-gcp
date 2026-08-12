@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
 	"github.com/hashicorp/vault/sdk/helper/pluginutil"
 	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/hashicorp/vault/sdk/rotation"
 )
 
 func pathConfig(b *backend) *framework.Path {
@@ -119,6 +120,11 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 		return logical.ErrorResponse(err.Error()), nil
 	}
 
+	// set automated root rotation fields
+	if err := cfg.ParseAutomatedRotationFields(data); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
+
 	// set Service Account email
 	saEmail, ok := data.GetOk("service_account_email")
 	if ok {
@@ -165,15 +171,53 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 		cfg.MaxTTL = time.Duration(maxTTLRaw.(int)) * time.Second
 	}
 
-	rotationResp, err := cfg.HandleRotationJob(ctx, b.Backend, data, req)
-	if err != nil {
-		return logical.ErrorResponse(err.Error()), nil
+	var performedRotationManagerOpern string
+	if cfg.ShouldDeregisterRotationJob() {
+		performedRotationManagerOpern = "deregistration"
+		// Disable Automated Rotation and Deregister credentials if required
+		deregisterReq := &rotation.RotationJobDeregisterRequest{
+			MountPoint: req.MountPoint,
+			ReqPath:    req.Path,
+		}
+
+		b.Logger().Debug("Deregistering rotation job", "mount", req.MountPoint+req.Path)
+		if err := b.System().DeregisterRotationJob(ctx, deregisterReq); err != nil {
+			return logical.ErrorResponse("error deregistering rotation job: %s", err), nil
+		}
+	} else if cfg.ShouldRegisterRotationJob() {
+		performedRotationManagerOpern = "registration"
+		// Register the rotation job if it's required.
+		cfgReq := &rotation.RotationJobConfigureRequest{
+			MountPoint:       req.MountPoint,
+			ReqPath:          req.Path,
+			RotationSchedule: cfg.RotationSchedule,
+			RotationWindow:   cfg.RotationWindow,
+			RotationPeriod:   cfg.RotationPeriod,
+		}
+
+		b.Logger().Debug("Registering rotation job", "mount", req.MountPoint+req.Path)
+		if _, err = b.System().RegisterRotationJob(ctx, cfgReq); err != nil {
+			return logical.ErrorResponse("error registering rotation job: %s", err), nil
+		}
 	}
 
-	cfg.SetRotationInfo(rotationResp.RotationInfo)
+	entry, err := logical.StorageEntryJSON("config", cfg)
+	if err != nil {
+		return nil, err
+	}
 
-	err = writeConfig(ctx, req.Storage, *cfg)
-	_ = rotationResp.HandleStorageErrorAfterRotationJob(req, err)
+	if err := req.Storage.Put(ctx, entry); err != nil {
+		wrappedError := err
+		if performedRotationManagerOpern != "" {
+			b.Logger().Error("write to storage failed but the rotation manager still succeeded.",
+				"operation", performedRotationManagerOpern, "mount", req.MountPoint, "path", req.Path)
+
+			wrappedError = fmt.Errorf("write to storage failed but the rotation manager still succeeded; "+
+				"operation=%s, mount=%s, path=%s, storageError=%s", performedRotationManagerOpern, req.MountPoint, req.Path, err)
+		}
+
+		return nil, wrappedError
+	}
 
 	if setNewCreds {
 		b.ClearCaches()
@@ -190,7 +234,6 @@ type config struct {
 	ServiceAccountEmail string
 	pluginidentityutil.PluginIdentityTokenParams
 	automatedrotationutil.AutomatedRotationParams
-	automatedrotationutil.RotationInfoResponseParams
 }
 
 func getConfig(ctx context.Context, s logical.Storage) (*config, error) {
@@ -208,18 +251,6 @@ func getConfig(ctx context.Context, s logical.Storage) (*config, error) {
 	}
 
 	return &cfg, err
-}
-
-func writeConfig(ctx context.Context, storage logical.Storage, config config) (err error) {
-	entry, err := logical.StorageEntryJSON("config", config)
-	if err != nil {
-		return err
-	}
-	err = storage.Put(ctx, entry)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 const pathConfigHelpSyn = `
