@@ -21,11 +21,11 @@ func responseFieldsImpersonatedAccountAccessToken() map[string]*framework.FieldS
 			Description: "OAuth2 access token.",
 		},
 		"token_ttl": {
-			Type:        framework.TypeInt,
+			Type:        framework.TypeInt64,
 			Description: "Remaining lifetime of the token in seconds.",
 		},
 		"expires_at_seconds": {
-			Type:        framework.TypeInt,
+			Type:        framework.TypeInt64,
 			Description: "Unix timestamp at which the token expires.",
 		},
 	}
