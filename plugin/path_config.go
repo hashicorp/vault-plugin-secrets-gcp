@@ -57,11 +57,11 @@ func pathConfig(b *backend) *framework.Path {
 						Description: "OK",
 						Fields: map[string]*framework.FieldSchema{
 							"ttl": {
-								Type:        framework.TypeInt,
+								Type:        framework.TypeInt64,
 								Description: "Default lease for generated keys, in seconds.",
 							},
 							"max_ttl": {
-								Type:        framework.TypeInt,
+								Type:        framework.TypeInt64,
 								Description: "Maximum lifetime of generated keys, in seconds.",
 							},
 							"service_account_email": {
@@ -73,7 +73,7 @@ func pathConfig(b *backend) *framework.Path {
 								Description: "Audience of plugin identity tokens.",
 							},
 							"identity_token_ttl": {
-								Type:        framework.TypeInt,
+								Type:        framework.TypeInt64,
 								Description: "Time-to-live of plugin identity tokens, in seconds.",
 							},
 							"rotation_schedule": {
@@ -81,11 +81,11 @@ func pathConfig(b *backend) *framework.Path {
 								Description: "CRON-style schedule for automated root credential rotation.",
 							},
 							"rotation_window": {
-								Type:        framework.TypeInt,
+								Type:        framework.TypeFloat,
 								Description: "Time window in seconds for automated rotation to complete.",
 							},
 							"rotation_period": {
-								Type:        framework.TypeInt,
+								Type:        framework.TypeFloat,
 								Description: "Period in seconds between automated root credential rotations.",
 							},
 							"disable_automated_rotation": {
