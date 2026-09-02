@@ -81,7 +81,7 @@ func pathConfig(b *backend) *framework.Path {
 								Description: "CRON-style schedule for automated root credential rotation.",
 							},
 							"rotation_window": {
-								Type:        framework.TypeFloat,
+								Type:        framework.TypeDurationSecond,
 								Description: "Time window in seconds for automated rotation to complete.",
 							},
 							"rotation_period": {
