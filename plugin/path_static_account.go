@@ -126,17 +126,6 @@ func pathStaticAccountList(b *backend) *framework.Path {
 			logical.ListOperation: &framework.PathOperation{
 				Callback: b.pathStaticAccountList,
 				Summary:  "List all static accounts.",
-				Responses: map[int][]framework.Response{
-					200: {{
-						Description: "OK",
-						Fields: map[string]*framework.FieldSchema{
-							"keys": {
-								Type:        framework.TypeSlice,
-								Description: "List of static account names.",
-							},
-						},
-					}},
-				},
 			},
 		},
 		HelpSynopsis:    pathListStaticAccountHelpSyn,

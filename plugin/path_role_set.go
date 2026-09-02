@@ -124,17 +124,6 @@ func pathRoleSetList(b *backend) *framework.Path {
 			logical.ListOperation: &framework.PathOperation{
 				Callback: b.pathRoleSetList,
 				Summary:  "List all rolesets.",
-				Responses: map[int][]framework.Response{
-					200: {{
-						Description: "OK",
-						Fields: map[string]*framework.FieldSchema{
-							"keys": {
-								Type:        framework.TypeSlice,
-								Description: "List of roleset names.",
-							},
-						},
-					}},
-				},
 			},
 		},
 		HelpSynopsis:    pathListRoleSetHelpSyn,
