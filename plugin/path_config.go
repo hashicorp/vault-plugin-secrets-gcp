@@ -85,7 +85,7 @@ func pathConfig(b *backend) *framework.Path {
 								Description: "Time window in seconds for automated rotation to complete.",
 							},
 							"rotation_period": {
-								Type:        framework.TypeFloat,
+								Type:        framework.TypeDurationSecond,
 								Description: "Period in seconds between automated root credential rotations.",
 							},
 							"disable_automated_rotation": {
