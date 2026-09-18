@@ -429,6 +429,29 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 			},
 		},
 	},
+	"locations/workforcePools/providers/scimTenants": {
+		"iam": {
+			"v1": RestResource{
+				Name:                      "scimTenants",
+				TypeKey:                   "locations/workforcePools/providers/scimTenants",
+				Service:                   "iam",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "POST",
+					BaseURL:    "https://iam.googleapis.com/",
+					Path:       "v1/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://iam.googleapis.com/",
+					Path:          "v1/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
 	"organizations": {
 		"cloudresourcemanager": {
 			"v1": RestResource{
@@ -1799,6 +1822,50 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 					RequestFormat: `{"policy": %s}`,
 				},
 			},
+			"beta": RestResource{
+				Name:               "licenseCodes",
+				TypeKey:            "projects/licenseCodes",
+				Service:            "compute",
+				IsPreferredVersion: false,
+				Parameters:         []string{"project", "resource"},
+				CollectionReplacementKeys: map[string]string{
+					"licenseCodes": "resource",
+					"projects":     "project",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://compute.googleapis.com/compute/beta/",
+					Path:       "projects/{project}/global/licenseCodes/{resource}/getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://compute.googleapis.com/compute/beta/",
+					Path:          "projects/{project}/global/licenseCodes/{resource}/setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1": RestResource{
+				Name:               "licenseCodes",
+				TypeKey:            "projects/licenseCodes",
+				Service:            "compute",
+				IsPreferredVersion: true,
+				Parameters:         []string{"project", "resource"},
+				CollectionReplacementKeys: map[string]string{
+					"licenseCodes": "resource",
+					"projects":     "project",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://compute.googleapis.com/compute/v1/",
+					Path:       "projects/{project}/global/licenseCodes/{resource}/getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://compute.googleapis.com/compute/v1/",
+					Path:          "projects/{project}/global/licenseCodes/{resource}/setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
 		},
 	},
 	"projects/licenses": {
@@ -1913,6 +1980,90 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 			},
 		},
 	},
+	"projects/locations/agents": {
+		"aiplatform": {
+			"v1": RestResource{
+				Name:                      "agents",
+				TypeKey:                   "projects/locations/agents",
+				Service:                   "aiplatform",
+				IsPreferredVersion:        true,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "POST",
+					BaseURL:    "https://aiplatform.googleapis.com/",
+					Path:       "v1/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://aiplatform.googleapis.com/",
+					Path:          "v1/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1beta1": RestResource{
+				Name:                      "agents",
+				TypeKey:                   "projects/locations/agents",
+				Service:                   "aiplatform",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "POST",
+					BaseURL:    "https://aiplatform.googleapis.com/",
+					Path:       "v1beta1/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://aiplatform.googleapis.com/",
+					Path:          "v1beta1/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
+	"projects/locations/aiApplications": {
+		"agentregistry": {
+			"v1": RestResource{
+				Name:                      "aiApplications",
+				TypeKey:                   "projects/locations/aiApplications",
+				Service:                   "agentregistry",
+				IsPreferredVersion:        true,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://agentregistry.googleapis.com/",
+					Path:       "v1/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://agentregistry.googleapis.com/",
+					Path:          "v1/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1alpha": RestResource{
+				Name:                      "aiApplications",
+				TypeKey:                   "projects/locations/aiApplications",
+				Service:                   "agentregistry",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://agentregistry.googleapis.com/",
+					Path:       "v1alpha/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://agentregistry.googleapis.com/",
+					Path:          "v1alpha/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
 	"projects/locations/apis": {
 		"apigateway": {
 			"v1": RestResource{
@@ -1950,50 +2101,6 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 					HttpMethod:    "POST",
 					BaseURL:       "https://apigateway.googleapis.com/",
 					Path:          "v1beta/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-		"apigeeregistry": {
-			"v1": RestResource{
-				Name:                      "apis",
-				TypeKey:                   "projects/locations/apis",
-				Service:                   "apigeeregistry",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://apigeeregistry.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://apigeeregistry.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-	},
-	"projects/locations/apis/artifacts": {
-		"apigeeregistry": {
-			"v1": RestResource{
-				Name:                      "artifacts",
-				TypeKey:                   "projects/locations/apis/artifacts",
-				Service:                   "apigeeregistry",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://apigeeregistry.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://apigeeregistry.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
 					RequestFormat: `{"policy": %s}`,
 				},
 			},
@@ -2036,121 +2143,6 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 					HttpMethod:    "POST",
 					BaseURL:       "https://apigateway.googleapis.com/",
 					Path:          "v1beta/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-	},
-	"projects/locations/apis/deployments": {
-		"apigeeregistry": {
-			"v1": RestResource{
-				Name:                      "deployments",
-				TypeKey:                   "projects/locations/apis/deployments",
-				Service:                   "apigeeregistry",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://apigeeregistry.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://apigeeregistry.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-	},
-	"projects/locations/apis/versions": {
-		"apigeeregistry": {
-			"v1": RestResource{
-				Name:                      "versions",
-				TypeKey:                   "projects/locations/apis/versions",
-				Service:                   "apigeeregistry",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://apigeeregistry.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://apigeeregistry.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-	},
-	"projects/locations/apis/versions/artifacts": {
-		"apigeeregistry": {
-			"v1": RestResource{
-				Name:                      "artifacts",
-				TypeKey:                   "projects/locations/apis/versions/artifacts",
-				Service:                   "apigeeregistry",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://apigeeregistry.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://apigeeregistry.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-	},
-	"projects/locations/apis/versions/specs": {
-		"apigeeregistry": {
-			"v1": RestResource{
-				Name:                      "specs",
-				TypeKey:                   "projects/locations/apis/versions/specs",
-				Service:                   "apigeeregistry",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://apigeeregistry.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://apigeeregistry.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-	},
-	"projects/locations/apis/versions/specs/artifacts": {
-		"apigeeregistry": {
-			"v1": RestResource{
-				Name:                      "artifacts",
-				TypeKey:                   "projects/locations/apis/versions/specs/artifacts",
-				Service:                   "apigeeregistry",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://apigeeregistry.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://apigeeregistry.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
 					RequestFormat: `{"policy": %s}`,
 				},
 			},
@@ -2368,29 +2360,6 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 			},
 		},
 	},
-	"projects/locations/artifacts": {
-		"apigeeregistry": {
-			"v1": RestResource{
-				Name:                      "artifacts",
-				TypeKey:                   "projects/locations/artifacts",
-				Service:                   "apigeeregistry",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://apigeeregistry.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://apigeeregistry.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-	},
 	"projects/locations/aspectTypes": {
 		"dataplex": {
 			"v1": RestResource{
@@ -2409,6 +2378,90 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 					HttpMethod:    "POST",
 					BaseURL:       "https://dataplex.googleapis.com/",
 					Path:          "v1/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
+	"projects/locations/authProviders": {
+		"agentidentity": {
+			"v1": RestResource{
+				Name:                      "authProviders",
+				TypeKey:                   "projects/locations/authProviders",
+				Service:                   "agentidentity",
+				IsPreferredVersion:        true,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://agentidentity.googleapis.com/",
+					Path:       "v1/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://agentidentity.googleapis.com/",
+					Path:          "v1/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1alpha": RestResource{
+				Name:                      "authProviders",
+				TypeKey:                   "projects/locations/authProviders",
+				Service:                   "agentidentity",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://agentidentity.googleapis.com/",
+					Path:       "v1alpha/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://agentidentity.googleapis.com/",
+					Path:          "v1alpha/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1beta": RestResource{
+				Name:                      "authProviders",
+				TypeKey:                   "projects/locations/authProviders",
+				Service:                   "agentidentity",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://agentidentity.googleapis.com/",
+					Path:       "v1beta/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://agentidentity.googleapis.com/",
+					Path:          "v1beta/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
+	"projects/locations/authProviders/authorizations": {
+		"agentidentity": {
+			"v1alpha": RestResource{
+				Name:                      "authorizations",
+				TypeKey:                   "projects/locations/authProviders/authorizations",
+				Service:                   "agentidentity",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://agentidentity.googleapis.com/",
+					Path:       "v1alpha/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://agentidentity.googleapis.com/",
+					Path:          "v1alpha/{+resource}:setIamPolicy",
 					RequestFormat: `{"policy": %s}`,
 				},
 			},
@@ -2931,6 +2984,109 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 			},
 		},
 	},
+	"projects/locations/collections": {
+		"discoveryengine": {
+			"v1": RestResource{
+				Name:                      "collections",
+				TypeKey:                   "projects/locations/collections",
+				Service:                   "discoveryengine",
+				IsPreferredVersion:        true,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://discoveryengine.googleapis.com/",
+					Path:       "v1/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://discoveryengine.googleapis.com/",
+					Path:          "v1/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1alpha": RestResource{
+				Name:                      "collections",
+				TypeKey:                   "projects/locations/collections",
+				Service:                   "discoveryengine",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://discoveryengine.googleapis.com/",
+					Path:       "v1alpha/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://discoveryengine.googleapis.com/",
+					Path:          "v1alpha/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
+	"projects/locations/collections/dataStores": {
+		"discoveryengine": {
+			"v1": RestResource{
+				Name:                      "dataStores",
+				TypeKey:                   "projects/locations/collections/dataStores",
+				Service:                   "discoveryengine",
+				IsPreferredVersion:        true,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://discoveryengine.googleapis.com/",
+					Path:       "v1/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://discoveryengine.googleapis.com/",
+					Path:          "v1/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1alpha": RestResource{
+				Name:                      "dataStores",
+				TypeKey:                   "projects/locations/collections/dataStores",
+				Service:                   "discoveryengine",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://discoveryengine.googleapis.com/",
+					Path:       "v1alpha/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://discoveryengine.googleapis.com/",
+					Path:          "v1alpha/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1beta": RestResource{
+				Name:                      "dataStores",
+				TypeKey:                   "projects/locations/collections/dataStores",
+				Service:                   "discoveryengine",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://discoveryengine.googleapis.com/",
+					Path:       "v1beta/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://discoveryengine.googleapis.com/",
+					Path:          "v1beta/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
 	"projects/locations/collections/engines": {
 		"discoveryengine": {
 			"v1": RestResource{
@@ -3273,6 +3429,29 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 			},
 		},
 	},
+	"projects/locations/dataDomains": {
+		"dataplex": {
+			"v1": RestResource{
+				Name:                      "dataDomains",
+				TypeKey:                   "projects/locations/dataDomains",
+				Service:                   "dataplex",
+				IsPreferredVersion:        true,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://dataplex.googleapis.com/",
+					Path:       "v1/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://dataplex.googleapis.com/",
+					Path:          "v1/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
 	"projects/locations/dataExchanges": {
 		"analyticshub": {
 			"v1": RestResource{
@@ -3440,6 +3619,67 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 					HttpMethod:    "POST",
 					BaseURL:       "https://dataplex.googleapis.com/",
 					Path:          "v1/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
+	"projects/locations/dataStores": {
+		"discoveryengine": {
+			"v1": RestResource{
+				Name:                      "dataStores",
+				TypeKey:                   "projects/locations/dataStores",
+				Service:                   "discoveryengine",
+				IsPreferredVersion:        true,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://discoveryengine.googleapis.com/",
+					Path:       "v1/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://discoveryengine.googleapis.com/",
+					Path:          "v1/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1alpha": RestResource{
+				Name:                      "dataStores",
+				TypeKey:                   "projects/locations/dataStores",
+				Service:                   "discoveryengine",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://discoveryengine.googleapis.com/",
+					Path:       "v1alpha/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://discoveryengine.googleapis.com/",
+					Path:          "v1alpha/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1beta": RestResource{
+				Name:                      "dataStores",
+				TypeKey:                   "projects/locations/dataStores",
+				Service:                   "discoveryengine",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://discoveryengine.googleapis.com/",
+					Path:       "v1beta/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://discoveryengine.googleapis.com/",
+					Path:          "v1beta/{+resource}:setIamPolicy",
 					RequestFormat: `{"policy": %s}`,
 				},
 			},
@@ -3804,29 +4044,6 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 				SetMethod: RestMethod{
 					HttpMethod:    "POST",
 					BaseURL:       "https://config.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-	},
-	"projects/locations/documents": {
-		"apigeeregistry": {
-			"v1": RestResource{
-				Name:                      "documents",
-				TypeKey:                   "projects/locations/documents",
-				Service:                   "apigeeregistry",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://apigeeregistry.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://apigeeregistry.googleapis.com/",
 					Path:          "v1/{+resource}:setIamPolicy",
 					RequestFormat: `{"policy": %s}`,
 				},
@@ -4902,27 +5119,6 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 		},
 	},
 	"projects/locations/instances": {
-		"apigeeregistry": {
-			"v1": RestResource{
-				Name:                      "instances",
-				TypeKey:                   "projects/locations/instances",
-				Service:                   "apigeeregistry",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://apigeeregistry.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://apigeeregistry.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
 		"datafusion": {
 			"v1": RestResource{
 				Name:                      "instances",
@@ -5020,6 +5216,25 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 					HttpMethod:    "POST",
 					BaseURL:       "https://run.googleapis.com/",
 					Path:          "v1/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v2": RestResource{
+				Name:                      "instances",
+				TypeKey:                   "projects/locations/instances",
+				Service:                   "run",
+				IsPreferredVersion:        true,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://run.googleapis.com/",
+					Path:       "v2/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://run.googleapis.com/",
+					Path:          "v2/{+resource}:setIamPolicy",
 					RequestFormat: `{"policy": %s}`,
 				},
 			},
@@ -5245,29 +5460,6 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 			},
 		},
 	},
-	"projects/locations/lakes/environments": {
-		"dataplex": {
-			"v1": RestResource{
-				Name:                      "environments",
-				TypeKey:                   "projects/locations/lakes/environments",
-				Service:                   "dataplex",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://dataplex.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://dataplex.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-	},
 	"projects/locations/lakes/tasks": {
 		"dataplex": {
 			"v1": RestResource{
@@ -5355,6 +5547,25 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 					HttpMethod:    "POST",
 					BaseURL:       "https://backupdr.googleapis.com/",
 					Path:          "v1/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1beta": RestResource{
+				Name:                      "managementServers",
+				TypeKey:                   "projects/locations/managementServers",
+				Service:                   "backupdr",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://backupdr.googleapis.com/",
+					Path:       "v1beta/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://backupdr.googleapis.com/",
+					Path:          "v1beta/{+resource}:setIamPolicy",
 					RequestFormat: `{"policy": %s}`,
 				},
 			},
@@ -5904,29 +6115,6 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 				SetMethod: RestMethod{
 					HttpMethod:    "POST",
 					BaseURL:       "https://networkconnectivity.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-	},
-	"projects/locations/policyIntents": {
-		"dataplex": {
-			"v1": RestResource{
-				Name:                      "policyIntents",
-				TypeKey:                   "projects/locations/policyIntents",
-				Service:                   "dataplex",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://dataplex.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://dataplex.googleapis.com/",
 					Path:          "v1/{+resource}:setIamPolicy",
 					RequestFormat: `{"policy": %s}`,
 				},
@@ -6514,29 +6702,6 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 			},
 		},
 	},
-	"projects/locations/runtime": {
-		"apigeeregistry": {
-			"v1": RestResource{
-				Name:                      "runtime",
-				TypeKey:                   "projects/locations/runtime",
-				Service:                   "apigeeregistry",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://apigeeregistry.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://apigeeregistry.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-	},
 	"projects/locations/runtimes": {
 		"notebooks": {
 			"v1": RestResource{
@@ -6784,75 +6949,6 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 					HttpMethod:    "POST",
 					BaseURL:       "https://networksecurity.googleapis.com/",
 					Path:          "v1beta1/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-	},
-	"projects/locations/serviceClasses": {
-		"networkconnectivity": {
-			"v1": RestResource{
-				Name:                      "serviceClasses",
-				TypeKey:                   "projects/locations/serviceClasses",
-				Service:                   "networkconnectivity",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://networkconnectivity.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://networkconnectivity.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-	},
-	"projects/locations/serviceConnectionMaps": {
-		"networkconnectivity": {
-			"v1": RestResource{
-				Name:                      "serviceConnectionMaps",
-				TypeKey:                   "projects/locations/serviceConnectionMaps",
-				Service:                   "networkconnectivity",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://networkconnectivity.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://networkconnectivity.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
-					RequestFormat: `{"policy": %s}`,
-				},
-			},
-		},
-	},
-	"projects/locations/serviceConnectionPolicies": {
-		"networkconnectivity": {
-			"v1": RestResource{
-				Name:                      "serviceConnectionPolicies",
-				TypeKey:                   "projects/locations/serviceConnectionPolicies",
-				Service:                   "networkconnectivity",
-				IsPreferredVersion:        true,
-				Parameters:                []string{"resource"},
-				CollectionReplacementKeys: map[string]string{},
-				GetMethod: RestMethod{
-					HttpMethod: "GET",
-					BaseURL:    "https://networkconnectivity.googleapis.com/",
-					Path:       "v1/{+resource}:getIamPolicy",
-				},
-				SetMethod: RestMethod{
-					HttpMethod:    "POST",
-					BaseURL:       "https://networkconnectivity.googleapis.com/",
-					Path:          "v1/{+resource}:setIamPolicy",
 					RequestFormat: `{"policy": %s}`,
 				},
 			},
@@ -7137,6 +7233,29 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 					HttpMethod:    "POST",
 					BaseURL:       "https://metastore.googleapis.com/",
 					Path:          "v1beta/{+resource}:setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
+	"projects/locations/skills": {
+		"agentregistry": {
+			"v1alpha": RestResource{
+				Name:                      "skills",
+				TypeKey:                   "projects/locations/skills",
+				Service:                   "agentregistry",
+				IsPreferredVersion:        false,
+				Parameters:                []string{"resource"},
+				CollectionReplacementKeys: map[string]string{},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://agentregistry.googleapis.com/",
+					Path:       "v1alpha/{+resource}:getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://agentregistry.googleapis.com/",
+					Path:          "v1alpha/{+resource}:setIamPolicy",
 					RequestFormat: `{"policy": %s}`,
 				},
 			},
@@ -7989,6 +8108,28 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 					RequestFormat: `{"policy": %s}`,
 				},
 			},
+			"beta": RestResource{
+				Name:               "recoverableSnapshots",
+				TypeKey:            "projects/recoverableSnapshots",
+				Service:            "compute",
+				IsPreferredVersion: false,
+				Parameters:         []string{"project", "resource"},
+				CollectionReplacementKeys: map[string]string{
+					"projects":             "project",
+					"recoverableSnapshots": "resource",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://compute.googleapis.com/compute/beta/",
+					Path:       "projects/{project}/global/recoverableSnapshots/{resource}/getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://compute.googleapis.com/compute/beta/",
+					Path:          "projects/{project}/global/recoverableSnapshots/{resource}/setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
 		},
 	},
 	"projects/regions/autoscalingPolicies": {
@@ -8058,6 +8199,29 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 				SetMethod: RestMethod{
 					HttpMethod:    "POST",
 					BaseURL:       "https://compute.googleapis.com/compute/beta/",
+					Path:          "projects/{project}/regions/{region}/backendBuckets/{resource}/setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1": RestResource{
+				Name:               "regionBackendBuckets",
+				TypeKey:            "projects/regions/backendBuckets",
+				Service:            "compute",
+				IsPreferredVersion: true,
+				Parameters:         []string{"project", "region", "resource"},
+				CollectionReplacementKeys: map[string]string{
+					"backendBuckets": "resource",
+					"projects":       "project",
+					"regions":        "region",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://compute.googleapis.com/compute/v1/",
+					Path:       "projects/{project}/regions/{region}/backendBuckets/{resource}/getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://compute.googleapis.com/compute/v1/",
 					Path:          "projects/{project}/regions/{region}/backendBuckets/{resource}/setIamPolicy",
 					RequestFormat: `{"policy": %s}`,
 				},
@@ -8350,6 +8514,29 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 				SetMethod: RestMethod{
 					HttpMethod:    "POST",
 					BaseURL:       "https://compute.googleapis.com/compute/beta/",
+					Path:          "projects/{project}/regions/{region}/instantSnapshotGroups/{resource}/setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1": RestResource{
+				Name:               "regionInstantSnapshotGroups",
+				TypeKey:            "projects/regions/instantSnapshotGroups",
+				Service:            "compute",
+				IsPreferredVersion: true,
+				Parameters:         []string{"project", "region", "resource"},
+				CollectionReplacementKeys: map[string]string{
+					"instantSnapshotGroups": "resource",
+					"projects":              "project",
+					"regions":               "region",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://compute.googleapis.com/compute/v1/",
+					Path:       "projects/{project}/regions/{region}/instantSnapshotGroups/{resource}/getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://compute.googleapis.com/compute/v1/",
 					Path:          "projects/{project}/regions/{region}/instantSnapshotGroups/{resource}/setIamPolicy",
 					RequestFormat: `{"policy": %s}`,
 				},
@@ -8869,6 +9056,79 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 					RequestFormat: `{"policy": %s}`,
 				},
 			},
+			"v1": RestResource{
+				Name:               "regionSnapshots",
+				TypeKey:            "projects/regions/snapshots",
+				Service:            "compute",
+				IsPreferredVersion: true,
+				Parameters:         []string{"project", "region", "resource"},
+				CollectionReplacementKeys: map[string]string{
+					"projects":  "project",
+					"regions":   "region",
+					"snapshots": "resource",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://compute.googleapis.com/compute/v1/",
+					Path:       "projects/{project}/regions/{region}/snapshots/{resource}/getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://compute.googleapis.com/compute/v1/",
+					Path:          "projects/{project}/regions/{region}/snapshots/{resource}/setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
+	"projects/regions/sslPolicies": {
+		"compute": {
+			"alpha": RestResource{
+				Name:               "regionSslPolicies",
+				TypeKey:            "projects/regions/sslPolicies",
+				Service:            "compute",
+				IsPreferredVersion: false,
+				Parameters:         []string{"project", "region", "resource"},
+				CollectionReplacementKeys: map[string]string{
+					"projects":    "project",
+					"regions":     "region",
+					"sslPolicies": "resource",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://compute.googleapis.com/compute/alpha/",
+					Path:       "projects/{project}/regions/{region}/sslPolicies/{resource}/getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://compute.googleapis.com/compute/alpha/",
+					Path:          "projects/{project}/regions/{region}/sslPolicies/{resource}/setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"beta": RestResource{
+				Name:               "regionSslPolicies",
+				TypeKey:            "projects/regions/sslPolicies",
+				Service:            "compute",
+				IsPreferredVersion: false,
+				Parameters:         []string{"project", "region", "resource"},
+				CollectionReplacementKeys: map[string]string{
+					"projects":    "project",
+					"regions":     "region",
+					"sslPolicies": "resource",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://compute.googleapis.com/compute/beta/",
+					Path:       "projects/{project}/regions/{region}/sslPolicies/{resource}/getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://compute.googleapis.com/compute/beta/",
+					Path:          "projects/{project}/regions/{region}/sslPolicies/{resource}/setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
 		},
 	},
 	"projects/regions/subnetworks": {
@@ -9213,6 +9473,54 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 			},
 		},
 	},
+	"projects/sslPolicies": {
+		"compute": {
+			"alpha": RestResource{
+				Name:               "sslPolicies",
+				TypeKey:            "projects/sslPolicies",
+				Service:            "compute",
+				IsPreferredVersion: false,
+				Parameters:         []string{"project", "resource"},
+				CollectionReplacementKeys: map[string]string{
+					"projects":    "project",
+					"sslPolicies": "resource",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://compute.googleapis.com/compute/alpha/",
+					Path:       "projects/{project}/global/sslPolicies/{resource}/getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://compute.googleapis.com/compute/alpha/",
+					Path:          "projects/{project}/global/sslPolicies/{resource}/setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"beta": RestResource{
+				Name:               "sslPolicies",
+				TypeKey:            "projects/sslPolicies",
+				Service:            "compute",
+				IsPreferredVersion: false,
+				Parameters:         []string{"project", "resource"},
+				CollectionReplacementKeys: map[string]string{
+					"projects":    "project",
+					"sslPolicies": "resource",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://compute.googleapis.com/compute/beta/",
+					Path:       "projects/{project}/global/sslPolicies/{resource}/getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://compute.googleapis.com/compute/beta/",
+					Path:          "projects/{project}/global/sslPolicies/{resource}/setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+		},
+	},
 	"projects/subscriptions": {
 		"pubsub": {
 			"v1": RestResource{
@@ -9510,6 +9818,29 @@ var generatedResources = map[string]map[string]map[string]RestResource{
 				SetMethod: RestMethod{
 					HttpMethod:    "POST",
 					BaseURL:       "https://compute.googleapis.com/compute/beta/",
+					Path:          "projects/{project}/zones/{zone}/instantSnapshotGroups/{resource}/setIamPolicy",
+					RequestFormat: `{"policy": %s}`,
+				},
+			},
+			"v1": RestResource{
+				Name:               "instantSnapshotGroups",
+				TypeKey:            "projects/zones/instantSnapshotGroups",
+				Service:            "compute",
+				IsPreferredVersion: true,
+				Parameters:         []string{"project", "zone", "resource"},
+				CollectionReplacementKeys: map[string]string{
+					"instantSnapshotGroups": "resource",
+					"projects":              "project",
+					"zones":                 "zone",
+				},
+				GetMethod: RestMethod{
+					HttpMethod: "GET",
+					BaseURL:    "https://compute.googleapis.com/compute/v1/",
+					Path:       "projects/{project}/zones/{zone}/instantSnapshotGroups/{resource}/getIamPolicy",
+				},
+				SetMethod: RestMethod{
+					HttpMethod:    "POST",
+					BaseURL:       "https://compute.googleapis.com/compute/v1/",
 					Path:          "projects/{project}/zones/{zone}/instantSnapshotGroups/{resource}/setIamPolicy",
 					RequestFormat: `{"policy": %s}`,
 				},
