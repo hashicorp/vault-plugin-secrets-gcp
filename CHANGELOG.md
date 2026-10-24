@@ -1,3 +1,13 @@
+## v0.25.0
+### September 22, 2026
+
+* update deps for release (#291)
+* [COMPLIANCE] Add/Update Copyright Headers (#284)
+* VAULT-50100: chore: automated Go/dependency update via vault-plugin-release (#290)
+* Fixed datatypes for the response schemas and removed redundant list response schemas (#289)
+* Add missing OpenAPI metadata to the API endpoints
+* Switch to SDK helpers for Rotation Manager (#285)
+
 ## v0.24.0
 ## March 18, 2026
 
