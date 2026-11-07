@@ -45,6 +45,7 @@ func TestConfig(t *testing.T) {
 		"rotation_schedule":          "",
 		"rotation_policy":            "",
 		"disable_automated_rotation": false,
+		"username_template":          "",
 	}
 
 	testConfigRead(t, b, reqStorage, expected)

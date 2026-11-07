@@ -42,6 +42,10 @@ func pathConfig(b *backend) *framework.Path {
 				Type:        framework.TypeString,
 				Description: `Email ID for the Service Account to impersonate for Workload Identity Federation.`,
 			},
+			"username_template": {
+				Type:        framework.TypeString,
+				Description: `Template for the IDs of service accounts created for role sets. If empty, the legacy naming scheme is used.`,
+			},
 		},
 
 		Operations: map[logical.Operation]framework.OperationHandler{
@@ -96,6 +100,10 @@ func pathConfig(b *backend) *framework.Path {
 								Type:        framework.TypeString,
 								Description: "Name of the rotation policy for automated root credential rotation.",
 							},
+							"username_template": {
+								Type:        framework.TypeString,
+								Description: "Template for the IDs of service accounts created for role sets.",
+							},
 						},
 					}},
 				},
@@ -107,6 +115,7 @@ func pathConfig(b *backend) *framework.Path {
 					OperationVerb: "configure",
 				},
 				Responses: map[int][]framework.Response{
+					200: {{Description: "OK"}},
 					204: {{Description: "No Content"}},
 				},
 				ForwardPerformanceSecondary: true,
@@ -137,6 +146,7 @@ func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, data
 		"ttl":                   int64(cfg.TTL / time.Second),
 		"max_ttl":               int64(cfg.MaxTTL / time.Second),
 		"service_account_email": cfg.ServiceAccountEmail,
+		"username_template":     cfg.UsernameTemplate,
 	}
 
 	cfg.PopulatePluginIdentityTokenData(configData)
@@ -164,6 +174,18 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 			return logical.ErrorResponse(fmt.Sprintf("invalid credentials JSON file: %v", err)), nil
 		}
 		cfg.CredentialsRaw = credentialsRaw.(string)
+	}
+
+	var warnings []string
+	if usernameTemplateRaw, ok := data.GetOk("username_template"); ok {
+		usernameTemplate := usernameTemplateRaw.(string)
+		if usernameTemplate != "" {
+			warnings, err = validateUsernameTemplate(usernameTemplate)
+			if err != nil {
+				return logical.ErrorResponse("invalid username_template: %v", err), nil
+			}
+		}
+		cfg.UsernameTemplate = usernameTemplate
 	}
 
 	// set plugin identity token fields
@@ -230,6 +252,9 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 	if setNewCreds {
 		b.ClearCaches()
 	}
+	if len(warnings) > 0 {
+		return &logical.Response{Warnings: warnings}, nil
+	}
 	return nil, nil
 }
 
@@ -240,6 +265,7 @@ type config struct {
 	MaxTTL time.Duration
 
 	ServiceAccountEmail string
+	UsernameTemplate    string
 	pluginidentityutil.PluginIdentityTokenParams
 	automatedrotationutil.AutomatedRotationParams
 	automatedrotationutil.RotationInfoResponseParams

@@ -1,3 +1,8 @@
+## Unreleased
+
+FEATURES:
+* Add `username_template` to `config` to customize the IDs of service accounts created for role sets (VAULT-52065)
+
 ## v0.24.0
 ## March 18, 2026
 

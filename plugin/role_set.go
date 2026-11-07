@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -136,7 +137,10 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, req *logical.Re
 	oldResources := rs.boundResources()
 
 	// Generate name for new account
-	newSaName := generateAccountNameForRoleSet(rs.Name)
+	newSaName, templated, err := b.serviceAccountIdForRoleSet(ctx, req, rs.Name)
+	if err != nil {
+		return nil, err
+	}
 
 	// Construct IDs for new resources.
 	// The actual GCP resources are not created yet, but we need the IDs to create WAL entries.
@@ -171,6 +175,14 @@ func (b *backend) saveRoleSetWithNewAccount(ctx context.Context, req *logical.Re
 	// Create new service account
 	sa, err := b.createServiceAccount(ctx, req, newResources.accountId.Project, newSaName, fmt.Sprintf("role set %s", rs.Name))
 	if err != nil {
+		if isGoogleApiErrorWithCodes(err, http.StatusConflict) {
+			// The existing account is not ours, so its rollback WALs must not delete it.
+			b.tryDeleteWALs(ctx, req.Storage, newWalIds...)
+			if templated {
+				return nil, fmt.Errorf("service account ID %q rendered from username_template already exists in project %q; "+
+					"use random or unix_time in the template to make IDs unique: %w", newSaName, project, err)
+			}
+		}
 		return nil, err
 	}
 
