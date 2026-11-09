@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -492,6 +493,122 @@ func TestPathRoleSet_RotateTokenRoleSet(t *testing.T) {
 	// 4. Delete role set
 	testRoleSetDelete(t, td, rsName, newSa.Name)
 	verifyProjectBindingsRemoved(t, td, newSa.Email, roles)
+}
+
+func TestPathRoleSet_UsernameTemplate(t *testing.T) {
+	rsName := "Test_Tmpl.RS"
+	roles := util.StringSet{
+		"roles/viewer": struct{}{},
+	}
+
+	td := setupTest(t, "0s", "2h")
+	defer cleanupRoleset(t, td, rsName, roles)
+
+	testConfigUpdate(t, td.B, td.S, map[string]interface{}{
+		"username_template": testUsernameTemplate,
+	})
+	emailRe := regexp.MustCompile(`^vlt-test-tmpl-rs-[a-z0-9]{6}@`)
+	verifyTemplatedSa := func(stage string) *iam.ServiceAccount {
+		t.Helper()
+		sa := getServiceAccount(t, td.IamAdmin, testRoleSetRead(t, td, rsName))
+		if !emailRe.MatchString(sa.Email) {
+			t.Fatalf("%s: expected service account email to match %q, got %q", stage, emailRe, sa.Email)
+		}
+		return sa
+	}
+
+	projRes := fmt.Sprintf(testProjectResourceTemplate, td.Project)
+	bindsRaw, err := util.BindingsHCL(ResourceBindings{projRes: roles})
+	if err != nil {
+		t.Fatalf("unable to convert resource bindings to HCL string: %v", err)
+	}
+	testRoleSetCreate(t, td, rsName, map[string]interface{}{
+		"project":     td.Project,
+		"secret_type": SecretTypeKey,
+		"bindings":    bindsRaw,
+	})
+	createSa := verifyTemplatedSa("create")
+	verifyProjectBinding(t, td, createSa.Email, roles)
+
+	updatedRoles := util.StringSet{"roles/browser": struct{}{}}
+	defer cleanupRoleset(t, td, rsName, updatedRoles)
+	bindsRaw, err = util.BindingsHCL(ResourceBindings{projRes: updatedRoles})
+	if err != nil {
+		t.Fatalf("unable to convert resource bindings to HCL string: %v", err)
+	}
+	testRoleSetUpdate(t, td, rsName, map[string]interface{}{"bindings": bindsRaw})
+	updateSa := verifyTemplatedSa("binding update")
+	if updateSa.Name == createSa.Name {
+		t.Fatalf("expected new service account after binding update")
+	}
+	verifyServiceAccountDeleted(t, td.IamAdmin, createSa.Name)
+
+	testRoleSetRotate(t, td, rsName)
+	rotateSa := verifyTemplatedSa("rotate")
+	if rotateSa.Name == updateSa.Name {
+		t.Fatalf("expected new service account after rotate")
+	}
+	verifyServiceAccountDeleted(t, td.IamAdmin, updateSa.Name)
+
+	testRoleSetDelete(t, td, rsName, rotateSa.Name)
+	verifyProjectBindingsRemoved(t, td, rotateSa.Email, updatedRoles)
+}
+
+// A conflicting ID must fail without letting WAL rollback delete the account that already has it.
+func TestPathRoleSet_UsernameTemplateConflict(t *testing.T) {
+	rsOwner := "test-tmplconflict-a"
+	rsOther := "test-tmplconflict-b"
+	roles := util.StringSet{
+		"roles/viewer": struct{}{},
+	}
+
+	td := setupTest(t, "0s", "2h")
+	defer cleanupRoleset(t, td, rsOwner, roles)
+	defer cleanupRoleset(t, td, rsOther, roles)
+
+	testConfigUpdate(t, td.B, td.S, map[string]interface{}{
+		"username_template": fmt.Sprintf("vlt-conflict-%d", time.Now().Unix()),
+	})
+
+	bindsRaw, err := util.BindingsHCL(ResourceBindings{fmt.Sprintf(testProjectResourceTemplate, td.Project): roles})
+	if err != nil {
+		t.Fatalf("unable to convert resource bindings to HCL string: %v", err)
+	}
+	rsData := map[string]interface{}{
+		"project":     td.Project,
+		"secret_type": SecretTypeKey,
+		"bindings":    bindsRaw,
+	}
+	testRoleSetCreate(t, td, rsOwner, rsData)
+	ownerSa := getServiceAccount(t, td.IamAdmin, testRoleSetRead(t, td, rsOwner))
+
+	resp, err := testRoleSetCreateRaw(t, td, rsOther, rsData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp == nil || !resp.IsError() {
+		t.Fatalf("expected roleset create with a conflicting service account ID to fail")
+	}
+	if !strings.Contains(resp.Error().Error(), "rendered from username_template already exists") {
+		t.Fatalf("expected username_template conflict error, got: %v", resp.Error())
+	}
+
+	if _, err := td.B.HandleRequest(context.Background(), &logical.Request{
+		Operation: logical.RollbackOperation,
+		Path:      "",
+		Data:      map[string]interface{}{"immediate": true},
+		Storage:   td.S,
+	}); err != nil {
+		t.Fatalf("WAL rollback failed: %v", err)
+	}
+
+	if _, err := td.IamAdmin.Projects.ServiceAccounts.Get(ownerSa.Name).Do(); err != nil {
+		t.Fatalf("expected service account %q to survive WAL rollback: %v", ownerSa.Name, err)
+	}
+	verifyProjectBinding(t, td, ownerSa.Email, roles)
+
+	testRoleSetDelete(t, td, rsOwner, ownerSa.Name)
+	verifyProjectBindingsRemoved(t, td, ownerSa.Email, roles)
 }
 
 // Helpers for calling backend methods
