@@ -241,6 +241,57 @@ func TestStaticAccountIdentity_MetadataCredentials(t *testing.T) {
 	}
 }
 
+func TestStaticAccountIdentity_ADCCredentialsFile(t *testing.T) {
+	for _, tc := range []struct {
+		name                string
+		fileEmail           string
+		metadataEmail       string
+		rejectStaticAccount bool
+	}{
+		{
+			name:                "file identity matches target",
+			fileEmail:           staticIdentityRootEmail,
+			metadataEmail:       staticIdentityOtherEmail,
+			rejectStaticAccount: true,
+		},
+		{
+			name:          "metadata identity matches target but file does not",
+			fileEmail:     staticIdentityOtherEmail,
+			metadataEmail: staticIdentityRootEmail,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			b, storage, transport, ctx := setupStaticAccountMetadataTestWithADCFile(t, tc.metadataEmail, tc.fileEmail)
+			resp, err := b.HandleRequest(ctx, &logical.Request{
+				Operation: logical.CreateOperation,
+				Path:      "static-account/target",
+				Storage:   storage,
+				Data: map[string]interface{}{
+					"service_account_email": staticIdentityRootEmail,
+					"secret_type":           SecretTypeKey,
+				},
+			})
+
+			if tc.rejectStaticAccount {
+				assertStaticAccountIdentityRejected(t, resp, err, transport)
+				entry, err := storage.Get(ctx, "static-account/target")
+				require.NoError(t, err)
+				assert.Nil(t, entry, "must not persist a static account targeting the ADC identity")
+				return
+			}
+
+			require.NoError(t, err)
+			if resp != nil {
+				require.False(t, resp.IsError(), "targeting metadata identity must be allowed when ADC uses another account")
+			}
+			entry, err := storage.Get(ctx, "static-account/target")
+			require.NoError(t, err)
+			assert.NotNil(t, entry, "must persist a static account that does not target the ADC identity")
+			assert.Empty(t, transport.keyCreates)
+		})
+	}
+}
+
 // TestStaticAccountIdentity_ExistingAccount models static accounts saved before
 // the protection existed, so each credential-producing path must check again.
 func TestStaticAccountIdentity_ExistingAccount(t *testing.T) {
@@ -432,6 +483,25 @@ func setupStaticAccountMetadataTest(t *testing.T, email string) (*backend, logic
 	t.Cleanup(metadataServer.Close)
 	t.Setenv("GCE_METADATA_HOST", strings.TrimPrefix(metadataServer.URL, "http://"))
 	return setupStaticAccountIdentityTest(t, config{})
+}
+
+func setupStaticAccountMetadataTestWithADCFile(t *testing.T, metadataEmail, fileEmail string) (*backend, logical.Storage, *staticAccountIdentityTransport, context.Context) {
+	t.Helper()
+	b, storage, transport, ctx := setupStaticAccountMetadataTest(t, metadataEmail)
+	creds := &google.Credentials{
+		ProjectID: staticIdentityProject,
+		JSON: []byte(staticIdentityJSON(t, map[string]string{
+			"type": "service_account", "project_id": staticIdentityProject,
+			"client_email": fileEmail, "client_id": staticIdentityRootID,
+			"private_key_id": "fake-key-id", "private_key": "fake-key",
+			"token_uri": staticIdentityTokenURL,
+		})),
+		TokenSource: oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "fake-access-token"}),
+	}
+	b.cache.Expire("credentials")
+	_, err := b.cache.Fetch("credentials", cacheTime, func() (interface{}, error) { return creds, nil })
+	require.NoError(t, err)
+	return b, storage, transport, ctx
 }
 
 var staticIdentityPrivateKeyPEM = sync.OnceValue(func() string {
