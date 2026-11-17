@@ -67,6 +67,9 @@ func (b *backend) pathStaticAccountRotateKey(ctx context.Context, req *logical.R
 	if acct.TokenGen == nil {
 		return nil, fmt.Errorf("unexpected invalid account has no TokenGen")
 	}
+	if err := b.checkStaticAccountTarget(ctx, req.Storage, &acct.ServiceAccountId); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
 
 	scopes := acct.TokenGen.Scopes
 	oldTokenGen := acct.TokenGen

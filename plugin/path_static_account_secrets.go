@@ -170,6 +170,9 @@ func (b *backend) pathStaticAccountSecretKey(ctx context.Context, req *logical.R
 	if acct.SecretType != SecretTypeKey {
 		return logical.ErrorResponse("static account %q cannot generate service account keys (has secret type %s)", acctName, acct.SecretType), nil
 	}
+	if err := b.checkStaticAccountTarget(ctx, req.Storage, &acct.ServiceAccountId); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
 
 	params := secretKeyParams{
 		keyType:      keyType,
@@ -196,6 +199,9 @@ func (b *backend) pathStaticAccountAccessToken(ctx context.Context, req *logical
 	}
 	if acct.SecretType != SecretTypeAccessToken {
 		return logical.ErrorResponse("static account %q cannot generate access tokens (has secret type %s)", acctName, acct.SecretType), nil
+	}
+	if err := b.checkStaticAccountTarget(ctx, req.Storage, &acct.ServiceAccountId); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
 	}
 
 	return b.secretAccessTokenResponse(ctx, req.Storage, acct.TokenGen)
