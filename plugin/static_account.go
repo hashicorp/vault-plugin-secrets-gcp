@@ -386,29 +386,52 @@ func (b *backend) checkStaticAccountTarget(ctx context.Context, s logical.Storag
 		return nil
 	}
 
-	target := id.EmailOrId
+	var iamAdmin *iam.Service
+	resolveEmail := func(accountId *gcputil.ServiceAccountId) (string, error) {
+		if iamAdmin == nil {
+			iamAdmin, err = b.IAMAdminClient(s)
+			if err != nil {
+				return "", err
+			}
+		}
+		gcpAcct, err := b.getServiceAccount(iamAdmin, accountId)
+		if err != nil {
+			return "", err
+		}
+		return gcpAcct.Email, nil
+	}
+
+	targetEmail := id.EmailOrId
 	// Static accounts are saved with the account email, but look up the email
 	// if a unique ID was stored instead.
-	if !strings.Contains(target, "@") {
-		iamAdmin, err := b.IAMAdminClient(s)
-		if err != nil {
-			return err
-		}
-		gcpAcct, err := b.getServiceAccount(iamAdmin, id)
+	if !strings.Contains(targetEmail, "@") {
+		targetEmail, err = resolveEmail(id)
 		if err != nil {
 			return fmt.Errorf("unable to confirm service account %q for static account: %w", id.ResourceName(), err)
 		}
-		target = gcpAcct.Email
 	}
 
-	if strings.EqualFold(target, mountEmail) {
+	// Impersonation URLs can identify the mount service account by unique ID.
+	// Resolve that ID to an email before comparing it with the static account.
+	if !strings.Contains(mountEmail, "@") {
+		mountEmail, err = resolveEmail(&gcputil.ServiceAccountId{
+			Project:   gcpServiceAccountInferredProject,
+			EmailOrId: mountEmail,
+		})
+		if err != nil {
+			return fmt.Errorf("unable to determine GCP secrets engine identity: %w", err)
+		}
+	}
+
+	if strings.EqualFold(targetEmail, mountEmail) {
 		return errors.New(errStaticAccountTargetsMount)
 	}
 	return nil
 }
 
-// mountServiceAccountEmail returns the email of the service account the GCP
-// secrets engine authenticates as.
+// mountServiceAccountEmail returns the email or unique ID of the service
+// account the GCP secrets engine authenticates as, or an empty string when the
+// credentials are known not to represent a service account.
 func (b *backend) mountServiceAccountEmail(ctx context.Context, s logical.Storage) (string, error) {
 	cfg, err := getConfig(ctx, s)
 	if err != nil {
@@ -419,6 +442,9 @@ func (b *backend) mountServiceAccountEmail(ctx context.Context, s logical.Storag
 	}
 
 	if cfg.IdentityTokenAudience != "" {
+		if cfg.ServiceAccountEmail == "" {
+			return "", errors.New("unable to determine GCP secrets engine identity: missing service account email")
+		}
 		return cfg.ServiceAccountEmail, nil
 	}
 
@@ -455,17 +481,32 @@ func (b *backend) mountServiceAccountEmail(ctx context.Context, s logical.Storag
 	if err := json.Unmarshal(mountCredentials.JSON, &creds); err != nil {
 		return "", fmt.Errorf("unable to parse credentials: %w", err)
 	}
-	if creds.Type == "service_account" {
+	switch creds.Type {
+	case "service_account":
+		if creds.ClientEmail == "" {
+			return "", errors.New("unable to determine GCP secrets engine identity: service account credentials have no client_email")
+		}
 		return creds.ClientEmail, nil
-	}
-	if creds.ImpersonationURL != "" {
-		// The URL ends in /serviceAccounts/{email}:generateAccessToken.
+	case "impersonated_service_account", "external_account":
+		if creds.Type == "external_account" && creds.ImpersonationURL == "" {
+			return "", nil
+		}
+		if creds.ImpersonationURL == "" {
+			return "", errors.New("unable to determine GCP secrets engine identity: missing service account impersonation URL")
+		}
+		// The URL ends in /serviceAccounts/{email-or-unique-ID}:generateAccessToken.
 		u, err := url.Parse(creds.ImpersonationURL)
 		if err != nil {
 			return "", fmt.Errorf("unable to parse service_account_impersonation_url: %w", err)
 		}
-		email, _, _ := strings.Cut(path.Base(u.Path), ":")
-		return email, nil
+		target, method, found := strings.Cut(path.Base(u.Path), ":")
+		if !found || method != "generateAccessToken" || target == "" {
+			return "", errors.New("unable to determine GCP secrets engine identity: invalid service account impersonation URL")
+		}
+		return target, nil
+	case "authorized_user", "external_account_authorized_user":
+		return "", nil
+	default:
+		return "", errors.New("unable to determine GCP secrets engine identity: unsupported credential type")
 	}
-	return "", nil
 }
