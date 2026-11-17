@@ -12,6 +12,7 @@ import (
 	"path"
 	"strings"
 
+	"cloud.google.com/go/compute/metadata"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/go-multierror"
@@ -377,7 +378,7 @@ const errStaticAccountTargetsMount = "static account cannot target the GCP secre
 // checkStaticAccountTarget returns an error if the given service account is the
 // one the GCP secrets engine itself authenticates as.
 func (b *backend) checkStaticAccountTarget(ctx context.Context, s logical.Storage, id *gcputil.ServiceAccountId) error {
-	mountEmail, err := mountServiceAccountEmail(ctx, s)
+	mountEmail, err := b.mountServiceAccountEmail(ctx, s)
 	if err != nil {
 		return err
 	}
@@ -407,18 +408,38 @@ func (b *backend) checkStaticAccountTarget(ctx context.Context, s logical.Storag
 }
 
 // mountServiceAccountEmail returns the email of the service account the GCP
-// secrets engine authenticates as, or "" if it can't be determined from config.
-func mountServiceAccountEmail(ctx context.Context, s logical.Storage) (string, error) {
+// secrets engine authenticates as.
+func (b *backend) mountServiceAccountEmail(ctx context.Context, s logical.Storage) (string, error) {
 	cfg, err := getConfig(ctx, s)
-	if err != nil || cfg == nil {
+	if err != nil {
 		return "", err
+	}
+	if cfg == nil {
+		cfg = &config{}
 	}
 
 	if cfg.CredentialsRaw == "" {
 		if cfg.IdentityTokenAudience != "" {
 			return cfg.ServiceAccountEmail, nil
 		}
-		return "", nil
+		email, err := b.cache.Fetch("metadata-service-account-email", cacheTime, func() (interface{}, error) {
+			email, err := metadata.EmailWithContext(ctx, "default")
+			if err != nil {
+				return nil, fmt.Errorf("unable to determine GCP secrets engine identity from metadata: %w", err)
+			}
+			if email == "" {
+				return nil, errors.New("unable to determine GCP secrets engine identity from metadata: empty service account email")
+			}
+			return email, nil
+		})
+		if err != nil {
+			return "", err
+		}
+		mountEmail, ok := email.(string)
+		if !ok {
+			return "", errors.New("unable to determine GCP secrets engine identity from metadata: unexpected cached value")
+		}
+		return mountEmail, nil
 	}
 
 	var creds struct {

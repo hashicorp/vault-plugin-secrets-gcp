@@ -116,6 +116,26 @@ func TestStaticAccountIdentity_Create(t *testing.T) {
 }
 
 func TestStaticAccountIdentity_MetadataCredentials(t *testing.T) {
+	t.Run("create/no-config", func(t *testing.T) {
+		b, storage, transport, ctx := setupStaticAccountMetadataTest(t, staticIdentityRootEmail)
+		require.NoError(t, storage.Delete(ctx, "config"))
+
+		resp, err := b.HandleRequest(ctx, &logical.Request{
+			Operation: logical.CreateOperation,
+			Path:      "static-account/self-test",
+			Storage:   storage,
+			Data: map[string]interface{}{
+				"service_account_email": staticIdentityRootEmail,
+				"secret_type":           SecretTypeKey,
+			},
+		})
+
+		assertStaticAccountIdentityRejected(t, resp, err, transport)
+		entry, err := storage.Get(ctx, "static-account/self-test")
+		require.NoError(t, err)
+		assert.Nil(t, entry, "must not persist a static account targeting the mount identity")
+	})
+
 	for _, target := range []string{staticIdentityRootEmail, staticIdentityRootID} {
 		for _, secretType := range []string{SecretTypeKey, SecretTypeAccessToken} {
 			t.Run(fmt.Sprintf("create/%s/%s", target, secretType), func(t *testing.T) {
