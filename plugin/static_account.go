@@ -418,10 +418,15 @@ func (b *backend) mountServiceAccountEmail(ctx context.Context, s logical.Storag
 		cfg = &config{}
 	}
 
-	if cfg.CredentialsRaw == "" {
-		if cfg.IdentityTokenAudience != "" {
-			return cfg.ServiceAccountEmail, nil
-		}
+	if cfg.IdentityTokenAudience != "" {
+		return cfg.ServiceAccountEmail, nil
+	}
+
+	mountCredentials, err := b.credentials(s)
+	if err != nil {
+		return "", err
+	}
+	if len(mountCredentials.JSON) == 0 {
 		email, err := b.cache.Fetch("metadata-service-account-email", cacheTime, func() (interface{}, error) {
 			email, err := metadata.EmailWithContext(ctx, "default")
 			if err != nil {
@@ -447,7 +452,7 @@ func (b *backend) mountServiceAccountEmail(ctx context.Context, s logical.Storag
 		ClientEmail      string `json:"client_email"`
 		ImpersonationURL string `json:"service_account_impersonation_url"`
 	}
-	if err := json.Unmarshal([]byte(cfg.CredentialsRaw), &creds); err != nil {
+	if err := json.Unmarshal(mountCredentials.JSON, &creds); err != nil {
 		return "", fmt.Errorf("unable to parse credentials: %w", err)
 	}
 	if creds.Type == "service_account" {
