@@ -43,9 +43,12 @@ const (
 type backend struct {
 	*framework.Backend
 
-	// cache is the internal client/object cache. Callers should never access the
-	// cache directly.
-	cache *cache.Cache
+	// cache stores credentials and other cached objects. Authenticated API
+	// clients are bound to the credentials object used to create them.
+	cache                *cache.Cache
+	credentialClientLock sync.Mutex
+	credentialClient     *credentialClient
+	identityLock         sync.RWMutex
 
 	// pluginEnv contains Vault version information. It is used in user-agent headers.
 	pluginEnv *logical.PluginEnvironment
@@ -55,6 +58,12 @@ type backend struct {
 	rolesetLock             sync.Mutex
 	staticAccountLock       sync.Mutex
 	impersonatedAccountLock sync.Mutex
+}
+
+type credentialClient struct {
+	credentials *google.Credentials
+	httpClient  *http.Client
+	iamClient   *iam.Service
 }
 
 // Factory returns a new backend as logical.Backend.
@@ -135,47 +144,61 @@ func (b *backend) initialize(ctx context.Context, _ *logical.InitializationReque
 	return nil
 }
 
-// IAMAdminClient returns a new IAM client. The client is cached.
+// IAMAdminClient returns the IAM client bound to the current credentials.
 func (b *backend) IAMAdminClient(s logical.Storage) (*iam.Service, error) {
-	httpClient, err := b.HTTPClient(s)
+	clients, err := b.credentialClients(s)
 	if err != nil {
 		return nil, errwrap.Wrapf("failed to create IAM HTTP client: {{err}}", err)
 	}
 
-	client, err := b.cache.Fetch("iam", cacheTime, func() (interface{}, error) {
-		client, err := iam.NewService(context.Background(), option.WithHTTPClient(httpClient))
+	return b.iamAdminClient(clients)
+}
+
+func (b *backend) iamAdminClient(clients *credentialClient) (*iam.Service, error) {
+	b.credentialClientLock.Lock()
+	defer b.credentialClientLock.Unlock()
+
+	if clients.iamClient == nil {
+		client, err := iam.NewService(context.Background(), option.WithHTTPClient(clients.httpClient))
 		if err != nil {
 			return nil, errwrap.Wrapf("failed to create IAM client: {{err}}", err)
 		}
 		client.UserAgent = useragent.PluginString(b.pluginEnv, userAgentPluginName)
-
-		return client, nil
-	})
-	if err != nil {
-		return nil, err
+		clients.iamClient = client
 	}
 
-	return client.(*iam.Service), nil
+	return clients.iamClient, nil
 }
 
-// HTTPClient returns a new http.Client that is authenticated using the provided
-// credentials. The underlying httpClient is cached among all clients.
+// HTTPClient returns the HTTP client bound to the current credentials.
 func (b *backend) HTTPClient(s logical.Storage) (*http.Client, error) {
-	creds, err := b.credentials(s)
+	clients, err := b.credentialClients(s)
 	if err != nil {
 		return nil, errwrap.Wrapf("failed to create oauth2 http client: {{err}}", err)
 	}
 
-	client, err := b.cache.Fetch("HTTPClient", cacheTime, func() (interface{}, error) {
-		b.Logger().Debug("creating oauth2 http client")
-		ctx := context.WithValue(context.Background(), oauth2.HTTPClient, cleanhttp.DefaultClient())
-		return oauth2.NewClient(ctx, creds.TokenSource), nil
-	})
+	return clients.httpClient, nil
+}
+
+func (b *backend) credentialClients(s logical.Storage) (*credentialClient, error) {
+	creds, err := b.credentials(s)
 	if err != nil {
 		return nil, err
 	}
 
-	return client.(*http.Client), nil
+	b.credentialClientLock.Lock()
+	defer b.credentialClientLock.Unlock()
+
+	if b.credentialClient == nil || b.credentialClient.credentials != creds {
+		b.Logger().Debug("creating oauth2 http client")
+		ctx := context.WithValue(context.Background(), oauth2.HTTPClient, cleanhttp.DefaultClient())
+		b.credentialClient = &credentialClient{
+			credentials: creds,
+			httpClient:  oauth2.NewClient(ctx, creds.TokenSource),
+		}
+	}
+
+	return b.credentialClient, nil
 }
 
 // credentials returns the credentials which were specified in the
@@ -275,7 +298,16 @@ func (p *PluginIdentityTokenSupplier) SubjectToken(ctx context.Context, opts ext
 
 // ClearCaches deletes all cached clients and credentials.
 func (b *backend) ClearCaches() {
+	b.identityLock.Lock()
+	defer b.identityLock.Unlock()
+	b.clearCaches()
+}
+
+func (b *backend) clearCaches() {
 	b.cache.Clear()
+	b.credentialClientLock.Lock()
+	b.credentialClient = nil
+	b.credentialClientLock.Unlock()
 }
 
 // invalidate resets the plugin. This is called when a key is updated via

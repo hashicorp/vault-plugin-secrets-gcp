@@ -155,6 +155,9 @@ func pathStaticAccountSecretAccessToken(b *backend) *framework.Path {
 }
 
 func (b *backend) pathStaticAccountSecretKey(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	b.identityLock.RLock()
+	defer b.identityLock.RUnlock()
+
 	acctName := d.Get("name").(string)
 	keyType := d.Get("key_type").(string)
 	keyAlg := d.Get("key_algorithm").(string)
@@ -170,7 +173,8 @@ func (b *backend) pathStaticAccountSecretKey(ctx context.Context, req *logical.R
 	if acct.SecretType != SecretTypeKey {
 		return logical.ErrorResponse("static account %q cannot generate service account keys (has secret type %s)", acctName, acct.SecretType), nil
 	}
-	if err := b.checkStaticAccountTarget(ctx, req.Storage, &acct.ServiceAccountId); err != nil {
+	iamAdmin, err := b.checkStaticAccountTarget(ctx, req.Storage, &acct.ServiceAccountId)
+	if err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	}
 
@@ -184,10 +188,13 @@ func (b *backend) pathStaticAccountSecretKey(ctx context.Context, req *logical.R
 		},
 	}
 
-	return b.createServiceAccountKeySecret(ctx, req.Storage, &acct.ServiceAccountId, params)
+	return b.createServiceAccountKeySecretWithIAM(ctx, iamAdmin, req.Storage, &acct.ServiceAccountId, params)
 }
 
 func (b *backend) pathStaticAccountAccessToken(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	b.identityLock.RLock()
+	defer b.identityLock.RUnlock()
+
 	acctName := d.Get("name").(string)
 
 	acct, err := b.getStaticAccount(acctName, ctx, req.Storage)
@@ -200,7 +207,7 @@ func (b *backend) pathStaticAccountAccessToken(ctx context.Context, req *logical
 	if acct.SecretType != SecretTypeAccessToken {
 		return logical.ErrorResponse("static account %q cannot generate access tokens (has secret type %s)", acctName, acct.SecretType), nil
 	}
-	if err := b.checkStaticAccountTarget(ctx, req.Storage, &acct.ServiceAccountId); err != nil {
+	if _, err := b.checkStaticAccountTarget(ctx, req.Storage, &acct.ServiceAccountId); err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	}
 

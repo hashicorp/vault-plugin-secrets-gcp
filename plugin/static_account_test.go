@@ -16,13 +16,17 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
+	"github.com/hashicorp/vault/sdk/helper/pluginutil"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -84,6 +88,71 @@ func staticIdentityConfigs(t *testing.T) []struct {
 			},
 			ServiceAccountEmail: staticIdentityRootEmail,
 		}},
+	}
+}
+
+type staticIdentityTestSetup func(*testing.T) (*backend, logical.Storage, *staticAccountIdentityTransport, context.Context)
+
+var staticAccountIdentityExistingPaths = []struct {
+	name       string
+	suffix     string
+	operation  logical.Operation
+	secretType string
+}{
+	{"read-key", "/key", logical.ReadOperation, SecretTypeKey},
+	{"write-key", "/key", logical.UpdateOperation, SecretTypeKey},
+	{"read-token", "/token", logical.ReadOperation, SecretTypeAccessToken},
+	{"write-token", "/token", logical.UpdateOperation, SecretTypeAccessToken},
+	{"update-key-account", "", logical.UpdateOperation, SecretTypeKey},
+	{"update-token-account", "", logical.UpdateOperation, SecretTypeAccessToken},
+	{"rotate-key", "/rotate-key", logical.UpdateOperation, SecretTypeAccessToken},
+}
+
+func testExistingStaticAccountIdentity(t *testing.T, setup staticIdentityTestSetup) {
+	t.Helper()
+	for _, target := range []gcputil.ServiceAccountId{
+		{Project: "-", EmailOrId: staticIdentityRootEmail},
+		{Project: staticIdentityProject, EmailOrId: staticIdentityRootID},
+	} {
+		for _, tc := range staticAccountIdentityExistingPaths {
+			t.Run(fmt.Sprintf("%s/%s", target.ResourceName(), tc.name), func(t *testing.T) {
+				b, storage, transport, ctx := setup(t)
+				account := &StaticAccount{
+					Name:             "self-test",
+					SecretType:       tc.secretType,
+					ServiceAccountId: target,
+				}
+				if tc.secretType == SecretTypeAccessToken {
+					account.TokenGen = &TokenGenerator{
+						KeyName:    target.ResourceName() + "/keys/old",
+						B64KeyJSON: staticIdentityKeyData(t, staticIdentityRootEmail),
+						Scopes:     []string{iam.CloudPlatformScope},
+					}
+				}
+				require.NoError(t, account.save(ctx, storage))
+				before, err := storage.Get(ctx, "static-account/self-test")
+				require.NoError(t, err)
+
+				req := &logical.Request{
+					Operation: tc.operation,
+					Path:      "static-account/self-test" + tc.suffix,
+					Storage:   storage,
+				}
+				if tc.suffix == "" {
+					req.Data = map[string]interface{}{
+						"service_account_email": target.EmailOrId,
+						"secret_type":           tc.secretType,
+					}
+				}
+				resp, err := b.HandleRequest(ctx, req)
+
+				assertStaticAccountIdentityRejected(t, resp, err, transport)
+				after, err := storage.Get(ctx, "static-account/self-test")
+				require.NoError(t, err)
+				require.NotNil(t, after)
+				assert.True(t, bytes.Equal(before.Value, after.Value), "rejected requests must not change the stored account")
+			})
+		}
 	}
 }
 
@@ -160,63 +229,11 @@ func TestStaticAccountIdentity_MetadataCredentials(t *testing.T) {
 		}
 	}
 
-	for _, target := range []gcputil.ServiceAccountId{
-		{Project: "-", EmailOrId: staticIdentityRootEmail},
-		{Project: staticIdentityProject, EmailOrId: staticIdentityRootID},
-	} {
-		for _, tc := range []struct {
-			name       string
-			suffix     string
-			operation  logical.Operation
-			secretType string
-		}{
-			{"read-key", "/key", logical.ReadOperation, SecretTypeKey},
-			{"write-key", "/key", logical.UpdateOperation, SecretTypeKey},
-			{"read-token", "/token", logical.ReadOperation, SecretTypeAccessToken},
-			{"write-token", "/token", logical.UpdateOperation, SecretTypeAccessToken},
-			{"update-key-account", "", logical.UpdateOperation, SecretTypeKey},
-			{"update-token-account", "", logical.UpdateOperation, SecretTypeAccessToken},
-			{"rotate-key", "/rotate-key", logical.UpdateOperation, SecretTypeAccessToken},
-		} {
-			t.Run(fmt.Sprintf("existing/%s/%s", target.ResourceName(), tc.name), func(t *testing.T) {
-				b, storage, transport, ctx := setupStaticAccountMetadataTest(t, staticIdentityRootEmail)
-				account := &StaticAccount{
-					Name:             "self-test",
-					SecretType:       tc.secretType,
-					ServiceAccountId: target,
-				}
-				if tc.secretType == SecretTypeAccessToken {
-					account.TokenGen = &TokenGenerator{
-						KeyName:    target.ResourceName() + "/keys/old",
-						B64KeyJSON: staticIdentityKeyData(t, staticIdentityRootEmail),
-						Scopes:     []string{iam.CloudPlatformScope},
-					}
-				}
-				require.NoError(t, account.save(ctx, storage))
-				before, err := storage.Get(ctx, "static-account/self-test")
-				require.NoError(t, err)
-
-				req := &logical.Request{
-					Operation: tc.operation,
-					Path:      "static-account/self-test" + tc.suffix,
-					Storage:   storage,
-				}
-				if tc.suffix == "" {
-					req.Data = map[string]interface{}{
-						"service_account_email": target.EmailOrId,
-						"secret_type":           tc.secretType,
-					}
-				}
-				resp, err := b.HandleRequest(ctx, req)
-
-				assertStaticAccountIdentityRejected(t, resp, err, transport)
-				after, err := storage.Get(ctx, "static-account/self-test")
-				require.NoError(t, err)
-				require.NotNil(t, after)
-				assert.True(t, bytes.Equal(before.Value, after.Value), "rejected requests must not change the stored account")
-			})
-		}
-	}
+	t.Run("existing", func(t *testing.T) {
+		testExistingStaticAccountIdentity(t, func(t *testing.T) (*backend, logical.Storage, *staticAccountIdentityTransport, context.Context) {
+			return setupStaticAccountMetadataTest(t, staticIdentityRootEmail)
+		})
+	})
 
 	for _, secretType := range []string{SecretTypeKey, SecretTypeAccessToken} {
 		t.Run("other-account/"+secretType, func(t *testing.T) {
@@ -328,6 +345,92 @@ func TestStaticAccountIdentity_UnresolvedCredentials(t *testing.T) {
 	}
 }
 
+func TestStaticAccountIdentity_UnresolvedIAMEmail(t *testing.T) {
+	credentials := staticIdentityJSON(t, map[string]interface{}{
+		"type": "impersonated_service_account",
+		"service_account_impersonation_url": strings.Replace(
+			staticIdentityImpersonationURL, staticIdentityRootEmail, staticIdentityRootID, 1,
+		),
+	})
+	b, storage, transport, ctx := setupStaticAccountCredentialsJSONTest(t, credentials)
+	transport.omitEmail = true
+	account := &StaticAccount{
+		Name:             "target",
+		SecretType:       SecretTypeKey,
+		ServiceAccountId: gcputil.ServiceAccountId{Project: staticIdentityProject, EmailOrId: staticIdentityRootEmail},
+	}
+	require.NoError(t, account.save(ctx, storage))
+
+	resp := handleStaticIdentityRequestError(t, ctx, b, storage, logical.ReadOperation, "static-account/target/key")
+	assert.Contains(t, resp.Error().Error(), "unable to determine GCP secrets engine identity")
+	assert.Empty(t, transport.keyCreates, "must not create a key if IAM cannot resolve the mount identity")
+}
+
+func TestStaticAccountIdentity_ConfigChangesWaitForKeyCreation(t *testing.T) {
+	mount := staticIdentityConfigs(t)[0]
+	b, storage, transport, ctx := setupStaticAccountIdentityTest(t, mount.cfg)
+	createStaticIdentityAccount(t, ctx, b, storage, "other", SecretTypeKey)
+
+	transport.keyCreateEntered = make(chan struct{}, 1)
+	transport.releaseKeyCreate = make(chan struct{})
+	keyDone := make(chan error, 1)
+	go func() {
+		resp, err := b.HandleRequest(ctx, &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "static-account/other/key",
+			Storage:   storage,
+		})
+		if err == nil && (resp == nil || resp.IsError()) {
+			if resp == nil {
+				err = fmt.Errorf("key request returned no response")
+			} else {
+				err = resp.Error()
+			}
+		}
+		keyDone <- err
+	}()
+
+	select {
+	case <-transport.keyCreateEntered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("key request did not reach the mocked key creation")
+	}
+
+	configStarted := make(chan struct{})
+	configDone := make(chan error, 1)
+	newCredentials := staticIdentityJSON(t, map[string]interface{}{
+		"type": "service_account", "project_id": staticIdentityProject,
+		"client_email": staticIdentityOtherEmail, "client_id": staticIdentityOtherID,
+		"private_key_id": "new-key-id", "private_key": "new-key",
+		"token_uri": staticIdentityTokenURL,
+	})
+	go func() {
+		close(configStarted)
+		resp, err := b.HandleRequest(ctx, &logical.Request{
+			Operation: logical.UpdateOperation,
+			Path:      "config",
+			Storage:   storage,
+			Data:      map[string]interface{}{"credentials": newCredentials},
+		})
+		if err == nil && resp != nil && resp.IsError() {
+			err = resp.Error()
+		}
+		configDone <- err
+	}()
+	<-configStarted
+
+	select {
+	case err := <-configDone:
+		t.Fatalf("config update completed before key creation finished: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(transport.releaseKeyCreate)
+	require.NoError(t, <-keyDone)
+	require.NoError(t, <-configDone)
+	require.Equal(t, []string{staticIdentityOtherID}, transport.keyCreates)
+}
+
 func TestStaticAccountIdentity_ImpersonatedServiceAccountByID(t *testing.T) {
 	credentials := staticIdentityJSON(t, map[string]interface{}{
 		"type": "impersonated_service_account",
@@ -355,6 +458,119 @@ func TestStaticAccountIdentity_ImpersonatedServiceAccountByID(t *testing.T) {
 	entry, err := storage.Get(ctx, "static-account/target")
 	require.NoError(t, err)
 	assert.Nil(t, entry, "must not persist a static account targeting the impersonated identity")
+}
+
+type supportedPluginIdentitySystemView struct {
+	testSystemView
+}
+
+func (s supportedPluginIdentitySystemView) GenerateIdentityToken(context.Context, *pluginutil.IdentityTokenRequest) (*pluginutil.IdentityTokenResponse, error) {
+	return &pluginutil.IdentityTokenResponse{}, nil
+}
+
+func TestStaticAccountIdentity_WIFEmailChangeClearsClients(t *testing.T) {
+	conf := logical.TestBackendConfig()
+	conf.StorageView = new(logical.InmemStorage)
+	conf.System = supportedPluginIdentitySystemView{}
+	b := Backend()
+	require.NoError(t, b.Setup(context.Background(), conf))
+	s := conf.StorageView
+	require.NoError(t, writeConfig(context.Background(), s, config{
+		PluginIdentityTokenParams: pluginidentityutil.PluginIdentityTokenParams{
+			IdentityTokenAudience: "//iam.googleapis.com/projects/1/locations/global/workloadIdentityPools/pool/providers/vault",
+		},
+		ServiceAccountEmail: staticIdentityRootEmail,
+	}))
+
+	oldClients, err := b.credentialClients(s)
+	require.NoError(t, err)
+	resp, err := b.HandleRequest(context.Background(), &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "config",
+		Storage:   s,
+		Data:      map[string]interface{}{"service_account_email": staticIdentityOtherEmail},
+	})
+	require.NoError(t, err)
+	if resp != nil {
+		require.False(t, resp.IsError())
+	}
+	require.Nil(t, b.credentialClient, "changing the WIF target must invalidate clients built for the old target")
+
+	newClients, err := b.credentialClients(s)
+	require.NoError(t, err)
+	require.NotSame(t, oldClients, newClients)
+	require.NotSame(t, oldClients.credentials, newClients.credentials)
+
+	_, err = b.checkStaticAccountTarget(context.Background(), s, &gcputil.ServiceAccountId{
+		Project: staticIdentityProject, EmailOrId: staticIdentityRootEmail,
+	})
+	require.NoError(t, err, "the old WIF target should be allowed after configuration switches to another account")
+}
+
+func TestStaticAccountIdentity_MetadataEmailIsNotCached(t *testing.T) {
+	var metadataEmail atomic.Value
+	metadataEmail.Store(staticIdentityRootEmail)
+	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/computeMetadata/v1/instance/service-accounts/default/email" ||
+			r.Header.Get("Metadata-Flavor") != "Google" {
+			t.Errorf("unexpected metadata request: %s %s", r.Method, r.URL.Path)
+			http.Error(w, "unexpected metadata request", http.StatusNotFound)
+			return
+		}
+		_, _ = io.WriteString(w, metadataEmail.Load().(string))
+	}))
+	t.Cleanup(metadataServer.Close)
+	t.Setenv("GCE_METADATA_HOST", strings.TrimPrefix(metadataServer.URL, "http://"))
+	b, storage, _, ctx := setupStaticAccountIdentityTest(t, config{})
+	clients, err := b.credentialClients(storage)
+	require.NoError(t, err)
+
+	identity, err := b.mountServiceAccountIdentity(ctx, storage, clients.credentials)
+	require.NoError(t, err)
+	require.Equal(t, staticIdentityRootEmail, identity)
+
+	metadataEmail.Store(staticIdentityOtherEmail)
+	identity, err = b.mountServiceAccountIdentity(ctx, storage, clients.credentials)
+	require.NoError(t, err)
+	require.Equal(t, staticIdentityOtherEmail, identity)
+
+	metadataEmail.Store("test-project.svc.id.goog[namespace/service-account]")
+	identity, err = b.mountServiceAccountIdentity(ctx, storage, clients.credentials)
+	require.NoError(t, err)
+	require.Empty(t, identity, "GKE workload federation identities are not IAM service accounts")
+}
+
+func TestCredentialClientsTrackADCRefresh(t *testing.T) {
+	credentialsPath := filepath.Join(t.TempDir(), "credentials.json")
+	writeCredentials := func(email string) {
+		credentials := staticIdentityJSON(t, map[string]string{
+			"type": "service_account", "project_id": staticIdentityProject,
+			"client_email": email, "client_id": staticIdentityRootID,
+			"private_key_id": "fake-key-id", "private_key": staticIdentityPrivateKeyPEM(),
+			"token_uri": staticIdentityTokenURL,
+		})
+		require.NoError(t, os.WriteFile(credentialsPath, []byte(credentials), 0600))
+	}
+	writeCredentials(staticIdentityRootEmail)
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credentialsPath)
+
+	b, storage := getTestBackend(t)
+	require.NoError(t, writeConfig(context.Background(), storage, config{}))
+	oldClients, err := b.credentialClients(storage)
+	require.NoError(t, err)
+	require.Contains(t, string(oldClients.credentials.JSON), staticIdentityRootEmail)
+
+	writeCredentials(staticIdentityOtherEmail)
+	b.cache.Expire("credentials")
+	newClients, err := b.credentialClients(storage)
+	require.NoError(t, err)
+	require.NotSame(t, oldClients, newClients)
+	require.NotSame(t, oldClients.credentials, newClients.credentials)
+	require.Contains(t, string(newClients.credentials.JSON), staticIdentityOtherEmail)
+
+	iamClient, err := b.IAMAdminClient(storage)
+	require.NoError(t, err)
+	require.Same(t, newClients.iamClient, iamClient)
 }
 
 func TestStaticAccountIdentity_KnownNonServiceAccountCredentials(t *testing.T) {
@@ -387,6 +603,15 @@ func TestStaticAccountIdentity_KnownNonServiceAccountCredentials(t *testing.T) {
 				"refresh_token": "fake-refresh-token",
 			}),
 		},
+		{
+			name: "OAuth client credentials",
+			credentials: staticIdentityJSON(t, map[string]interface{}{
+				"installed": map[string]interface{}{
+					"client_id": "fake-client-id", "redirect_uris": []string{"http://localhost"},
+					"auth_uri": "https://accounts.google.com/o/oauth2/auth",
+				},
+			}),
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			b, storage, transport, ctx := setupStaticAccountCredentialsJSONTest(t, tc.credentials)
@@ -416,64 +641,11 @@ func TestStaticAccountIdentity_KnownNonServiceAccountCredentials(t *testing.T) {
 // the protection existed, so each credential-producing path must check again.
 func TestStaticAccountIdentity_ExistingAccount(t *testing.T) {
 	for _, mount := range staticIdentityConfigs(t) {
-		for _, target := range []gcputil.ServiceAccountId{
-			{Project: "-", EmailOrId: staticIdentityRootEmail},
-			{Project: staticIdentityProject, EmailOrId: staticIdentityRootID},
-		} {
-			for _, tc := range []struct {
-				name       string
-				suffix     string
-				operation  logical.Operation
-				secretType string
-			}{
-				{"read-key", "/key", logical.ReadOperation, SecretTypeKey},
-				{"write-key", "/key", logical.UpdateOperation, SecretTypeKey},
-				{"read-token", "/token", logical.ReadOperation, SecretTypeAccessToken},
-				{"write-token", "/token", logical.UpdateOperation, SecretTypeAccessToken},
-				{"update-key-account", "", logical.UpdateOperation, SecretTypeKey},
-				{"update-token-account", "", logical.UpdateOperation, SecretTypeAccessToken},
-				{"rotate-key", "/rotate-key", logical.UpdateOperation, SecretTypeAccessToken},
-			} {
-				t.Run(fmt.Sprintf("%s/%s/%s", mount.name, target.ResourceName(), tc.name), func(t *testing.T) {
-					b, storage, transport, ctx := setupStaticAccountIdentityTest(t, mount.cfg)
-
-					account := &StaticAccount{
-						Name:             "self-test",
-						SecretType:       tc.secretType,
-						ServiceAccountId: target,
-					}
-					if tc.secretType == SecretTypeAccessToken {
-						account.TokenGen = &TokenGenerator{
-							KeyName:    target.ResourceName() + "/keys/old",
-							B64KeyJSON: staticIdentityKeyData(t, staticIdentityRootEmail),
-							Scopes:     []string{iam.CloudPlatformScope},
-						}
-					}
-					require.NoError(t, account.save(ctx, storage))
-					before, err := storage.Get(ctx, "static-account/self-test")
-					require.NoError(t, err)
-
-					req := &logical.Request{
-						Operation: tc.operation,
-						Path:      "static-account/self-test" + tc.suffix,
-						Storage:   storage,
-					}
-					if tc.suffix == "" {
-						req.Data = map[string]interface{}{
-							"service_account_email": target.EmailOrId,
-							"secret_type":           tc.secretType,
-						}
-					}
-					resp, err := b.HandleRequest(ctx, req)
-
-					assertStaticAccountIdentityRejected(t, resp, err, transport)
-					after, err := storage.Get(ctx, "static-account/self-test")
-					require.NoError(t, err)
-					require.NotNil(t, after)
-					assert.True(t, bytes.Equal(before.Value, after.Value), "rejected requests must not change the stored account")
-				})
-			}
-		}
+		t.Run(mount.name, func(t *testing.T) {
+			testExistingStaticAccountIdentity(t, func(t *testing.T) (*backend, logical.Storage, *staticAccountIdentityTransport, context.Context) {
+				return setupStaticAccountIdentityTest(t, mount.cfg)
+			})
+		})
 	}
 }
 
@@ -545,6 +717,15 @@ func handleStaticIdentityRequest(t *testing.T, ctx context.Context, b *backend, 
 	return resp
 }
 
+func handleStaticIdentityRequestError(t *testing.T, ctx context.Context, b *backend, storage logical.Storage, op logical.Operation, path string) *logical.Response {
+	t.Helper()
+	resp, err := b.HandleRequest(ctx, &logical.Request{Operation: op, Path: path, Storage: storage})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.True(t, resp.IsError())
+	return resp
+}
+
 func assertStaticAccountIdentityRejected(t *testing.T, resp *logical.Response, err error, transport *staticAccountIdentityTransport) {
 	t.Helper()
 	if err == nil && resp != nil {
@@ -595,8 +776,9 @@ func setupStaticAccountIdentityTest(t *testing.T, cfg config) (*backend, logical
 	_, err := b.cache.Fetch("credentials", cacheTime, func() (interface{}, error) { return creds, nil })
 	require.NoError(t, err)
 	client := &http.Client{Transport: &oauth2.Transport{Source: creds.TokenSource, Base: transport}}
-	_, err = b.cache.Fetch("HTTPClient", cacheTime, func() (interface{}, error) { return client, nil })
-	require.NoError(t, err)
+	b.credentialClientLock.Lock()
+	b.credentialClient = &credentialClient{credentials: creds, httpClient: client}
+	b.credentialClientLock.Unlock()
 
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	t.Cleanup(cancel)
@@ -622,24 +804,52 @@ func setupStaticAccountMetadataTest(t *testing.T, email string) (*backend, logic
 
 func setupStaticAccountMetadataTestWithADCFile(t *testing.T, metadataEmail, fileEmail string) (*backend, logical.Storage, *staticAccountIdentityTransport, context.Context) {
 	t.Helper()
-	b, storage, transport, ctx := setupStaticAccountMetadataTest(t, metadataEmail)
-	injectStaticAccountCredentialsJSON(t, b, staticIdentityJSON(t, map[string]string{
+	credentialsPath := filepath.Join(t.TempDir(), "credentials.json")
+	credentials := staticIdentityJSON(t, map[string]string{
 		"type": "service_account", "project_id": staticIdentityProject,
 		"client_email": fileEmail, "client_id": staticIdentityRootID,
-		"private_key_id": "fake-key-id", "private_key": "fake-key",
+		"private_key_id": "fake-key-id", "private_key": staticIdentityPrivateKeyPEM(),
 		"token_uri": staticIdentityTokenURL,
+	})
+	require.NoError(t, os.WriteFile(credentialsPath, []byte(credentials), 0600))
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credentialsPath)
+
+	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/computeMetadata/v1/instance/service-accounts/default/email" ||
+			r.Header.Get("Metadata-Flavor") != "Google" {
+			t.Errorf("unexpected metadata request: %s %s", r.Method, r.URL.Path)
+			http.Error(w, "unexpected metadata request", http.StatusNotFound)
+			return
+		}
+		_, _ = io.WriteString(w, metadataEmail)
 	}))
+	t.Cleanup(metadataServer.Close)
+	t.Setenv("GCE_METADATA_HOST", strings.TrimPrefix(metadataServer.URL, "http://"))
+	b, storage, transport, ctx := setupStaticAccountIdentityTest(t, config{})
+	b.cache.Expire("credentials")
+	creds, err := b.credentials(storage)
+	require.NoError(t, err)
+	creds.TokenSource = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "fake-access-token"})
+	b.credentialClientLock.Lock()
+	b.credentialClient = &credentialClient{
+		credentials: creds,
+		httpClient: &http.Client{Transport: &oauth2.Transport{
+			Source: creds.TokenSource,
+			Base:   transport,
+		}},
+	}
+	b.credentialClientLock.Unlock()
 	return b, storage, transport, ctx
 }
 
 func setupStaticAccountCredentialsJSONTest(t *testing.T, credentialJSON string) (*backend, logical.Storage, *staticAccountIdentityTransport, context.Context) {
 	t.Helper()
 	b, storage, transport, ctx := setupStaticAccountIdentityTest(t, config{})
-	injectStaticAccountCredentialsJSON(t, b, credentialJSON)
+	injectStaticAccountCredentialsJSON(t, b, transport, credentialJSON)
 	return b, storage, transport, ctx
 }
 
-func injectStaticAccountCredentialsJSON(t *testing.T, b *backend, credentialJSON string) {
+func injectStaticAccountCredentialsJSON(t *testing.T, b *backend, transport *staticAccountIdentityTransport, credentialJSON string) {
 	t.Helper()
 	creds := &google.Credentials{
 		ProjectID:   staticIdentityProject,
@@ -649,6 +859,15 @@ func injectStaticAccountCredentialsJSON(t *testing.T, b *backend, credentialJSON
 	b.cache.Expire("credentials")
 	_, err := b.cache.Fetch("credentials", cacheTime, func() (interface{}, error) { return creds, nil })
 	require.NoError(t, err)
+	b.credentialClientLock.Lock()
+	b.credentialClient = &credentialClient{
+		credentials: creds,
+		httpClient: &http.Client{Transport: &oauth2.Transport{
+			Source: creds.TokenSource,
+			Base:   transport,
+		}},
+	}
+	b.credentialClientLock.Unlock()
 }
 
 var staticIdentityPrivateKeyPEM = sync.OnceValue(func() string {
@@ -681,10 +900,13 @@ func staticIdentityJSON(t *testing.T, v interface{}) string {
 }
 
 type staticAccountIdentityTransport struct {
-	t            *testing.T
-	mu           sync.Mutex
-	keyCreates   []string
-	tokensIssued int
+	t                *testing.T
+	mu               sync.Mutex
+	keyCreates       []string
+	tokensIssued     int
+	omitEmail        bool
+	keyCreateEntered chan struct{}
+	releaseKeyCreate chan struct{}
 }
 
 func (tr *staticAccountIdentityTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -708,11 +930,18 @@ func (tr *staticAccountIdentityTransport) RoundTrip(req *http.Request) (*http.Re
 		default:
 			return tr.unexpected(req)
 		}
+		if tr.omitEmail {
+			account.Email = ""
+		}
 		account.Name = "projects/" + staticIdentityProject + "/serviceAccounts/" + account.UniqueId
 		switch {
 		case req.Method == http.MethodGet && len(parts) == 4:
 			response = account
 		case req.Method == http.MethodPost && len(parts) == 5 && parts[4] == "keys":
+			if tr.keyCreateEntered != nil {
+				tr.keyCreateEntered <- struct{}{}
+				<-tr.releaseKeyCreate
+			}
 			tr.keyCreates = append(tr.keyCreates, account.UniqueId)
 			response = &iam.ServiceAccountKey{
 				Name:           fmt.Sprintf("%s/keys/key-%d", account.Name, len(tr.keyCreates)),

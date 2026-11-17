@@ -73,6 +73,9 @@ func (b *backend) pathConfigRotateRootWrite(ctx context.Context, req *logical.Re
 }
 
 func (b *backend) rotateRootCredential(ctx context.Context, req *logical.Request) error {
+	b.identityLock.Lock()
+	defer b.identityLock.Unlock()
+
 	// Get the current configuration
 	cfg, err := getConfig(ctx, req.Storage)
 	if err != nil {
@@ -134,7 +137,7 @@ func (b *backend) rotateRootCredential(ctx context.Context, req *logical.Request
 	}
 
 	// Clear caches to pick up the new credentials
-	b.ClearCaches()
+	b.clearCaches()
 
 	// Delete the old service account key
 	oldKeyName := fmt.Sprintf("projects/%s/serviceAccounts/%s/keys/%s",

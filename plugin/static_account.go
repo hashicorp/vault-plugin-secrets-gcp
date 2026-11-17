@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/go-secure-stdlib/strutil"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/iam/v1"
 )
 
@@ -137,7 +138,8 @@ func (b *backend) createStaticAccount(ctx context.Context, req *logical.Request,
 		Project:   gcpAcct.ProjectId,
 		EmailOrId: gcpAcct.Email,
 	}
-	if err := b.checkStaticAccountTarget(ctx, req.Storage, &acctId); err != nil {
+	iamAdmin, err = b.checkStaticAccountTarget(ctx, req.Storage, &acctId)
+	if err != nil {
 		return err
 	}
 
@@ -172,7 +174,7 @@ func (b *backend) createStaticAccount(ctx context.Context, req *logical.Request,
 
 	// Create new token gen if a stubbed tokenGenerator (with scopes) is given.
 	if newResources.tokenGen != nil && len(newResources.tokenGen.Scopes) > 0 {
-		tokenGen, err := b.createNewTokenGen(ctx, req, gcpAcct.Name, newResources.tokenGen.Scopes)
+		tokenGen, err := b.createNewTokenGenWithIAM(ctx, iamAdmin, gcpAcct.Name, newResources.tokenGen.Scopes)
 		if err != nil {
 			return err
 		}
@@ -213,7 +215,8 @@ func (b *backend) updateStaticAccount(ctx context.Context, req *logical.Request,
 		}
 		return nil, errwrap.Wrapf(fmt.Sprintf("unable to create static account, could not confirm service account %q exists: {{err}}", a.ResourceName()), err)
 	}
-	if err := b.checkStaticAccountTarget(ctx, req.Storage, &gcputil.ServiceAccountId{EmailOrId: gcpAcct.Email}); err != nil {
+	iamAdmin, err = b.checkStaticAccountTarget(ctx, req.Storage, &gcputil.ServiceAccountId{EmailOrId: gcpAcct.Email})
+	if err != nil {
 		return nil, err
 	}
 
@@ -377,26 +380,29 @@ const errStaticAccountTargetsMount = "static account cannot target the GCP secre
 
 // checkStaticAccountTarget returns an error if the given service account is the
 // one the GCP secrets engine itself authenticates as.
-func (b *backend) checkStaticAccountTarget(ctx context.Context, s logical.Storage, id *gcputil.ServiceAccountId) error {
-	mountEmail, err := b.mountServiceAccountEmail(ctx, s)
+func (b *backend) checkStaticAccountTarget(ctx context.Context, s logical.Storage, id *gcputil.ServiceAccountId) (*iam.Service, error) {
+	clients, err := b.credentialClients(s)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if mountEmail == "" {
-		return nil
+	mountIdentity, err := b.mountServiceAccountIdentity(ctx, s, clients.credentials)
+	if err != nil {
+		return nil, err
 	}
-
-	var iamAdmin *iam.Service
+	iamAdmin, err := b.iamAdminClient(clients)
+	if err != nil {
+		return nil, err
+	}
+	if mountIdentity == "" {
+		return iamAdmin, nil
+	}
 	resolveEmail := func(accountId *gcputil.ServiceAccountId) (string, error) {
-		if iamAdmin == nil {
-			iamAdmin, err = b.IAMAdminClient(s)
-			if err != nil {
-				return "", err
-			}
-		}
 		gcpAcct, err := b.getServiceAccount(iamAdmin, accountId)
 		if err != nil {
 			return "", err
+		}
+		if gcpAcct.Email == "" {
+			return "", errors.New("service account lookup returned no email")
 		}
 		return gcpAcct.Email, nil
 	}
@@ -407,32 +413,32 @@ func (b *backend) checkStaticAccountTarget(ctx context.Context, s logical.Storag
 	if !strings.Contains(targetEmail, "@") {
 		targetEmail, err = resolveEmail(id)
 		if err != nil {
-			return fmt.Errorf("unable to confirm service account %q for static account: %w", id.ResourceName(), err)
+			return nil, fmt.Errorf("unable to confirm service account %q for static account: %w", id.ResourceName(), err)
 		}
 	}
 
 	// Impersonation URLs can identify the mount service account by unique ID.
 	// Resolve that ID to an email before comparing it with the static account.
-	if !strings.Contains(mountEmail, "@") {
-		mountEmail, err = resolveEmail(&gcputil.ServiceAccountId{
+	if !strings.Contains(mountIdentity, "@") {
+		mountIdentity, err = resolveEmail(&gcputil.ServiceAccountId{
 			Project:   gcpServiceAccountInferredProject,
-			EmailOrId: mountEmail,
+			EmailOrId: mountIdentity,
 		})
 		if err != nil {
-			return fmt.Errorf("unable to determine GCP secrets engine identity: %w", err)
+			return nil, fmt.Errorf("unable to determine GCP secrets engine identity: %w", err)
 		}
 	}
 
-	if strings.EqualFold(targetEmail, mountEmail) {
-		return errors.New(errStaticAccountTargetsMount)
+	if strings.EqualFold(targetEmail, mountIdentity) {
+		return nil, errors.New(errStaticAccountTargetsMount)
 	}
-	return nil
+	return iamAdmin, nil
 }
 
-// mountServiceAccountEmail returns the email or unique ID of the service
+// mountServiceAccountIdentity returns the email or unique ID of the service
 // account the GCP secrets engine authenticates as, or an empty string when the
 // credentials are known not to represent a service account.
-func (b *backend) mountServiceAccountEmail(ctx context.Context, s logical.Storage) (string, error) {
+func (b *backend) mountServiceAccountIdentity(ctx context.Context, s logical.Storage, mountCredentials *google.Credentials) (string, error) {
 	cfg, err := getConfig(ctx, s)
 	if err != nil {
 		return "", err
@@ -448,29 +454,18 @@ func (b *backend) mountServiceAccountEmail(ctx context.Context, s logical.Storag
 		return cfg.ServiceAccountEmail, nil
 	}
 
-	mountCredentials, err := b.credentials(s)
-	if err != nil {
-		return "", err
-	}
 	if len(mountCredentials.JSON) == 0 {
-		email, err := b.cache.Fetch("metadata-service-account-email", cacheTime, func() (interface{}, error) {
-			email, err := metadata.EmailWithContext(ctx, "default")
-			if err != nil {
-				return nil, fmt.Errorf("unable to determine GCP secrets engine identity from metadata: %w", err)
-			}
-			if email == "" {
-				return nil, errors.New("unable to determine GCP secrets engine identity from metadata: empty service account email")
-			}
-			return email, nil
-		})
+		email, err := metadata.EmailWithContext(ctx, "default")
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("unable to determine GCP secrets engine identity from metadata: %w", err)
 		}
-		mountEmail, ok := email.(string)
-		if !ok {
-			return "", errors.New("unable to determine GCP secrets engine identity from metadata: unexpected cached value")
+		if email == "" {
+			return "", errors.New("unable to determine GCP secrets engine identity from metadata: empty service account email")
 		}
-		return mountEmail, nil
+		if isFederatedIdentityIdentifier(email) {
+			return "", nil
+		}
+		return email, nil
 	}
 
 	var creds struct {
@@ -500,13 +495,25 @@ func (b *backend) mountServiceAccountEmail(ctx context.Context, s logical.Storag
 			return "", fmt.Errorf("unable to parse service_account_impersonation_url: %w", err)
 		}
 		target, method, found := strings.Cut(path.Base(u.Path), ":")
-		if !found || method != "generateAccessToken" || target == "" {
+		if path.Base(path.Dir(u.Path)) != "serviceAccounts" ||
+			!found || method != "generateAccessToken" || target == "" {
 			return "", errors.New("unable to determine GCP secrets engine identity: invalid service account impersonation URL")
 		}
 		return target, nil
 	case "authorized_user", "external_account_authorized_user":
 		return "", nil
+	case "":
+		if _, err := google.ConfigFromJSON(mountCredentials.JSON); err == nil {
+			return "", nil
+		}
+		return "", errors.New("unable to determine GCP secrets engine identity: unsupported credential type")
 	default:
 		return "", errors.New("unable to determine GCP secrets engine identity: unsupported credential type")
 	}
+}
+
+func isFederatedIdentityIdentifier(identity string) bool {
+	return strings.HasSuffix(identity, ".svc.id.goog") ||
+		strings.Contains(identity, ".svc.id.goog[") ||
+		strings.HasPrefix(identity, "principal://iam.googleapis.com/")
 }
