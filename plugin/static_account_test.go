@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
@@ -111,6 +112,112 @@ func TestStaticAccountIdentity_Create(t *testing.T) {
 				})
 			}
 		}
+	}
+}
+
+func TestStaticAccountIdentity_MetadataCredentials(t *testing.T) {
+	for _, target := range []string{staticIdentityRootEmail, staticIdentityRootID} {
+		for _, secretType := range []string{SecretTypeKey, SecretTypeAccessToken} {
+			t.Run(fmt.Sprintf("create/%s/%s", target, secretType), func(t *testing.T) {
+				b, storage, transport, ctx := setupStaticAccountMetadataTest(t, staticIdentityRootEmail)
+
+				resp, err := b.HandleRequest(ctx, &logical.Request{
+					Operation: logical.CreateOperation,
+					Path:      "static-account/self-test",
+					Storage:   storage,
+					Data: map[string]interface{}{
+						"service_account_email": target,
+						"secret_type":           secretType,
+						"token_scopes":          []string{iam.CloudPlatformScope},
+					},
+				})
+
+				assertStaticAccountIdentityRejected(t, resp, err, transport)
+				entry, err := storage.Get(ctx, "static-account/self-test")
+				require.NoError(t, err)
+				assert.Nil(t, entry, "must not persist a static account targeting the mount identity")
+			})
+		}
+	}
+
+	for _, target := range []gcputil.ServiceAccountId{
+		{Project: "-", EmailOrId: staticIdentityRootEmail},
+		{Project: staticIdentityProject, EmailOrId: staticIdentityRootID},
+	} {
+		for _, tc := range []struct {
+			name       string
+			suffix     string
+			operation  logical.Operation
+			secretType string
+		}{
+			{"read-key", "/key", logical.ReadOperation, SecretTypeKey},
+			{"write-key", "/key", logical.UpdateOperation, SecretTypeKey},
+			{"read-token", "/token", logical.ReadOperation, SecretTypeAccessToken},
+			{"write-token", "/token", logical.UpdateOperation, SecretTypeAccessToken},
+			{"update-key-account", "", logical.UpdateOperation, SecretTypeKey},
+			{"update-token-account", "", logical.UpdateOperation, SecretTypeAccessToken},
+			{"rotate-key", "/rotate-key", logical.UpdateOperation, SecretTypeAccessToken},
+		} {
+			t.Run(fmt.Sprintf("existing/%s/%s", target.ResourceName(), tc.name), func(t *testing.T) {
+				b, storage, transport, ctx := setupStaticAccountMetadataTest(t, staticIdentityRootEmail)
+				account := &StaticAccount{
+					Name:             "self-test",
+					SecretType:       tc.secretType,
+					ServiceAccountId: target,
+				}
+				if tc.secretType == SecretTypeAccessToken {
+					account.TokenGen = &TokenGenerator{
+						KeyName:    target.ResourceName() + "/keys/old",
+						B64KeyJSON: staticIdentityKeyData(t, staticIdentityRootEmail),
+						Scopes:     []string{iam.CloudPlatformScope},
+					}
+				}
+				require.NoError(t, account.save(ctx, storage))
+				before, err := storage.Get(ctx, "static-account/self-test")
+				require.NoError(t, err)
+
+				req := &logical.Request{
+					Operation: tc.operation,
+					Path:      "static-account/self-test" + tc.suffix,
+					Storage:   storage,
+				}
+				if tc.suffix == "" {
+					req.Data = map[string]interface{}{
+						"service_account_email": target.EmailOrId,
+						"secret_type":           tc.secretType,
+					}
+				}
+				resp, err := b.HandleRequest(ctx, req)
+
+				assertStaticAccountIdentityRejected(t, resp, err, transport)
+				after, err := storage.Get(ctx, "static-account/self-test")
+				require.NoError(t, err)
+				require.NotNil(t, after)
+				assert.True(t, bytes.Equal(before.Value, after.Value), "rejected requests must not change the stored account")
+			})
+		}
+	}
+
+	for _, secretType := range []string{SecretTypeKey, SecretTypeAccessToken} {
+		t.Run("other-account/"+secretType, func(t *testing.T) {
+			b, storage, transport, ctx := setupStaticAccountMetadataTest(t, staticIdentityRootEmail)
+			createStaticIdentityAccount(t, ctx, b, storage, "other", secretType)
+
+			if secretType == SecretTypeKey {
+				for _, op := range []logical.Operation{logical.ReadOperation, logical.UpdateOperation} {
+					resp := handleStaticIdentityRequest(t, ctx, b, storage, op, "static-account/other/key", nil)
+					assert.NotEmpty(t, resp.Data["private_key_data"])
+					require.NotNil(t, resp.Secret)
+				}
+			} else {
+				for _, op := range []logical.Operation{logical.ReadOperation, logical.UpdateOperation} {
+					resp := handleStaticIdentityRequest(t, ctx, b, storage, op, "static-account/other/token", nil)
+					assert.Equal(t, staticIdentityIssuedToken, resp.Data["token"])
+				}
+				handleStaticIdentityRequest(t, ctx, b, storage, logical.UpdateOperation, "static-account/other/rotate-key", nil)
+			}
+			assert.Equal(t, []string{staticIdentityOtherID, staticIdentityOtherID}, transport.keyCreates)
+		})
 	}
 }
 
@@ -289,6 +396,22 @@ func setupStaticAccountIdentityTest(t *testing.T, cfg config) (*backend, logical
 	t.Cleanup(cancel)
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{Transport: transport})
 	return b, storage, transport, ctx
+}
+
+func setupStaticAccountMetadataTest(t *testing.T, email string) (*backend, logical.Storage, *staticAccountIdentityTransport, context.Context) {
+	t.Helper()
+	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/computeMetadata/v1/instance/service-accounts/default/email" ||
+			r.Header.Get("Metadata-Flavor") != "Google" {
+			t.Errorf("unexpected metadata request: %s %s", r.Method, r.URL.Path)
+			http.Error(w, "unexpected metadata request", http.StatusNotFound)
+			return
+		}
+		_, _ = io.WriteString(w, email)
+	}))
+	t.Cleanup(metadataServer.Close)
+	t.Setenv("GCE_METADATA_HOST", strings.TrimPrefix(metadataServer.URL, "http://"))
+	return setupStaticAccountIdentityTest(t, config{})
 }
 
 var staticIdentityPrivateKeyPEM = sync.OnceValue(func() string {
