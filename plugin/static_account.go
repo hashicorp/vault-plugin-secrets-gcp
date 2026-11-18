@@ -385,7 +385,7 @@ func (b *backend) checkStaticAccountTarget(ctx context.Context, s logical.Storag
 	if err != nil {
 		return nil, err
 	}
-	mountIdentity, err := b.mountServiceAccountIdentity(ctx, s, clients.credentials)
+	mountIdentity, err := b.mountServiceAccountIdentity(ctx, clients)
 	if err != nil {
 		return nil, err
 	}
@@ -476,22 +476,18 @@ func isServiceAccountUniqueID(id string) bool {
 // mountServiceAccountIdentity returns the email or unique ID of the service
 // account the GCP secrets engine authenticates as, or an empty string when the
 // credentials are known not to represent a service account.
-func (b *backend) mountServiceAccountIdentity(ctx context.Context, s logical.Storage, mountCredentials *google.Credentials) (string, error) {
-	cfg, err := getConfig(ctx, s)
-	if err != nil {
-		return "", err
+func (b *backend) mountServiceAccountIdentity(ctx context.Context, clients *credentialClient) (string, error) {
+	if clients == nil || clients.state == nil || clients.credentials == nil {
+		return "", errors.New("unable to determine GCP secrets engine identity: missing credential state")
 	}
-	if cfg == nil {
-		cfg = &config{}
-	}
-
-	if cfg.IdentityTokenAudience != "" {
-		if cfg.ServiceAccountEmail == "" {
+	if clients.state.identityFromWIFConfig {
+		if clients.state.mountServiceAccountIdentity == "" {
 			return "", errors.New("unable to determine GCP secrets engine identity: missing service account email")
 		}
-		return cfg.ServiceAccountEmail, nil
+		return clients.state.mountServiceAccountIdentity, nil
 	}
 
+	mountCredentials := clients.credentials
 	if len(mountCredentials.JSON) == 0 {
 		email, err := metadata.EmailWithContext(ctx, "default")
 		if err != nil {

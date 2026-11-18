@@ -708,6 +708,39 @@ func TestStaticAccountIdentity_WIFEmailChangeClearsClients(t *testing.T) {
 	require.NoError(t, err, "the old WIF target should be allowed after configuration switches to another account")
 }
 
+func TestStaticAccountIdentity_WIFReplicationKeepsIdentityBoundToCachedClient(t *testing.T) {
+	conf := logical.TestBackendConfig()
+	conf.StorageView = new(logical.InmemStorage)
+	conf.System = supportedPluginIdentitySystemView{}
+	b := Backend()
+	require.NoError(t, b.Setup(context.Background(), conf))
+	s := conf.StorageView
+
+	wifConfig := func(email string) config {
+		return config{
+			PluginIdentityTokenParams: pluginidentityutil.PluginIdentityTokenParams{
+				IdentityTokenAudience: "//iam.googleapis.com/projects/1/locations/global/workloadIdentityPools/pool/providers/vault",
+			},
+			ServiceAccountEmail: email,
+		}
+	}
+	require.NoError(t, writeConfig(context.Background(), s, wifConfig(staticIdentityRootEmail)))
+	oldClients, err := b.credentialClients(s)
+	require.NoError(t, err)
+
+	// Replication writes the new config to storage before asynchronously
+	// invalidating the cached credential client on this node.
+	require.NoError(t, writeConfig(context.Background(), s, wifConfig(staticIdentityOtherEmail)))
+	require.Same(t, oldClients, b.credentialClient)
+
+	_, err = b.checkStaticAccountTarget(context.Background(), s, &gcputil.ServiceAccountId{
+		Project: staticIdentityProject, EmailOrId: staticIdentityRootEmail,
+	})
+	require.EqualError(t, err, staticIdentitySelfTargetError,
+		"the cached client for the old WIF target must not be allowed to create its own key")
+	require.Same(t, oldClients, b.credentialClient)
+}
+
 func TestStaticAccountIdentity_MetadataEmailIsNotCached(t *testing.T) {
 	var metadataEmail atomic.Value
 	metadataEmail.Store(staticIdentityRootEmail)
@@ -726,17 +759,17 @@ func TestStaticAccountIdentity_MetadataEmailIsNotCached(t *testing.T) {
 	clients, err := b.credentialClients(storage)
 	require.NoError(t, err)
 
-	identity, err := b.mountServiceAccountIdentity(ctx, storage, clients.credentials)
+	identity, err := b.mountServiceAccountIdentity(ctx, clients)
 	require.NoError(t, err)
 	require.Equal(t, staticIdentityRootEmail, identity)
 
 	metadataEmail.Store(staticIdentityOtherEmail)
-	identity, err = b.mountServiceAccountIdentity(ctx, storage, clients.credentials)
+	identity, err = b.mountServiceAccountIdentity(ctx, clients)
 	require.NoError(t, err)
 	require.Equal(t, staticIdentityOtherEmail, identity)
 
 	metadataEmail.Store("test-project.svc.id.goog[namespace/service-account]")
-	identity, err = b.mountServiceAccountIdentity(ctx, storage, clients.credentials)
+	identity, err = b.mountServiceAccountIdentity(ctx, clients)
 	require.NoError(t, err)
 	require.Empty(t, identity, "GKE workload federation identities are not IAM service accounts")
 }
@@ -974,11 +1007,16 @@ func setupStaticAccountIdentityTest(t *testing.T, cfg config) (*backend, logical
 	if cfg.CredentialsRaw != "" {
 		creds.JSON = []byte(cfg.CredentialsRaw)
 	}
-	_, err := b.cache.Fetch("credentials", cacheTime, func() (interface{}, error) { return creds, nil })
+	state := &credentialState{
+		credentials:                 creds,
+		mountServiceAccountIdentity: cfg.ServiceAccountEmail,
+		identityFromWIFConfig:       cfg.IdentityTokenAudience != "",
+	}
+	_, err := b.cache.Fetch("credentials", cacheTime, func() (interface{}, error) { return state, nil })
 	require.NoError(t, err)
 	client := &http.Client{Transport: &oauth2.Transport{Source: creds.TokenSource, Base: transport}}
 	b.credentialClientLock.Lock()
-	b.credentialClient = &credentialClient{credentials: creds, httpClient: client}
+	b.credentialClient = &credentialClient{credentials: creds, state: state, httpClient: client}
 	b.credentialClientLock.Unlock()
 
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
@@ -1028,12 +1066,14 @@ func setupStaticAccountMetadataTestWithADCFile(t *testing.T, metadataEmail, file
 	t.Setenv("GCE_METADATA_HOST", strings.TrimPrefix(metadataServer.URL, "http://"))
 	b, storage, transport, ctx := setupStaticAccountIdentityTest(t, config{})
 	b.cache.Expire("credentials")
-	creds, err := b.credentials(storage)
+	state, err := b.credentialState(storage)
 	require.NoError(t, err)
+	creds := state.credentials
 	creds.TokenSource = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "fake-access-token"})
 	b.credentialClientLock.Lock()
 	b.credentialClient = &credentialClient{
 		credentials: creds,
+		state:       state,
 		httpClient: &http.Client{Transport: &oauth2.Transport{
 			Source: creds.TokenSource,
 			Base:   transport,
@@ -1058,11 +1098,13 @@ func injectStaticAccountCredentialsJSON(t *testing.T, b *backend, transport *sta
 		TokenSource: oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "fake-access-token"}),
 	}
 	b.cache.Expire("credentials")
-	_, err := b.cache.Fetch("credentials", cacheTime, func() (interface{}, error) { return creds, nil })
+	state := &credentialState{credentials: creds}
+	_, err := b.cache.Fetch("credentials", cacheTime, func() (interface{}, error) { return state, nil })
 	require.NoError(t, err)
 	b.credentialClientLock.Lock()
 	b.credentialClient = &credentialClient{
 		credentials: creds,
+		state:       state,
 		httpClient: &http.Client{Transport: &oauth2.Transport{
 			Source: creds.TokenSource,
 			Base:   transport,

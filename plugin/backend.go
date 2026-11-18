@@ -67,8 +67,17 @@ type backend struct {
 
 type credentialClient struct {
 	credentials *google.Credentials
+	state       *credentialState
 	httpClient  *http.Client
 	iamClient   *iam.Service
+}
+
+// credentialState keeps the WIF identity paired with the credentials loaded
+// from the same config snapshot.
+type credentialState struct {
+	credentials                 *google.Credentials
+	mountServiceAccountIdentity string
+	identityFromWIFConfig       bool
 }
 
 // Factory returns a new backend as logical.Backend.
@@ -186,7 +195,7 @@ func (b *backend) HTTPClient(s logical.Storage) (*http.Client, error) {
 }
 
 func (b *backend) credentialClients(s logical.Storage) (*credentialClient, error) {
-	creds, err := b.credentials(s)
+	state, err := b.credentialState(s)
 	if err != nil {
 		return nil, err
 	}
@@ -194,12 +203,13 @@ func (b *backend) credentialClients(s logical.Storage) (*credentialClient, error
 	b.credentialClientLock.Lock()
 	defer b.credentialClientLock.Unlock()
 
-	if b.credentialClient == nil || b.credentialClient.credentials != creds {
+	if b.credentialClient == nil || b.credentialClient.state != state {
 		b.Logger().Debug("creating oauth2 http client")
 		ctx := context.WithValue(context.Background(), oauth2.HTTPClient, cleanhttp.DefaultClient())
 		b.credentialClient = &credentialClient{
-			credentials: creds,
-			httpClient:  oauth2.NewClient(ctx, creds.TokenSource),
+			credentials: state.credentials,
+			state:       state,
+			httpClient:  oauth2.NewClient(ctx, state.credentials.TokenSource),
 		}
 	}
 
@@ -212,7 +222,15 @@ func (b *backend) credentialClients(s logical.Storage) (*credentialClient, error
 // found, this function returns an error. The credentials are cached in-memory
 // for performance.
 func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
-	creds, err := b.cache.Fetch("credentials", cacheTime, func() (interface{}, error) {
+	state, err := b.credentialState(s)
+	if err != nil {
+		return nil, err
+	}
+	return state.credentials, nil
+}
+
+func (b *backend) credentialState(s logical.Storage) (*credentialState, error) {
+	cachedState, err := b.cache.Fetch("credentials", cacheTime, func() (interface{}, error) {
 		b.Logger().Debug("loading credentials")
 
 		ctx := context.Background()
@@ -254,12 +272,20 @@ func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
 			}
 		}
 
-		return creds, err
+		return &credentialState{
+			credentials:                 creds,
+			mountServiceAccountIdentity: cfg.ServiceAccountEmail,
+			identityFromWIFConfig:       cfg.IdentityTokenAudience != "",
+		}, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return creds.(*google.Credentials), nil
+	state, ok := cachedState.(*credentialState)
+	if !ok {
+		return nil, fmt.Errorf("cached credentials have unexpected type %T", cachedState)
+	}
+	return state, nil
 }
 
 func (b *backend) GetExternalAccountConfig(c *config, ts *PluginIdentityTokenSupplier) *gcputil.ExternalAccountConfig {
