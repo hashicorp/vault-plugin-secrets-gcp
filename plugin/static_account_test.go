@@ -432,16 +432,7 @@ func TestStaticAccountIdentity_ConfigChangesWaitForKeyCreation(t *testing.T) {
 }
 
 func TestStaticAccountIdentity_ImpersonatedServiceAccountByID(t *testing.T) {
-	credentials := staticIdentityJSON(t, map[string]interface{}{
-		"type": "impersonated_service_account",
-		"service_account_impersonation_url": strings.Replace(
-			staticIdentityImpersonationURL, staticIdentityRootEmail, staticIdentityRootID, 1,
-		),
-		"source_credentials": map[string]interface{}{
-			"type": "service_account", "client_email": staticIdentitySourceEmail,
-			"private_key_id": "fake-key-id", "private_key": "fake-key", "token_uri": staticIdentityTokenURL,
-		},
-	})
+	credentials := staticIdentityImpersonatedCredentials(t, staticIdentityRootID)
 	b, storage, transport, ctx := setupStaticAccountCredentialsJSONTest(t, credentials)
 
 	resp, err := b.HandleRequest(ctx, &logical.Request{
@@ -458,6 +449,216 @@ func TestStaticAccountIdentity_ImpersonatedServiceAccountByID(t *testing.T) {
 	entry, err := storage.Get(ctx, "static-account/target")
 	require.NoError(t, err)
 	assert.Nil(t, entry, "must not persist a static account targeting the impersonated identity")
+}
+
+func TestStaticAccountIdentity_ImpersonatedServiceAccountEmailReused(t *testing.T) {
+	credentials := staticIdentityImpersonatedCredentials(t, staticIdentityRootID)
+	b, storage, transport, ctx := setupStaticAccountCredentialsJSONTest(t, credentials)
+	target := &gcputil.ServiceAccountId{Project: staticIdentityProject, EmailOrId: staticIdentityRootEmail}
+
+	for i := 0; i < 2; i++ {
+		_, err := b.checkStaticAccountTarget(ctx, storage, target)
+		require.EqualError(t, err, staticIdentitySelfTargetError)
+	}
+
+	require.Equal(t, []string{staticIdentityRootID}, transport.accountLookups,
+		"the numeric impersonation ID should be resolved only once")
+}
+
+func TestStaticAccountIdentity_ImpersonatedServiceAccountEmailSurvivesCredentialReload(t *testing.T) {
+	credentials := staticIdentityImpersonatedCredentials(t, staticIdentityRootID)
+	b, storage, transport, ctx := setupStaticAccountCredentialsJSONTest(t, credentials)
+	target := &gcputil.ServiceAccountId{Project: staticIdentityProject, EmailOrId: staticIdentityRootEmail}
+
+	_, err := b.checkStaticAccountTarget(ctx, storage, target)
+	require.EqualError(t, err, staticIdentitySelfTargetError)
+	require.Equal(t, []string{staticIdentityRootID}, transport.accountLookups)
+
+	injectStaticAccountCredentialsJSON(t, b, transport, credentials)
+	_, err = b.checkStaticAccountTarget(ctx, storage, target)
+	require.EqualError(t, err, staticIdentitySelfTargetError)
+	assert.Equal(t, []string{staticIdentityRootID}, transport.accountLookups,
+		"credential reload with the same numeric ID should reuse the resolved email")
+}
+
+func TestStaticAccountIdentity_ImpersonatedServiceAccountEmailRefreshesForNewID(t *testing.T) {
+	b, storage, transport, ctx := setupStaticAccountCredentialsJSONTest(t,
+		staticIdentityImpersonatedCredentials(t, staticIdentityRootID))
+	target := &gcputil.ServiceAccountId{Project: staticIdentityProject, EmailOrId: staticIdentityRootEmail}
+
+	_, err := b.checkStaticAccountTarget(ctx, storage, target)
+	require.EqualError(t, err, staticIdentitySelfTargetError)
+
+	injectStaticAccountCredentialsJSON(t, b, transport,
+		staticIdentityImpersonatedCredentials(t, staticIdentityOtherID))
+	_, err = b.checkStaticAccountTarget(ctx, storage, target)
+	require.NoError(t, err, "the old service-account email must not be used for a different ID")
+	_, err = b.checkStaticAccountTarget(ctx, storage, target)
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{staticIdentityRootID, staticIdentityOtherID}, transport.accountLookups,
+		"the new numeric ID should be resolved once and then reused")
+}
+
+func TestStaticAccountIdentity_FailedImpersonationLookupPreservesCachedEmail(t *testing.T) {
+	b, storage, transport, ctx := setupStaticAccountCredentialsJSONTest(t,
+		staticIdentityImpersonatedCredentials(t, staticIdentityRootID))
+	target := &gcputil.ServiceAccountId{Project: staticIdentityProject, EmailOrId: staticIdentityRootEmail}
+
+	_, err := b.checkStaticAccountTarget(ctx, storage, target)
+	require.EqualError(t, err, staticIdentitySelfTargetError)
+
+	transport.omitEmailIDs = map[string]bool{staticIdentityOtherID: true}
+	injectStaticAccountCredentialsJSON(t, b, transport,
+		staticIdentityImpersonatedCredentials(t, staticIdentityOtherID))
+	_, err = b.checkStaticAccountTarget(ctx, storage, target)
+	require.ErrorContains(t, err, "unable to determine GCP secrets engine identity")
+
+	injectStaticAccountCredentialsJSON(t, b, transport,
+		staticIdentityImpersonatedCredentials(t, staticIdentityRootID))
+	_, err = b.checkStaticAccountTarget(ctx, storage, target)
+	require.EqualError(t, err, staticIdentitySelfTargetError)
+	assert.Equal(t, []string{staticIdentityRootID, staticIdentityOtherID}, transport.accountLookups,
+		"a failed lookup must leave the previously cached ID/email pair unchanged")
+}
+
+func TestStaticAccountIdentity_ImpersonationLookupHonorsCancellation(t *testing.T) {
+	b, storage, transport, ctx := setupStaticAccountCredentialsJSONTest(t,
+		staticIdentityImpersonatedCredentials(t, staticIdentityRootID))
+	transport.stallLookups = true
+	transport.lookupStalled = make(chan struct{}, 1)
+	target := &gcputil.ServiceAccountId{Project: staticIdentityProject, EmailOrId: staticIdentityRootEmail}
+
+	reqCtx, cancel := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	go func() {
+		_, err := b.checkStaticAccountTarget(reqCtx, storage, target)
+		done <- err
+	}()
+
+	<-transport.lookupStalled
+	cancel()
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(5 * time.Second):
+		t.Fatal("canceling the request did not cancel the IAM lookup")
+	}
+}
+
+func TestStaticAccountIdentity_StalledImpersonationLookupDoesNotBlockOtherRequests(t *testing.T) {
+	b, storage, transport, ctx := setupStaticAccountCredentialsJSONTest(t,
+		staticIdentityImpersonatedCredentials(t, staticIdentityRootID))
+	transport.stallLookups = true
+	transport.lookupStalled = make(chan struct{}, 2)
+	target := &gcputil.ServiceAccountId{Project: staticIdentityProject, EmailOrId: staticIdentityRootEmail}
+
+	firstCtx, cancelFirst := context.WithCancel(ctx)
+	defer cancelFirst()
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := b.checkStaticAccountTarget(firstCtx, storage, target)
+		firstDone <- err
+	}()
+	<-transport.lookupStalled
+
+	secondCtx, cancelSecond := context.WithCancel(ctx)
+	secondDone := make(chan error, 1)
+	go func() {
+		_, err := b.checkStaticAccountTarget(secondCtx, storage, target)
+		secondDone <- err
+	}()
+
+	select {
+	case <-transport.lookupStalled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("second request waited behind the first request's stalled IAM lookup")
+	}
+	cancelSecond()
+	select {
+	case err := <-secondDone:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(5 * time.Second):
+		t.Fatal("second request could not be canceled while the first lookup was stalled")
+	}
+
+	select {
+	case err := <-firstDone:
+		t.Fatalf("first request finished before it was canceled: %v", err)
+	default:
+	}
+	cancelFirst()
+	require.ErrorIs(t, <-firstDone, context.Canceled)
+}
+
+func TestStaticAccountIdentity_ConcurrentImpersonationLookups(t *testing.T) {
+	b, storage, transport, ctx := setupStaticAccountCredentialsJSONTest(t,
+		staticIdentityImpersonatedCredentials(t, staticIdentityRootID))
+	self := &gcputil.ServiceAccountId{Project: staticIdentityProject, EmailOrId: staticIdentityRootEmail}
+	other := &gcputil.ServiceAccountId{Project: staticIdentityProject, EmailOrId: staticIdentityOtherEmail}
+
+	const workers = 20
+	errs := make(chan error, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		target, wantSelf := other, false
+		if i%2 == 0 {
+			target, wantSelf = self, true
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := b.checkStaticAccountTarget(ctx, storage, target)
+			switch {
+			case wantSelf && (err == nil || err.Error() != staticIdentitySelfTargetError):
+				errs <- fmt.Errorf("self target: got %v, want %q", err, staticIdentitySelfTargetError)
+			case !wantSelf && err != nil:
+				errs <- fmt.Errorf("other target: unexpected error: %w", err)
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
+
+	transport.mu.Lock()
+	lookups := len(transport.accountLookups)
+	transport.mu.Unlock()
+	assert.GreaterOrEqual(t, lookups, 1)
+	assert.LessOrEqual(t, lookups, workers)
+
+	transport.mu.Lock()
+	transport.accountLookups = nil
+	transport.mu.Unlock()
+	_, err := b.checkStaticAccountTarget(ctx, storage, self)
+	require.EqualError(t, err, staticIdentitySelfTargetError)
+	assert.Empty(t, transport.accountLookups, "the resolved email should be cached after concurrent lookups")
+}
+
+func TestStaticAccountIdentity_NonNumericImpersonationIdentifierRejected(t *testing.T) {
+	b, storage, transport, ctx := setupStaticAccountCredentialsJSONTest(t,
+		staticIdentityImpersonatedCredentials(t, "not-an-email-or-id"))
+	target := &gcputil.ServiceAccountId{Project: staticIdentityProject, EmailOrId: staticIdentityOtherEmail}
+
+	_, err := b.checkStaticAccountTarget(ctx, storage, target)
+	require.EqualError(t, err, "unable to determine GCP secrets engine identity: invalid service account identifier")
+	assert.Empty(t, transport.accountLookups, "non-numeric identifiers must not be looked up or cached")
+}
+
+func staticIdentityImpersonatedCredentials(t *testing.T, targetID string) string {
+	t.Helper()
+	return staticIdentityJSON(t, map[string]interface{}{
+		"type": "impersonated_service_account",
+		"service_account_impersonation_url": strings.Replace(
+			staticIdentityImpersonationURL, staticIdentityRootEmail, targetID, 1,
+		),
+		"source_credentials": map[string]interface{}{
+			"type": "service_account", "client_email": staticIdentitySourceEmail,
+			"private_key_id": "fake-key-id", "private_key": "fake-key", "token_uri": staticIdentityTokenURL,
+		},
+	})
 }
 
 type supportedPluginIdentitySystemView struct {
@@ -903,18 +1104,31 @@ type staticAccountIdentityTransport struct {
 	t                *testing.T
 	mu               sync.Mutex
 	keyCreates       []string
+	accountLookups   []string
 	tokensIssued     int
 	omitEmail        bool
+	omitEmailIDs     map[string]bool
 	keyCreateEntered chan struct{}
 	releaseKeyCreate chan struct{}
+	// stallLookups makes service account lookups wait until their request is
+	// canceled. Each stalled lookup is announced on lookupStalled.
+	stallLookups  bool
+	lookupStalled chan struct{}
 }
 
 func (tr *staticAccountIdentityTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	tr.mu.Lock()
+	parts := strings.Split(strings.TrimPrefix(req.URL.Path, "/v1/"), "/")
+	if tr.stallLookups && req.Method == http.MethodGet && req.URL.Host == "iam.googleapis.com" && len(parts) == 4 {
+		tr.accountLookups = append(tr.accountLookups, parts[3])
+		tr.mu.Unlock()
+		tr.lookupStalled <- struct{}{}
+		<-req.Context().Done()
+		return nil, req.Context().Err()
+	}
 	defer tr.mu.Unlock()
 
 	var response interface{}
-	parts := strings.Split(strings.TrimPrefix(req.URL.Path, "/v1/"), "/")
 	switch {
 	case req.Method == http.MethodPost && req.URL.String() == staticIdentityTokenURL:
 		tr.tokensIssued++
@@ -930,12 +1144,13 @@ func (tr *staticAccountIdentityTransport) RoundTrip(req *http.Request) (*http.Re
 		default:
 			return tr.unexpected(req)
 		}
-		if tr.omitEmail {
+		if tr.omitEmail || tr.omitEmailIDs[parts[3]] {
 			account.Email = ""
 		}
 		account.Name = "projects/" + staticIdentityProject + "/serviceAccounts/" + account.UniqueId
 		switch {
 		case req.Method == http.MethodGet && len(parts) == 4:
+			tr.accountLookups = append(tr.accountLookups, parts[3])
 			response = account
 		case req.Method == http.MethodPost && len(parts) == 5 && parts[4] == "keys":
 			if tr.keyCreateEntered != nil {

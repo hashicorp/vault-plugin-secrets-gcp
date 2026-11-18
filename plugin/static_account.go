@@ -397,7 +397,7 @@ func (b *backend) checkStaticAccountTarget(ctx context.Context, s logical.Storag
 		return iamAdmin, nil
 	}
 	resolveEmail := func(accountId *gcputil.ServiceAccountId) (string, error) {
-		gcpAcct, err := b.getServiceAccount(iamAdmin, accountId)
+		gcpAcct, err := b.getServiceAccountWithContext(ctx, iamAdmin, accountId)
 		if err != nil {
 			return "", err
 		}
@@ -420,10 +420,10 @@ func (b *backend) checkStaticAccountTarget(ctx context.Context, s logical.Storag
 	// Impersonation URLs can identify the mount service account by unique ID.
 	// Resolve that ID to an email before comparing it with the static account.
 	if !strings.Contains(mountIdentity, "@") {
-		mountIdentity, err = resolveEmail(&gcputil.ServiceAccountId{
-			Project:   gcpServiceAccountInferredProject,
-			EmailOrId: mountIdentity,
-		})
+		if !isServiceAccountUniqueID(mountIdentity) {
+			return nil, errors.New("unable to determine GCP secrets engine identity: invalid service account identifier")
+		}
+		mountIdentity, err = b.cachedMountServiceAccountEmail(mountIdentity, resolveEmail)
 		if err != nil {
 			return nil, fmt.Errorf("unable to determine GCP secrets engine identity: %w", err)
 		}
@@ -433,6 +433,44 @@ func (b *backend) checkStaticAccountTarget(ctx context.Context, s logical.Storag
 		return nil, errors.New(errStaticAccountTargetsMount)
 	}
 	return iamAdmin, nil
+}
+
+func (b *backend) cachedMountServiceAccountEmail(id string, resolveEmail func(*gcputil.ServiceAccountId) (string, error)) (string, error) {
+	b.mountServiceAccountIdentityLock.Lock()
+	if b.mountServiceAccountIdentityID == id && b.mountServiceAccountIdentityEmail != "" {
+		email := b.mountServiceAccountIdentityEmail
+		b.mountServiceAccountIdentityLock.Unlock()
+		return email, nil
+	}
+	b.mountServiceAccountIdentityLock.Unlock()
+
+	// Don't hold the lock during the IAM call, so a slow lookup can't make
+	// other requests wait or keep them from being canceled.
+	email, err := resolveEmail(&gcputil.ServiceAccountId{
+		Project:   gcpServiceAccountInferredProject,
+		EmailOrId: id,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	b.mountServiceAccountIdentityLock.Lock()
+	b.mountServiceAccountIdentityID = id
+	b.mountServiceAccountIdentityEmail = email
+	b.mountServiceAccountIdentityLock.Unlock()
+	return email, nil
+}
+
+func isServiceAccountUniqueID(id string) bool {
+	if id == "" {
+		return false
+	}
+	for _, r := range id {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // mountServiceAccountIdentity returns the email or unique ID of the service

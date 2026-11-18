@@ -49,6 +49,11 @@ type backend struct {
 	credentialClientLock sync.Mutex
 	credentialClient     *credentialClient
 	identityLock         sync.RWMutex
+	// mountServiceAccountIdentityLock protects the resolved identity for an
+	// impersonated service account whose credentials use a numeric ID.
+	mountServiceAccountIdentityLock  sync.Mutex
+	mountServiceAccountIdentityID    string
+	mountServiceAccountIdentityEmail string
 
 	// pluginEnv contains Vault version information. It is used in user-agent headers.
 	pluginEnv *logical.PluginEnvironment
