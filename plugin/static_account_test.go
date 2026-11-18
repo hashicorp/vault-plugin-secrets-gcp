@@ -725,20 +725,72 @@ func TestStaticAccountIdentity_WIFReplicationKeepsIdentityBoundToCachedClient(t 
 		}
 	}
 	require.NoError(t, writeConfig(context.Background(), s, wifConfig(staticIdentityRootEmail)))
-	oldClients, err := b.credentialClients(s)
+	transport := &staticAccountIdentityTransport{t: t}
+	creds := &google.Credentials{
+		ProjectID:   staticIdentityProject,
+		TokenSource: oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "fake-access-token"}),
+	}
+	oldState := &credentialState{
+		credentials:                 creds,
+		mountServiceAccountIdentity: staticIdentityRootEmail,
+		identityFromWIFConfig:       true,
+	}
+	_, err := b.cache.Fetch("credentials", cacheTime, func() (interface{}, error) { return oldState, nil })
 	require.NoError(t, err)
+	oldClient := &credentialClient{
+		credentials: creds,
+		state:       oldState,
+		httpClient: &http.Client{Transport: &oauth2.Transport{
+			Source: creds.TokenSource,
+			Base:   transport,
+		}},
+	}
+	b.credentialClientLock.Lock()
+	b.credentialClient = oldClient
+	b.credentialClientLock.Unlock()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	t.Cleanup(cancel)
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{Transport: transport})
+
+	oldAccount := &StaticAccount{
+		Name:             "old-target",
+		SecretType:       SecretTypeKey,
+		ServiceAccountId: gcputil.ServiceAccountId{Project: staticIdentityProject, EmailOrId: staticIdentityRootEmail},
+	}
+	require.NoError(t, oldAccount.save(ctx, s))
 
 	// Replication writes the new config to storage before asynchronously
 	// invalidating the cached credential client on this node.
 	require.NoError(t, writeConfig(context.Background(), s, wifConfig(staticIdentityOtherEmail)))
-	require.Same(t, oldClients, b.credentialClient)
+	require.Same(t, oldClient, b.credentialClient)
 
-	_, err = b.checkStaticAccountTarget(context.Background(), s, &gcputil.ServiceAccountId{
-		Project: staticIdentityProject, EmailOrId: staticIdentityRootEmail,
-	})
-	require.EqualError(t, err, staticIdentitySelfTargetError,
+	resp := handleStaticIdentityRequestError(t, ctx, b, s, logical.ReadOperation, "static-account/old-target/key")
+	require.Contains(t, resp.Error().Error(), staticIdentitySelfTargetError,
 		"the cached client for the old WIF target must not be allowed to create its own key")
-	require.Same(t, oldClients, b.credentialClient)
+	require.Empty(t, transport.keyCreates, "the /key endpoint must not create a key for the cached WIF identity")
+	require.Same(t, oldClient, b.credentialClient)
+
+	b.invalidate(ctx, "config")
+	require.Nil(t, b.credentialClient, "replication invalidation must clear the old credential client")
+	newClients, err := b.credentialClients(s)
+	require.NoError(t, err)
+	require.NotSame(t, oldClient, newClients)
+	require.Equal(t, staticIdentityOtherEmail, newClients.state.mountServiceAccountIdentity)
+
+	_, err = b.checkStaticAccountTarget(ctx, s, &oldAccount.ServiceAccountId)
+	require.NoError(t, err, "the old WIF target should be allowed once the client is rebuilt for the new target")
+
+	newAccount := &StaticAccount{
+		Name:             "new-target",
+		SecretType:       SecretTypeKey,
+		ServiceAccountId: gcputil.ServiceAccountId{Project: staticIdentityProject, EmailOrId: staticIdentityOtherEmail},
+	}
+	require.NoError(t, newAccount.save(ctx, s))
+	resp = handleStaticIdentityRequestError(t, ctx, b, s, logical.ReadOperation, "static-account/new-target/key")
+	require.Contains(t, resp.Error().Error(), staticIdentitySelfTargetError,
+		"the rebuilt client must protect its new WIF target")
+	require.Empty(t, transport.keyCreates, "neither WIF identity may have a key created during the test")
 }
 
 func TestStaticAccountIdentity_MetadataEmailIsNotCached(t *testing.T) {
