@@ -725,6 +725,67 @@ func TestStaticAccountIdentity_CancelledIAMCallsReleaseIdentityLock(t *testing.T
 	}
 }
 
+func TestStaticAccountIdentity_CancelledMetadataRebuildReleasesIdentityLock(t *testing.T) {
+	b, storage, _, ctx, md := setupStaticAccountMetadataServerTest(t, staticIdentityRootEmail)
+	require.NoError(t, (&StaticAccount{
+		Name:             "other",
+		SecretType:       SecretTypeKey,
+		ServiceAccountId: gcputil.ServiceAccountId{Project: staticIdentityProject, EmailOrId: staticIdentityOtherEmail},
+	}).save(ctx, storage))
+	b.cache.Expire("credentials")
+
+	stalled := make(chan struct{}, 1)
+	release := make(chan struct{})
+	md.mu.Lock()
+	md.stallEmail = true
+	md.emailStalled = stalled
+	md.releaseEmail = release
+	md.mu.Unlock()
+	t.Cleanup(func() { close(release) })
+
+	reqCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	done := make(chan struct{})
+	var resp *logical.Response
+	var err error
+	go func() {
+		defer close(done)
+		resp, err = b.HandleRequest(reqCtx, &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "static-account/other/key",
+			Storage:   storage,
+		})
+	}()
+
+	select {
+	case <-stalled:
+	case <-done:
+		t.Fatalf("request finished before reaching the stalled metadata lookup: resp=%v err=%v", resp, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("request did not reach the stalled metadata lookup")
+	}
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("canceling the request did not stop the metadata lookup")
+	}
+	if err == nil && resp != nil {
+		err = resp.Error()
+	}
+	require.Error(t, err)
+	assert.ErrorContains(t, err, context.Canceled.Error())
+	require.True(t, b.identityLock.TryLock(), "a canceled request must release identityLock")
+	b.identityLock.Unlock()
+
+	md.mu.Lock()
+	md.stallEmail = false
+	md.mu.Unlock()
+	_, err = b.credentialState(storage)
+	require.NoError(t, err, "a canceled rebuild must release the credential cache lock")
+}
+
 func TestStaticAccountIdentity_StalledImpersonationLookupDoesNotBlockOtherRequests(t *testing.T) {
 	b, storage, transport, ctx := setupStaticAccountCredentialsJSONTest(t,
 		staticIdentityImpersonatedCredentials(t, staticIdentityRootID))
@@ -1133,6 +1194,75 @@ func TestStaticAccountIdentity_MetadataFederatedIdentityIsNotServiceAccount(t *t
 	require.Empty(t, identity, "GKE workload federation identities are not IAM service accounts")
 }
 
+// TestStaticAccountIdentity_MetadataTokenBoundToCheckedIdentity makes sure
+// metadata credentials only use tokens for the identity the target check saw.
+func TestStaticAccountIdentity_MetadataTokenBoundToCheckedIdentity(t *testing.T) {
+	t.Run("identity-changes-after-check", func(t *testing.T) {
+		b, storage, transport, ctx, md := setupStaticAccountMetadataTokenTest(t)
+		saveStaticIdentityAccount(t, ctx, storage, "target", SecretTypeKey, staticIdentityOtherEmail)
+
+		// The identity check still sees the original account, but the metadata
+		// server switches to the target account before a token is fetched.
+		md.setEmailFunc(func() string {
+			md.tokenIdentity = staticIdentityOtherEmail
+			return staticIdentityRootEmail
+		})
+		resp, err := b.HandleRequest(ctx, &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "static-account/target/key",
+			Storage:   storage,
+		})
+
+		if err == nil && resp != nil {
+			err = resp.Error()
+		}
+		require.Error(t, err)
+		if resp != nil {
+			assert.Nil(t, resp.Secret)
+			assert.NotContains(t, resp.Data, "private_key_data")
+		}
+		assert.Empty(t, transport.keyCreates, "the target account must not create its own key")
+		assert.NotContains(t, md.tokenAccounts(), "default", "tokens must not be fetched for whichever account metadata currently reports")
+		assert.Contains(t, md.tokenAccounts(), staticIdentityRootEmail)
+	})
+
+	t.Run("identity-unchanged", func(t *testing.T) {
+		b, storage, transport, ctx, md := setupStaticAccountMetadataTokenTest(t)
+		saveStaticIdentityAccount(t, ctx, storage, "target", SecretTypeKey, staticIdentityOtherEmail)
+
+		handleStaticIdentityRequest(t, ctx, b, storage, logical.ReadOperation, "static-account/target/key", nil)
+
+		assert.Equal(t, []string{staticIdentityOtherID}, transport.keyCreates)
+		assert.Equal(t, []string{staticIdentityRootEmail}, md.tokenAccounts())
+	})
+}
+
+// setupStaticAccountMetadataTokenTest builds real metadata credentials for
+// staticIdentityRootEmail against a token-issuing fake metadata server, and
+// routes their IAM traffic through the mock transport.
+func setupStaticAccountMetadataTokenTest(t *testing.T) (*backend, logical.Storage, *staticAccountIdentityTransport, context.Context, *staticIdentityMetadataServer) {
+	t.Helper()
+	b, storage, transport, ctx, md := setupStaticAccountMetadataServerTest(t, staticIdentityRootEmail)
+	md.mu.Lock()
+	md.issueTokens = true
+	md.mu.Unlock()
+
+	b.cache.Expire("credentials")
+	state, err := b.credentialState(storage)
+	require.NoError(t, err)
+	require.True(t, state.identityFromMetadata)
+	require.Equal(t, staticIdentityRootEmail, state.mountServiceAccountIdentity)
+
+	b.credentialClientLock.Lock()
+	b.credentialClient = &credentialClient{
+		credentials: state.credentials,
+		state:       state,
+		httpClient:  &http.Client{Transport: &oauth2.Transport{Source: state.credentials.TokenSource, Base: transport}},
+	}
+	b.credentialClientLock.Unlock()
+	return b, storage, transport, ctx, md
+}
+
 func assertStaticIdentityCredentialsRebuilt(t *testing.T, b *backend, stale *credentialClient, email string) {
 	t.Helper()
 	b.credentialClientLock.Lock()
@@ -1431,13 +1561,21 @@ func setupStaticAccountMetadataServerTest(t *testing.T, email string) (*backend,
 }
 
 // staticIdentityMetadataServer is a fake GCE metadata server. It reports a
-// configurable service account email and records token requests, but never
-// issues tokens, so credentials rebuilt from it cannot reach GCP.
+// configurable service account email and records token requests. It issues
+// tokens only when issueTokens is set, and then only for "default" or the
+// currently reported email, like a real metadata server.
 type staticIdentityMetadataServer struct {
-	mu        sync.Mutex
-	email     func() string
-	reads     int
-	tokenReqs int
+	mu           sync.Mutex
+	email        func() string
+	reads        int
+	tokenReqs    int
+	tokenPaths   []string
+	issueTokens  bool
+	stallEmail   bool
+	emailStalled chan struct{}
+	releaseEmail chan struct{}
+	// tokenIdentity is the account the server currently issues tokens for.
+	tokenIdentity string
 }
 
 func newStaticIdentityMetadataServer(t *testing.T, email string) *staticIdentityMetadataServer {
@@ -1450,15 +1588,41 @@ func newStaticIdentityMetadataServer(t *testing.T, email string) *staticIdentity
 			http.Error(w, "missing Metadata-Flavor header", http.StatusForbidden)
 			return
 		}
+		const accountsPrefix = "/computeMetadata/v1/instance/service-accounts/"
+		if r.URL.Path == "/computeMetadata/v1/instance/service-accounts/default/email" {
+			md.mu.Lock()
+			md.reads++
+			email := md.email()
+			stallEmail, emailStalled, releaseEmail := md.stallEmail, md.emailStalled, md.releaseEmail
+			md.mu.Unlock()
+			if stallEmail {
+				select {
+				case emailStalled <- struct{}{}:
+				default:
+				}
+				select {
+				case <-r.Context().Done():
+					return
+				case <-releaseEmail:
+				}
+			}
+			_, _ = io.WriteString(w, email)
+			return
+		}
 		md.mu.Lock()
 		defer md.mu.Unlock()
-		switch r.URL.Path {
-		case "/computeMetadata/v1/instance/service-accounts/default/email":
-			md.reads++
-			_, _ = io.WriteString(w, md.email())
-		case "/computeMetadata/v1/instance/service-accounts/default/token":
+		if account, ok := strings.CutSuffix(strings.TrimPrefix(r.URL.Path, accountsPrefix), "/token"); ok &&
+			strings.HasPrefix(r.URL.Path, accountsPrefix) && !strings.Contains(account, "/") {
 			md.tokenReqs++
-			http.Error(w, "test metadata server does not issue tokens", http.StatusNotFound)
+			md.tokenPaths = append(md.tokenPaths, account)
+			if !md.issueTokens || (account != "default" && account != md.tokenIdentity) {
+				http.Error(w, "no token for this service account", http.StatusNotFound)
+				return
+			}
+			_, _ = io.WriteString(w, `{"access_token":"metadata-token-for-`+md.tokenIdentity+`","expires_in":3600,"token_type":"Bearer"}`)
+			return
+		}
+		switch r.URL.Path {
 		case "/computeMetadata/v1/project/project-id":
 			_, _ = io.WriteString(w, staticIdentityProject)
 		case "/computeMetadata/v1/universe/universe_domain":
@@ -1479,6 +1643,9 @@ func newStaticIdentityMetadataServer(t *testing.T, email string) *staticIdentity
 
 func (md *staticIdentityMetadataServer) setEmail(email string) {
 	md.setEmailFunc(func() string { return email })
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	md.tokenIdentity = email
 }
 
 func (md *staticIdentityMetadataServer) setEmailFunc(email func() string) {
@@ -1491,6 +1658,12 @@ func (md *staticIdentityMetadataServer) emailReads() int {
 	md.mu.Lock()
 	defer md.mu.Unlock()
 	return md.reads
+}
+
+func (md *staticIdentityMetadataServer) tokenAccounts() []string {
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	return append([]string(nil), md.tokenPaths...)
 }
 
 func (md *staticIdentityMetadataServer) tokenRequests() int {

@@ -109,7 +109,7 @@ func (b *backend) tryDeleteStaticAccountResources(ctx context.Context, req *logi
 }
 
 func (b *backend) createStaticAccount(ctx context.Context, req *logical.Request, input *inputParams) (err error) {
-	iamAdmin, err := b.IAMAdminClient(req.Storage)
+	iamAdmin, err := b.iamAdminClientWithContext(ctx, req.Storage)
 	if err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ func (b *backend) createStaticAccount(ctx context.Context, req *logical.Request,
 }
 
 func (b *backend) updateStaticAccount(ctx context.Context, req *logical.Request, a *StaticAccount, updateInput *inputParams) (warnings []string, err error) {
-	iamAdmin, err := b.IAMAdminClient(req.Storage)
+	iamAdmin, err := b.iamAdminClientWithContext(ctx, req.Storage)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +381,7 @@ const errStaticAccountTargetsMount = "static account cannot target the GCP secre
 // checkStaticAccountTarget returns an error if the given service account is the
 // one the GCP secrets engine itself authenticates as.
 func (b *backend) checkStaticAccountTarget(ctx context.Context, s logical.Storage, id *gcputil.ServiceAccountId) (*iam.Service, error) {
-	clients, err := b.credentialClients(s)
+	clients, err := b.credentialClientsWithContext(ctx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +394,7 @@ func (b *backend) checkStaticAccountTarget(ctx context.Context, s logical.Storag
 			// Static-account requests hold identityLock for reading, so clear the
 			// credential caches directly rather than reacquiring its write lock.
 			b.clearCaches()
-			clients, err = b.credentialClients(s)
+			clients, err = b.credentialClientsWithContext(ctx, s)
 			if err != nil {
 				return nil, err
 			}

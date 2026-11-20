@@ -162,7 +162,11 @@ func (b *backend) initialize(ctx context.Context, _ *logical.InitializationReque
 
 // IAMAdminClient returns the IAM client bound to the current credentials.
 func (b *backend) IAMAdminClient(s logical.Storage) (*iam.Service, error) {
-	clients, err := b.credentialClients(s)
+	return b.iamAdminClientWithContext(context.Background(), s)
+}
+
+func (b *backend) iamAdminClientWithContext(ctx context.Context, s logical.Storage) (*iam.Service, error) {
+	clients, err := b.credentialClientsWithContext(ctx, s)
 	if err != nil {
 		return nil, errwrap.Wrapf("failed to create IAM HTTP client: {{err}}", err)
 	}
@@ -197,7 +201,11 @@ func (b *backend) HTTPClient(s logical.Storage) (*http.Client, error) {
 }
 
 func (b *backend) credentialClients(s logical.Storage) (*credentialClient, error) {
-	state, err := b.credentialState(s)
+	return b.credentialClientsWithContext(context.Background(), s)
+}
+
+func (b *backend) credentialClientsWithContext(ctx context.Context, s logical.Storage) (*credentialClient, error) {
+	state, err := b.credentialStateWithContext(ctx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -232,6 +240,12 @@ func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
 }
 
 func (b *backend) credentialState(s logical.Storage) (*credentialState, error) {
+	return b.credentialStateWithContext(context.Background(), s)
+}
+
+// credentialStateWithContext uses metadataCtx only for the metadata identity
+// lookup; cached credential and token sources must outlive the caller's context.
+func (b *backend) credentialStateWithContext(metadataCtx context.Context, s logical.Storage) (*credentialState, error) {
 	cachedState, err := b.cache.Fetch("credentials", cacheTime, func() (interface{}, error) {
 		b.Logger().Debug("loading credentials")
 
@@ -279,12 +293,18 @@ func (b *backend) credentialState(s logical.Storage) (*credentialState, error) {
 			cfg.IdentityTokenAudience == "" &&
 			len(creds.JSON) == 0
 		if identityFromMetadata {
-			metadataIdentity, err = metadata.EmailWithContext(ctx, "default")
+			metadataIdentity, err = metadata.EmailWithContext(metadataCtx, "default")
 			if err != nil {
 				return nil, fmt.Errorf("failed to determine metadata service account identity: %w", err)
 			}
 			if metadataIdentity == "" {
 				return nil, fmt.Errorf("failed to determine metadata service account identity: empty email")
+			}
+			// Fetch tokens for the recorded account rather than "default", so a
+			// metadata identity change cannot hand these credentials a token for
+			// a different service account.
+			if !isFederatedIdentityIdentifier(metadataIdentity) {
+				creds.TokenSource = google.ComputeTokenSource(metadataIdentity, iam.CloudPlatformScope)
 			}
 		}
 
