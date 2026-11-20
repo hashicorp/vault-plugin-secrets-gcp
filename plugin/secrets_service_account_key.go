@@ -185,7 +185,7 @@ func (b *backend) createServiceAccountKeySecretWithIAM(ctx context.Context, iamC
 		id.ResourceName(), &iam.CreateServiceAccountKeyRequest{
 			KeyAlgorithm:   params.keyAlgorithm,
 			PrivateKeyType: params.keyType,
-		}).Do()
+		}).Context(ctx).Do()
 	if err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	}

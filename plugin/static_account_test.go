@@ -631,6 +631,100 @@ func TestStaticAccountIdentity_ImpersonationLookupHonorsCancellation(t *testing.
 	}
 }
 
+// TestStaticAccountIdentity_CancelledIAMCallsReleaseIdentityLock makes sure a
+// stalled IAM call made while holding identityLock stops when the request is
+// canceled, so it cannot block configuration writes or root rotation.
+func TestStaticAccountIdentity_CancelledIAMCallsReleaseIdentityLock(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		existing  bool
+		operation logical.Operation
+		path      string
+		data      map[string]interface{}
+		stallKey  bool
+	}{
+		{
+			name:      "create-account-lookup",
+			operation: logical.CreateOperation,
+			path:      "static-account/other",
+			data:      map[string]interface{}{"service_account_email": staticIdentityOtherEmail, "secret_type": SecretTypeKey},
+		},
+		{
+			name:      "update-account-lookup",
+			existing:  true,
+			operation: logical.UpdateOperation,
+			path:      "static-account/other",
+			data:      map[string]interface{}{"service_account_email": staticIdentityOtherEmail, "secret_type": SecretTypeKey},
+		},
+		{
+			name:      "key-creation",
+			existing:  true,
+			operation: logical.UpdateOperation,
+			path:      "static-account/other/key",
+			stallKey:  true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			b, storage, transport, ctx := setupStaticAccountIdentityTest(t, staticIdentityConfigs(t)[0].cfg)
+			if tc.existing {
+				require.NoError(t, (&StaticAccount{
+					Name:             "other",
+					SecretType:       SecretTypeKey,
+					ServiceAccountId: gcputil.ServiceAccountId{Project: staticIdentityProject, EmailOrId: staticIdentityOtherEmail},
+				}).save(ctx, storage))
+			}
+			stalled := make(chan struct{}, 1)
+			if tc.stallKey {
+				transport.stallKeyCreates = true
+				transport.keyCreateStalled = stalled
+			} else {
+				transport.stallLookups = true
+				transport.lookupStalled = stalled
+			}
+
+			reqCtx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			done := make(chan struct{})
+			var resp *logical.Response
+			var err error
+			go func() {
+				defer close(done)
+				resp, err = b.HandleRequest(reqCtx, &logical.Request{
+					Operation: tc.operation,
+					Path:      tc.path,
+					Storage:   storage,
+					Data:      tc.data,
+				})
+			}()
+
+			select {
+			case <-stalled:
+			case <-done:
+				t.Fatalf("request finished before reaching the stalled IAM call: resp=%v err=%v", resp, err)
+			case <-time.After(5 * time.Second):
+				t.Fatal("request did not reach the stalled IAM call")
+			}
+			cancel()
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("canceling the request did not stop the stalled IAM call")
+			}
+
+			if err == nil && resp != nil {
+				err = resp.Error()
+			}
+			require.Error(t, err)
+			if resp != nil {
+				assert.Nil(t, resp.Secret)
+			}
+			assert.Empty(t, transport.keyCreates)
+			require.True(t, b.identityLock.TryLock(), "a canceled request must release identityLock")
+			b.identityLock.Unlock()
+		})
+	}
+}
+
 func TestStaticAccountIdentity_StalledImpersonationLookupDoesNotBlockOtherRequests(t *testing.T) {
 	b, storage, transport, ctx := setupStaticAccountCredentialsJSONTest(t,
 		staticIdentityImpersonatedCredentials(t, staticIdentityRootID))
@@ -1520,15 +1614,32 @@ type staticAccountIdentityTransport struct {
 	// canceled. Each stalled lookup is announced on lookupStalled.
 	stallLookups  bool
 	lookupStalled chan struct{}
+	// stallKeyCreates makes key creation wait until its request is canceled,
+	// announcing each stalled request on keyCreateStalled.
+	stallKeyCreates  bool
+	keyCreateStalled chan struct{}
 }
 
 func (tr *staticAccountIdentityTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	tr.mu.Lock()
 	parts := strings.Split(strings.TrimPrefix(req.URL.Path, "/v1/"), "/")
+	if tr.stallKeyCreates && req.Method == http.MethodPost && req.URL.Host == "iam.googleapis.com" &&
+		len(parts) == 5 && parts[4] == "keys" {
+		tr.mu.Unlock()
+		select {
+		case tr.keyCreateStalled <- struct{}{}:
+		default:
+		}
+		<-req.Context().Done()
+		return nil, req.Context().Err()
+	}
 	if tr.stallLookups && req.Method == http.MethodGet && req.URL.Host == "iam.googleapis.com" && len(parts) == 4 {
 		tr.accountLookups = append(tr.accountLookups, parts[3])
 		tr.mu.Unlock()
-		tr.lookupStalled <- struct{}{}
+		select {
+		case tr.lookupStalled <- struct{}{}:
+		default:
+		}
 		<-req.Context().Done()
 		return nil, req.Context().Err()
 	}

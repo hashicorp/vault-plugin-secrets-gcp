@@ -115,7 +115,7 @@ func (b *backend) createStaticAccount(ctx context.Context, req *logical.Request,
 	}
 
 	r, err := retryWithExponentialBackoff(ctx, func() (interface{}, bool, error) {
-		gcpAcct, err := b.getServiceAccount(iamAdmin, &gcputil.ServiceAccountId{
+		gcpAcct, err := b.getServiceAccountWithContext(ctx, iamAdmin, &gcputil.ServiceAccountId{
 			Project:   gcpServiceAccountInferredProject,
 			EmailOrId: input.serviceAccountEmail,
 		})
@@ -208,7 +208,7 @@ func (b *backend) updateStaticAccount(ctx context.Context, req *logical.Request,
 		return nil, err
 	}
 
-	gcpAcct, err := b.getServiceAccount(iamAdmin, &a.ServiceAccountId)
+	gcpAcct, err := b.getServiceAccountWithContext(ctx, iamAdmin, &a.ServiceAccountId)
 	if err != nil {
 		if isGoogleAccountNotFoundErr(err) {
 			return nil, fmt.Errorf("unable to update static account, could not find service account %q", a.ResourceName())
