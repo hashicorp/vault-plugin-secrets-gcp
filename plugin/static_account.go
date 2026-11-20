@@ -385,6 +385,31 @@ func (b *backend) checkStaticAccountTarget(ctx context.Context, s logical.Storag
 	if err != nil {
 		return nil, err
 	}
+	if clients.state.identityFromMetadata {
+		currentIdentity, err := metadata.EmailWithContext(ctx, "default")
+		if err != nil {
+			return nil, fmt.Errorf("unable to determine GCP secrets engine identity from metadata: %w", err)
+		}
+		if !strings.EqualFold(currentIdentity, clients.state.mountServiceAccountIdentity) {
+			// Static-account requests hold identityLock for reading, so clear the
+			// credential caches directly rather than reacquiring its write lock.
+			b.clearCaches()
+			clients, err = b.credentialClients(s)
+			if err != nil {
+				return nil, err
+			}
+			if !clients.state.identityFromMetadata {
+				return nil, errors.New("unable to confirm GCP secrets engine metadata identity after rebuilding credentials")
+			}
+			confirmedIdentity, err := metadata.EmailWithContext(ctx, "default")
+			if err != nil {
+				return nil, fmt.Errorf("unable to confirm GCP secrets engine identity from metadata after rebuilding credentials: %w", err)
+			}
+			if !strings.EqualFold(confirmedIdentity, clients.state.mountServiceAccountIdentity) {
+				return nil, errors.New("GCP secrets engine metadata identity changed while rebuilding credentials")
+			}
+		}
+	}
 	mountIdentity, err := b.mountServiceAccountIdentity(ctx, clients)
 	if err != nil {
 		return nil, err
@@ -489,6 +514,16 @@ func (b *backend) mountServiceAccountIdentity(ctx context.Context, clients *cred
 
 	mountCredentials := clients.credentials
 	if len(mountCredentials.JSON) == 0 {
+		if clients.state.identityFromMetadata {
+			email := clients.state.mountServiceAccountIdentity
+			if email == "" {
+				return "", errors.New("unable to determine GCP secrets engine identity from metadata: empty service account email")
+			}
+			if isFederatedIdentityIdentifier(email) {
+				return "", nil
+			}
+			return email, nil
+		}
 		email, err := metadata.EmailWithContext(ctx, "default")
 		if err != nil {
 			return "", fmt.Errorf("unable to determine GCP secrets engine identity from metadata: %w", err)

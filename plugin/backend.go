@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"cloud.google.com/go/compute/metadata"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-gcp-common/gcputil"
@@ -78,6 +79,7 @@ type credentialState struct {
 	credentials                 *google.Credentials
 	mountServiceAccountIdentity string
 	identityFromWIFConfig       bool
+	identityFromMetadata        bool
 }
 
 // Factory returns a new backend as logical.Backend.
@@ -272,10 +274,30 @@ func (b *backend) credentialState(s logical.Storage) (*credentialState, error) {
 			}
 		}
 
+		var metadataIdentity string
+		identityFromMetadata := len(credBytes) == 0 &&
+			cfg.IdentityTokenAudience == "" &&
+			len(creds.JSON) == 0
+		if identityFromMetadata {
+			metadataIdentity, err = metadata.EmailWithContext(ctx, "default")
+			if err != nil {
+				return nil, fmt.Errorf("failed to determine metadata service account identity: %w", err)
+			}
+			if metadataIdentity == "" {
+				return nil, fmt.Errorf("failed to determine metadata service account identity: empty email")
+			}
+		}
+
+		mountIdentity := cfg.ServiceAccountEmail
+		if identityFromMetadata {
+			mountIdentity = metadataIdentity
+		}
+
 		return &credentialState{
 			credentials:                 creds,
-			mountServiceAccountIdentity: cfg.ServiceAccountEmail,
+			mountServiceAccountIdentity: mountIdentity,
 			identityFromWIFConfig:       cfg.IdentityTokenAudience != "",
+			identityFromMetadata:        identityFromMetadata,
 		}, nil
 	})
 	if err != nil {

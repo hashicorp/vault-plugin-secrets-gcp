@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -793,37 +792,194 @@ func TestStaticAccountIdentity_WIFReplicationKeepsIdentityBoundToCachedClient(t 
 	require.Empty(t, transport.keyCreates, "neither WIF identity may have a key created during the test")
 }
 
-func TestStaticAccountIdentity_MetadataEmailIsNotCached(t *testing.T) {
-	var metadataEmail atomic.Value
-	metadataEmail.Store(staticIdentityRootEmail)
-	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/computeMetadata/v1/instance/service-accounts/default/email" ||
-			r.Header.Get("Metadata-Flavor") != "Google" {
-			t.Errorf("unexpected metadata request: %s %s", r.Method, r.URL.Path)
-			http.Error(w, "unexpected metadata request", http.StatusNotFound)
-			return
-		}
-		_, _ = io.WriteString(w, metadataEmail.Load().(string))
-	}))
-	t.Cleanup(metadataServer.Close)
-	t.Setenv("GCE_METADATA_HOST", strings.TrimPrefix(metadataServer.URL, "http://"))
-	b, storage, _, ctx := setupStaticAccountIdentityTest(t, config{})
+// The metadata server can start reporting a different service account while
+// Vault keeps running, for example after a GKE Workload Identity annotation
+// change. The cached credentials can still hold a token for the previous
+// account, so they must be rebuilt before the new email is trusted.
+
+func TestStaticAccountIdentity_MetadataChangeDoesNotUseStaleCredentials(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		secretType string
+		operation  logical.Operation
+		suffix     string
+	}{
+		{"read-key", SecretTypeKey, logical.ReadOperation, "/key"},
+		{"write-key", SecretTypeKey, logical.UpdateOperation, "/key"},
+		{"rotate-key", SecretTypeAccessToken, logical.UpdateOperation, "/rotate-key"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			b, storage, transport, ctx, md := setupStaticAccountMetadataServerTest(t, staticIdentityRootEmail)
+			stale := b.credentialClient
+			saveStaticIdentityAccount(t, ctx, storage, "previous", tc.secretType, staticIdentityRootEmail)
+
+			md.setEmail(staticIdentityOtherEmail)
+			resp, err := b.HandleRequest(ctx, &logical.Request{
+				Operation: tc.operation,
+				Path:      "static-account/previous" + tc.suffix,
+				Storage:   storage,
+			})
+
+			// The test metadata server never issues tokens, so the request fails
+			// once rebuilt credentials try to reach GCP.
+			if err == nil && resp != nil {
+				err = resp.Error()
+			}
+			assert.Error(t, err)
+			assert.Empty(t, transport.keyCreates, "must not create a key with credentials cached for the previous metadata identity")
+			assertStaticIdentityCredentialsRebuilt(t, b, stale, staticIdentityOtherEmail)
+			assert.Positive(t, md.tokenRequests(), "the IAM call must use credentials rebuilt for the new metadata identity")
+		})
+	}
+}
+
+func TestStaticAccountIdentity_MetadataChangeRebuildsCredentialsInSameRequest(t *testing.T) {
+	b, storage, transport, ctx, md := setupStaticAccountMetadataServerTest(t, staticIdentityRootEmail)
+	stale := b.credentialClient
+
+	md.setEmail(staticIdentityOtherEmail)
+	// The previous identity is no longer the engine's own account, so the
+	// request succeeds without the caller having to retry.
+	handleStaticIdentityRequest(t, ctx, b, storage, logical.CreateOperation, "static-account/previous", map[string]interface{}{
+		"service_account_email": staticIdentityRootEmail,
+		"secret_type":           SecretTypeKey,
+	})
+
+	assertStaticIdentityCredentialsRebuilt(t, b, stale, staticIdentityOtherEmail)
+	assert.Empty(t, transport.keyCreates)
+	assert.Zero(t, md.tokenRequests(), "creating a key-type static account makes no IAM calls after the identity check")
+}
+
+func TestStaticAccountIdentity_MetadataChangeProtectsNewIdentity(t *testing.T) {
+	t.Run("existing", func(t *testing.T) {
+		b, storage, transport, ctx, md := setupStaticAccountMetadataServerTest(t, staticIdentityRootEmail)
+		stale := b.credentialClient
+		saveStaticIdentityAccount(t, ctx, storage, "current", SecretTypeKey, staticIdentityOtherEmail)
+
+		md.setEmail(staticIdentityOtherEmail)
+		resp, err := b.HandleRequest(ctx, &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "static-account/current/key",
+			Storage:   storage,
+		})
+
+		assertStaticAccountIdentityRejected(t, resp, err, transport)
+		assertStaticIdentityCredentialsRebuilt(t, b, stale, staticIdentityOtherEmail)
+	})
+
+	t.Run("create", func(t *testing.T) {
+		b, storage, transport, ctx, md := setupStaticAccountMetadataServerTest(t, staticIdentityRootEmail)
+		stale := b.credentialClient
+
+		md.setEmail(staticIdentityOtherEmail)
+		resp, err := b.HandleRequest(ctx, &logical.Request{
+			Operation: logical.CreateOperation,
+			Path:      "static-account/current",
+			Storage:   storage,
+			Data: map[string]interface{}{
+				"service_account_email": staticIdentityOtherEmail,
+				"secret_type":           SecretTypeKey,
+			},
+		})
+
+		assertStaticAccountIdentityRejected(t, resp, err, transport)
+		entry, err := storage.Get(ctx, "static-account/current")
+		require.NoError(t, err)
+		assert.Nil(t, entry, "must not persist a static account targeting the new mount identity")
+		assertStaticIdentityCredentialsRebuilt(t, b, stale, staticIdentityOtherEmail)
+	})
+}
+
+func TestStaticAccountIdentity_MetadataChangeRebuildsOnce(t *testing.T) {
+	b, storage, transport, ctx, md := setupStaticAccountMetadataServerTest(t, staticIdentityRootEmail)
+	saveStaticIdentityAccount(t, ctx, storage, "other", SecretTypeKey, staticIdentityOtherEmail)
+
+	n := 0
+	md.setEmailFunc(func() string {
+		n++
+		return fmt.Sprintf("changing-%d@%s.iam.gserviceaccount.com", n, staticIdentityProject)
+	})
+	readsBefore := md.emailReads()
+	resp, err := b.HandleRequest(ctx, &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      "static-account/other/key",
+		Storage:   storage,
+	})
+
+	if err == nil && resp != nil {
+		err = resp.Error()
+	}
+	assert.Error(t, err, "a metadata identity that keeps changing must fail closed")
+	assert.Empty(t, transport.keyCreates)
+	assert.LessOrEqual(t, md.emailReads()-readsBefore, 4, "credentials must be rebuilt at most once per request")
+}
+
+func TestCredentialStateRecordsMetadataIdentity(t *testing.T) {
+	b, storage, _, _, md := setupStaticAccountMetadataServerTest(t, staticIdentityRootEmail)
+	b.cache.Expire("credentials")
+
+	state, err := b.credentialState(storage)
+
+	require.NoError(t, err)
+	assert.True(t, state.identityFromMetadata)
+	assert.Equal(t, staticIdentityRootEmail, state.mountServiceAccountIdentity)
+	assert.Positive(t, md.emailReads())
+}
+
+func TestStaticAccountIdentity_MetadataUnchangedReusesCredentials(t *testing.T) {
+	b, storage, transport, ctx, md := setupStaticAccountMetadataServerTest(t, staticIdentityRootEmail)
+	cached := b.credentialClient
+	createStaticIdentityAccount(t, ctx, b, storage, "other", SecretTypeKey)
+
+	for i := 0; i < 2; i++ {
+		handleStaticIdentityRequest(t, ctx, b, storage, logical.ReadOperation, "static-account/other/key", nil)
+	}
+
+	b.credentialClientLock.Lock()
+	current := b.credentialClient
+	b.credentialClientLock.Unlock()
+	assert.Same(t, cached, current, "credentials must not be rebuilt while the metadata identity is unchanged")
+	assert.Zero(t, md.tokenRequests())
+	assert.Equal(t, []string{staticIdentityOtherID, staticIdentityOtherID}, transport.keyCreates)
+}
+
+func TestStaticAccountIdentity_MetadataFederatedIdentityIsNotServiceAccount(t *testing.T) {
+	b, storage, _, ctx, _ := setupStaticAccountMetadataServerTest(t, "test-project.svc.id.goog[namespace/service-account]")
 	clients, err := b.credentialClients(storage)
 	require.NoError(t, err)
 
 	identity, err := b.mountServiceAccountIdentity(ctx, clients)
 	require.NoError(t, err)
-	require.Equal(t, staticIdentityRootEmail, identity)
-
-	metadataEmail.Store(staticIdentityOtherEmail)
-	identity, err = b.mountServiceAccountIdentity(ctx, clients)
-	require.NoError(t, err)
-	require.Equal(t, staticIdentityOtherEmail, identity)
-
-	metadataEmail.Store("test-project.svc.id.goog[namespace/service-account]")
-	identity, err = b.mountServiceAccountIdentity(ctx, clients)
-	require.NoError(t, err)
 	require.Empty(t, identity, "GKE workload federation identities are not IAM service accounts")
+}
+
+func assertStaticIdentityCredentialsRebuilt(t *testing.T, b *backend, stale *credentialClient, email string) {
+	t.Helper()
+	b.credentialClientLock.Lock()
+	current := b.credentialClient
+	b.credentialClientLock.Unlock()
+	require.NotNil(t, current, "credentials must be rebuilt in the same request")
+	assert.NotSame(t, stale, current, "credentials cached for the previous metadata identity must be replaced")
+	require.NotNil(t, current.state)
+	assert.Equal(t, email, current.state.mountServiceAccountIdentity,
+		"rebuilt credentials must record the metadata identity they were built for")
+}
+
+func saveStaticIdentityAccount(t *testing.T, ctx context.Context, storage logical.Storage, name, secretType, email string) {
+	t.Helper()
+	account := &StaticAccount{
+		Name:             name,
+		SecretType:       secretType,
+		ServiceAccountId: gcputil.ServiceAccountId{Project: "-", EmailOrId: email},
+	}
+	if secretType == SecretTypeAccessToken {
+		account.TokenGen = &TokenGenerator{
+			KeyName:    account.ServiceAccountId.ResourceName() + "/keys/old",
+			B64KeyJSON: staticIdentityKeyData(t, email),
+			Scopes:     []string{iam.CloudPlatformScope},
+		}
+	}
+	require.NoError(t, account.save(ctx, storage))
 }
 
 func TestCredentialClientsTrackADCRefresh(t *testing.T) {
@@ -1079,18 +1235,88 @@ func setupStaticAccountIdentityTest(t *testing.T, cfg config) (*backend, logical
 
 func setupStaticAccountMetadataTest(t *testing.T, email string) (*backend, logical.Storage, *staticAccountIdentityTransport, context.Context) {
 	t.Helper()
-	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/computeMetadata/v1/instance/service-accounts/default/email" ||
-			r.Header.Get("Metadata-Flavor") != "Google" {
-			t.Errorf("unexpected metadata request: %s %s", r.Method, r.URL.Path)
-			http.Error(w, "unexpected metadata request", http.StatusNotFound)
+	b, storage, transport, ctx, _ := setupStaticAccountMetadataServerTest(t, email)
+	return b, storage, transport, ctx
+}
+
+// setupStaticAccountMetadataServerTest returns a backend whose cached
+// credentials were built while the metadata server reported email.
+func setupStaticAccountMetadataServerTest(t *testing.T, email string) (*backend, logical.Storage, *staticAccountIdentityTransport, context.Context, *staticIdentityMetadataServer) {
+	t.Helper()
+	md := newStaticIdentityMetadataServer(t, email)
+	b, storage, transport, ctx := setupStaticAccountIdentityTest(t, config{})
+	b.credentialClient.state.mountServiceAccountIdentity = email
+	b.credentialClient.state.identityFromMetadata = true
+	return b, storage, transport, ctx, md
+}
+
+// staticIdentityMetadataServer is a fake GCE metadata server. It reports a
+// configurable service account email and records token requests, but never
+// issues tokens, so credentials rebuilt from it cannot reach GCP.
+type staticIdentityMetadataServer struct {
+	mu        sync.Mutex
+	email     func() string
+	reads     int
+	tokenReqs int
+}
+
+func newStaticIdentityMetadataServer(t *testing.T, email string) *staticIdentityMetadataServer {
+	t.Helper()
+	md := &staticIdentityMetadataServer{}
+	md.setEmail(email)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Metadata-Flavor") != "Google" {
+			t.Errorf("metadata request without Metadata-Flavor header: %s %s", r.Method, r.URL.Path)
+			http.Error(w, "missing Metadata-Flavor header", http.StatusForbidden)
 			return
 		}
-		_, _ = io.WriteString(w, email)
+		md.mu.Lock()
+		defer md.mu.Unlock()
+		switch r.URL.Path {
+		case "/computeMetadata/v1/instance/service-accounts/default/email":
+			md.reads++
+			_, _ = io.WriteString(w, md.email())
+		case "/computeMetadata/v1/instance/service-accounts/default/token":
+			md.tokenReqs++
+			http.Error(w, "test metadata server does not issue tokens", http.StatusNotFound)
+		case "/computeMetadata/v1/project/project-id":
+			_, _ = io.WriteString(w, staticIdentityProject)
+		case "/computeMetadata/v1/universe/universe_domain":
+			http.Error(w, "not defined", http.StatusNotFound)
+		default:
+			t.Errorf("unexpected metadata request: %s %s", r.Method, r.URL.Path)
+			http.Error(w, "unexpected metadata request", http.StatusNotFound)
+		}
 	}))
-	t.Cleanup(metadataServer.Close)
-	t.Setenv("GCE_METADATA_HOST", strings.TrimPrefix(metadataServer.URL, "http://"))
-	return setupStaticAccountIdentityTest(t, config{})
+	t.Cleanup(server.Close)
+	t.Setenv("GCE_METADATA_HOST", strings.TrimPrefix(server.URL, "http://"))
+	// Rebuilt default credentials must come from this server, not from a
+	// developer's local application default credentials.
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+	t.Setenv("HOME", t.TempDir())
+	return md
+}
+
+func (md *staticIdentityMetadataServer) setEmail(email string) {
+	md.setEmailFunc(func() string { return email })
+}
+
+func (md *staticIdentityMetadataServer) setEmailFunc(email func() string) {
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	md.email = email
+}
+
+func (md *staticIdentityMetadataServer) emailReads() int {
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	return md.reads
+}
+
+func (md *staticIdentityMetadataServer) tokenRequests() int {
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	return md.tokenReqs
 }
 
 func setupStaticAccountMetadataTestWithADCFile(t *testing.T, metadataEmail, fileEmail string) (*backend, logical.Storage, *staticAccountIdentityTransport, context.Context) {
