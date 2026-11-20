@@ -786,6 +786,71 @@ func TestStaticAccountIdentity_CancelledMetadataRebuildReleasesIdentityLock(t *t
 	require.NoError(t, err, "a canceled rebuild must release the credential cache lock")
 }
 
+// TestStaticAccountIdentity_StalledTokenFetchReleasesIdentityLock makes sure a
+// token endpoint that never answers cannot hold identityLock indefinitely,
+// even when the request itself is never canceled.
+func TestStaticAccountIdentity_StalledTokenFetchReleasesIdentityLock(t *testing.T) {
+	stalled := make(chan struct{}, 1)
+	release := make(chan struct{})
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case stalled <- struct{}{}:
+		default:
+		}
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	}))
+	t.Cleanup(tokenServer.Close)
+	t.Cleanup(func() { close(release) })
+
+	b, storage := getTestBackend(t)
+	b.tokenFetchTimeout = 200 * time.Millisecond
+	ctx := t.Context()
+	require.NoError(t, writeConfig(ctx, storage, config{CredentialsRaw: staticIdentityJSON(t, map[string]string{
+		"type": "service_account", "project_id": staticIdentityProject,
+		"client_email": staticIdentityRootEmail, "client_id": staticIdentityRootID,
+		"private_key_id": "fake-key-id", "private_key": staticIdentityPrivateKeyPEM(),
+		"token_uri": tokenServer.URL,
+	})}))
+	saveStaticIdentityAccount(t, ctx, storage, "other", SecretTypeKey, staticIdentityOtherEmail)
+
+	done := make(chan struct{})
+	var resp *logical.Response
+	var err error
+	go func() {
+		defer close(done)
+		resp, err = b.HandleRequest(ctx, &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "static-account/other/key",
+			Storage:   storage,
+		})
+	}()
+
+	select {
+	case <-stalled:
+	case <-done:
+		t.Fatalf("request finished before reaching the stalled token endpoint: resp=%v err=%v", resp, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("request did not reach the stalled token endpoint")
+	}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("a stalled token fetch must time out")
+	}
+	if err == nil && resp != nil {
+		err = resp.Error()
+	}
+	require.Error(t, err)
+	if resp != nil {
+		assert.Nil(t, resp.Secret)
+	}
+	require.True(t, b.identityLock.TryLock(), "a timed-out token fetch must release identityLock")
+	b.identityLock.Unlock()
+}
+
 func TestStaticAccountIdentity_StalledImpersonationLookupDoesNotBlockOtherRequests(t *testing.T) {
 	b, storage, transport, ctx := setupStaticAccountCredentialsJSONTest(t,
 		staticIdentityImpersonatedCredentials(t, staticIdentityRootID))

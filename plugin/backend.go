@@ -39,6 +39,10 @@ const (
 
 	// operationPrefixGoogleCloud is used as a prefix for OpenAPI operation id's.
 	operationPrefixGoogleCloud = "google-cloud"
+
+	// defaultTokenFetchTimeout bounds each OAuth token request made by cached
+	// credentials, which cannot use a request's context.
+	defaultTokenFetchTimeout = 30 * time.Second
 )
 
 type backend struct {
@@ -55,6 +59,7 @@ type backend struct {
 	mountServiceAccountIdentityLock  sync.Mutex
 	mountServiceAccountIdentityID    string
 	mountServiceAccountIdentityEmail string
+	tokenFetchTimeout                time.Duration
 
 	// pluginEnv contains Vault version information. It is used in user-agent headers.
 	pluginEnv *logical.PluginEnvironment
@@ -93,8 +98,9 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 
 func Backend() *backend {
 	b := &backend{
-		cache:     cache.New(),
-		resources: iamutil.GetEnabledResources(),
+		cache:             cache.New(),
+		resources:         iamutil.GetEnabledResources(),
+		tokenFetchTimeout: defaultTokenFetchTimeout,
 	}
 
 	b.Backend = &framework.Backend{
@@ -249,7 +255,11 @@ func (b *backend) credentialStateWithContext(metadataCtx context.Context, s logi
 	cachedState, err := b.cache.Fetch("credentials", cacheTime, func() (interface{}, error) {
 		b.Logger().Debug("loading credentials")
 
-		ctx := context.Background()
+		// Token sources keep this context, so bound their token requests with a
+		// client timeout rather than a request context that would end too soon.
+		tokenHTTPClient := cleanhttp.DefaultPooledClient()
+		tokenHTTPClient.Timeout = b.tokenFetchTimeout
+		ctx := context.WithValue(context.Background(), oauth2.HTTPClient, tokenHTTPClient)
 
 		cfg, err := getConfig(ctx, s)
 		if err != nil {
