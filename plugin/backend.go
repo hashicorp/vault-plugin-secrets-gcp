@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"cloud.google.com/go/compute/metadata"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-gcp-common/gcputil"
@@ -38,14 +39,27 @@ const (
 
 	// operationPrefixGoogleCloud is used as a prefix for OpenAPI operation id's.
 	operationPrefixGoogleCloud = "google-cloud"
+
+	// defaultTokenFetchTimeout bounds each OAuth token request made by cached
+	// credentials, which cannot use a request's context.
+	defaultTokenFetchTimeout = 30 * time.Second
 )
 
 type backend struct {
 	*framework.Backend
 
-	// cache is the internal client/object cache. Callers should never access the
-	// cache directly.
-	cache *cache.Cache
+	// cache stores credentials and other cached objects. Authenticated API
+	// clients are bound to the credentials object used to create them.
+	cache                *cache.Cache
+	credentialClientLock sync.Mutex
+	credentialClient     *credentialClient
+	identityLock         sync.RWMutex
+	// mountServiceAccountIdentityLock protects the resolved identity for an
+	// impersonated service account whose credentials use a numeric ID.
+	mountServiceAccountIdentityLock  sync.Mutex
+	mountServiceAccountIdentityID    string
+	mountServiceAccountIdentityEmail string
+	tokenFetchTimeout                time.Duration
 
 	// pluginEnv contains Vault version information. It is used in user-agent headers.
 	pluginEnv *logical.PluginEnvironment
@@ -55,6 +69,22 @@ type backend struct {
 	rolesetLock             sync.Mutex
 	staticAccountLock       sync.Mutex
 	impersonatedAccountLock sync.Mutex
+}
+
+type credentialClient struct {
+	credentials *google.Credentials
+	state       *credentialState
+	httpClient  *http.Client
+	iamClient   *iam.Service
+}
+
+// credentialState keeps the WIF identity paired with the credentials loaded
+// from the same config snapshot.
+type credentialState struct {
+	credentials                 *google.Credentials
+	mountServiceAccountIdentity string
+	identityFromWIFConfig       bool
+	identityFromMetadata        bool
 }
 
 // Factory returns a new backend as logical.Backend.
@@ -68,8 +98,9 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 
 func Backend() *backend {
 	b := &backend{
-		cache:     cache.New(),
-		resources: iamutil.GetEnabledResources(),
+		cache:             cache.New(),
+		resources:         iamutil.GetEnabledResources(),
+		tokenFetchTimeout: defaultTokenFetchTimeout,
 	}
 
 	b.Backend = &framework.Backend{
@@ -135,47 +166,70 @@ func (b *backend) initialize(ctx context.Context, _ *logical.InitializationReque
 	return nil
 }
 
-// IAMAdminClient returns a new IAM client. The client is cached.
+// IAMAdminClient returns the IAM client bound to the current credentials.
 func (b *backend) IAMAdminClient(s logical.Storage) (*iam.Service, error) {
-	httpClient, err := b.HTTPClient(s)
+	return b.iamAdminClientWithContext(context.Background(), s)
+}
+
+func (b *backend) iamAdminClientWithContext(ctx context.Context, s logical.Storage) (*iam.Service, error) {
+	clients, err := b.credentialClientsWithContext(ctx, s)
 	if err != nil {
 		return nil, errwrap.Wrapf("failed to create IAM HTTP client: {{err}}", err)
 	}
 
-	client, err := b.cache.Fetch("iam", cacheTime, func() (interface{}, error) {
-		client, err := iam.NewService(context.Background(), option.WithHTTPClient(httpClient))
+	return b.iamAdminClient(clients)
+}
+
+func (b *backend) iamAdminClient(clients *credentialClient) (*iam.Service, error) {
+	b.credentialClientLock.Lock()
+	defer b.credentialClientLock.Unlock()
+
+	if clients.iamClient == nil {
+		client, err := iam.NewService(context.Background(), option.WithHTTPClient(clients.httpClient))
 		if err != nil {
 			return nil, errwrap.Wrapf("failed to create IAM client: {{err}}", err)
 		}
 		client.UserAgent = useragent.PluginString(b.pluginEnv, userAgentPluginName)
-
-		return client, nil
-	})
-	if err != nil {
-		return nil, err
+		clients.iamClient = client
 	}
 
-	return client.(*iam.Service), nil
+	return clients.iamClient, nil
 }
 
-// HTTPClient returns a new http.Client that is authenticated using the provided
-// credentials. The underlying httpClient is cached among all clients.
+// HTTPClient returns the HTTP client bound to the current credentials.
 func (b *backend) HTTPClient(s logical.Storage) (*http.Client, error) {
-	creds, err := b.credentials(s)
+	clients, err := b.credentialClients(s)
 	if err != nil {
 		return nil, errwrap.Wrapf("failed to create oauth2 http client: {{err}}", err)
 	}
 
-	client, err := b.cache.Fetch("HTTPClient", cacheTime, func() (interface{}, error) {
-		b.Logger().Debug("creating oauth2 http client")
-		ctx := context.WithValue(context.Background(), oauth2.HTTPClient, cleanhttp.DefaultClient())
-		return oauth2.NewClient(ctx, creds.TokenSource), nil
-	})
+	return clients.httpClient, nil
+}
+
+func (b *backend) credentialClients(s logical.Storage) (*credentialClient, error) {
+	return b.credentialClientsWithContext(context.Background(), s)
+}
+
+func (b *backend) credentialClientsWithContext(ctx context.Context, s logical.Storage) (*credentialClient, error) {
+	state, err := b.credentialStateWithContext(ctx, s)
 	if err != nil {
 		return nil, err
 	}
 
-	return client.(*http.Client), nil
+	b.credentialClientLock.Lock()
+	defer b.credentialClientLock.Unlock()
+
+	if b.credentialClient == nil || b.credentialClient.state != state {
+		b.Logger().Debug("creating oauth2 http client")
+		ctx := context.WithValue(context.Background(), oauth2.HTTPClient, cleanhttp.DefaultClient())
+		b.credentialClient = &credentialClient{
+			credentials: state.credentials,
+			state:       state,
+			httpClient:  oauth2.NewClient(ctx, state.credentials.TokenSource),
+		}
+	}
+
+	return b.credentialClient, nil
 }
 
 // credentials returns the credentials which were specified in the
@@ -184,10 +238,28 @@ func (b *backend) HTTPClient(s logical.Storage) (*http.Client, error) {
 // found, this function returns an error. The credentials are cached in-memory
 // for performance.
 func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
-	creds, err := b.cache.Fetch("credentials", cacheTime, func() (interface{}, error) {
+	state, err := b.credentialState(s)
+	if err != nil {
+		return nil, err
+	}
+	return state.credentials, nil
+}
+
+func (b *backend) credentialState(s logical.Storage) (*credentialState, error) {
+	return b.credentialStateWithContext(context.Background(), s)
+}
+
+// credentialStateWithContext uses metadataCtx only for the metadata identity
+// lookup; cached credential and token sources must outlive the caller's context.
+func (b *backend) credentialStateWithContext(metadataCtx context.Context, s logical.Storage) (*credentialState, error) {
+	cachedState, err := b.cache.Fetch("credentials", cacheTime, func() (interface{}, error) {
 		b.Logger().Debug("loading credentials")
 
-		ctx := context.Background()
+		// Token sources keep this context, so bound their token requests with a
+		// client timeout rather than a request context that would end too soon.
+		tokenHTTPClient := cleanhttp.DefaultPooledClient()
+		tokenHTTPClient.Timeout = b.tokenFetchTimeout
+		ctx := context.WithValue(context.Background(), oauth2.HTTPClient, tokenHTTPClient)
 
 		cfg, err := getConfig(ctx, s)
 		if err != nil {
@@ -226,12 +298,46 @@ func (b *backend) credentials(s logical.Storage) (*google.Credentials, error) {
 			}
 		}
 
-		return creds, err
+		var metadataIdentity string
+		identityFromMetadata := len(credBytes) == 0 &&
+			cfg.IdentityTokenAudience == "" &&
+			len(creds.JSON) == 0
+		if identityFromMetadata {
+			metadataIdentity, err = metadata.EmailWithContext(metadataCtx, "default")
+			if err != nil {
+				return nil, fmt.Errorf("failed to determine metadata service account identity: %w", err)
+			}
+			if metadataIdentity == "" {
+				return nil, fmt.Errorf("failed to determine metadata service account identity: empty email")
+			}
+			// Fetch tokens for the recorded account rather than "default", so a
+			// metadata identity change cannot hand these credentials a token for
+			// a different service account.
+			if !isFederatedIdentityIdentifier(metadataIdentity) {
+				creds.TokenSource = google.ComputeTokenSource(metadataIdentity, iam.CloudPlatformScope)
+			}
+		}
+
+		mountIdentity := cfg.ServiceAccountEmail
+		if identityFromMetadata {
+			mountIdentity = metadataIdentity
+		}
+
+		return &credentialState{
+			credentials:                 creds,
+			mountServiceAccountIdentity: mountIdentity,
+			identityFromWIFConfig:       cfg.IdentityTokenAudience != "",
+			identityFromMetadata:        identityFromMetadata,
+		}, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return creds.(*google.Credentials), nil
+	state, ok := cachedState.(*credentialState)
+	if !ok {
+		return nil, fmt.Errorf("cached credentials have unexpected type %T", cachedState)
+	}
+	return state, nil
 }
 
 func (b *backend) GetExternalAccountConfig(c *config, ts *PluginIdentityTokenSupplier) *gcputil.ExternalAccountConfig {
@@ -275,7 +381,16 @@ func (p *PluginIdentityTokenSupplier) SubjectToken(ctx context.Context, opts ext
 
 // ClearCaches deletes all cached clients and credentials.
 func (b *backend) ClearCaches() {
+	b.identityLock.Lock()
+	defer b.identityLock.Unlock()
+	b.clearCaches()
+}
+
+func (b *backend) clearCaches() {
 	b.cache.Clear()
+	b.credentialClientLock.Lock()
+	b.credentialClient = nil
+	b.credentialClientLock.Unlock()
 }
 
 // invalidate resets the plugin. This is called when a key is updated via

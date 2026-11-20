@@ -78,12 +78,16 @@ func getStringHash(bindingsRaw string) string {
 }
 
 func (b *backend) createNewTokenGen(ctx context.Context, req *logical.Request, parent string, scopes []string) (*TokenGenerator, error) {
-	b.Logger().Debug("creating new TokenGenerator (service account key)", "account", parent, "scopes", scopes)
-
 	iamAdmin, err := b.IAMAdminClient(req.Storage)
 	if err != nil {
 		return nil, err
 	}
+
+	return b.createNewTokenGenWithIAM(ctx, iamAdmin, parent, scopes)
+}
+
+func (b *backend) createNewTokenGenWithIAM(ctx context.Context, iamAdmin *iam.Service, parent string, scopes []string) (*TokenGenerator, error) {
+	b.Logger().Debug("creating new TokenGenerator (service account key)", "account", parent, "scopes", scopes)
 
 	key, err := iamAdmin.Projects.ServiceAccounts.Keys.Create(
 		parent,

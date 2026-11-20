@@ -117,11 +117,17 @@ func (rs *RoleSet) bindingHash() string {
 
 // getServiceAccount fetches an service account from the GCP IAM admin API.
 func (b *backend) getServiceAccount(iamAdmin *iam.Service, accountId *gcputil.ServiceAccountId) (*iam.ServiceAccount, error) {
+	return b.getServiceAccountWithContext(context.Background(), iamAdmin, accountId)
+}
+
+// getServiceAccountWithContext is getServiceAccount, but the IAM request is
+// canceled when ctx is done.
+func (b *backend) getServiceAccountWithContext(ctx context.Context, iamAdmin *iam.Service, accountId *gcputil.ServiceAccountId) (*iam.ServiceAccount, error) {
 	if accountId == nil {
 		return nil, fmt.Errorf("cannot fetch nil service account")
 	}
 
-	account, err := iamAdmin.Projects.ServiceAccounts.Get(accountId.ResourceName()).Do()
+	account, err := iamAdmin.Projects.ServiceAccounts.Get(accountId.ResourceName()).Context(ctx).Do()
 	if err != nil {
 		return nil, errwrap.Wrapf(fmt.Sprintf("could not find service account %q: {{err}}", accountId.ResourceName()), err)
 	}

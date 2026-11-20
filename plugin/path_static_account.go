@@ -234,6 +234,8 @@ func (b *backend) pathStaticAccountCreate(ctx context.Context, req *logical.Requ
 
 	b.staticAccountLock.Lock()
 	defer b.staticAccountLock.Unlock()
+	b.identityLock.RLock()
+	defer b.identityLock.RUnlock()
 
 	// Create and save static account with new resources.
 	if err := b.createStaticAccount(ctx, req, input); err != nil {
@@ -254,6 +256,8 @@ func (b *backend) pathStaticAccountUpdate(ctx context.Context, req *logical.Requ
 
 	b.staticAccountLock.Lock()
 	defer b.staticAccountLock.Unlock()
+	b.identityLock.RLock()
+	defer b.identityLock.RUnlock()
 
 	acct, err := b.getStaticAccount(name, ctx, req.Storage)
 	if err != nil {

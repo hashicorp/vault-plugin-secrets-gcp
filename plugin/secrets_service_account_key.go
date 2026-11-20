@@ -164,6 +164,15 @@ func (b *backend) secretKeyRevoke(ctx context.Context, req *logical.Request, d *
 }
 
 func (b *backend) createServiceAccountKeySecret(ctx context.Context, s logical.Storage, id *gcputil.ServiceAccountId, params secretKeyParams) (*logical.Response, error) {
+	iamC, err := b.IAMAdminClient(s)
+	if err != nil {
+		return nil, errwrap.Wrapf("could not create IAM Admin client: {{err}}", err)
+	}
+
+	return b.createServiceAccountKeySecretWithIAM(ctx, iamC, s, id, params)
+}
+
+func (b *backend) createServiceAccountKeySecretWithIAM(ctx context.Context, iamC *iam.Service, s logical.Storage, id *gcputil.ServiceAccountId, params secretKeyParams) (*logical.Response, error) {
 	cfg, err := getConfig(ctx, s)
 	if err != nil {
 		return nil, errwrap.Wrapf("could not read backend config: {{err}}", err)
@@ -172,16 +181,11 @@ func (b *backend) createServiceAccountKeySecret(ctx context.Context, s logical.S
 		cfg = &config{}
 	}
 
-	iamC, err := b.IAMAdminClient(s)
-	if err != nil {
-		return nil, errwrap.Wrapf("could not create IAM Admin client: {{err}}", err)
-	}
-
 	key, err := iamC.Projects.ServiceAccounts.Keys.Create(
 		id.ResourceName(), &iam.CreateServiceAccountKeyRequest{
 			KeyAlgorithm:   params.keyAlgorithm,
 			PrivateKeyType: params.keyType,
-		}).Do()
+		}).Context(ctx).Do()
 	if err != nil {
 		return logical.ErrorResponse(err.Error()), nil
 	}

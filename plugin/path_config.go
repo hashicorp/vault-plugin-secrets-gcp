@@ -148,6 +148,9 @@ func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, data
 }
 
 func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	b.identityLock.Lock()
+	defer b.identityLock.Unlock()
+
 	// Check for existing config.
 	cfg, err := getConfig(ctx, req.Storage)
 	if err != nil {
@@ -156,6 +159,7 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 	if cfg == nil {
 		cfg = &config{}
 	}
+	originalServiceAccountEmail := cfg.ServiceAccountEmail
 
 	credentialsRaw, setNewCreds := data.GetOk("credentials")
 	if setNewCreds {
@@ -183,6 +187,9 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 
 	if cfg.IdentityTokenAudience != "" && cfg.ServiceAccountEmail == "" {
 		return logical.ErrorResponse("missing required 'service_account_email' when 'identity_token_audience' is set"), nil
+	}
+	if cfg.ServiceAccountEmail != originalServiceAccountEmail {
+		setNewCreds = true
 	}
 
 	// generate token to check if WIF is enabled on this edition of Vault
@@ -228,7 +235,7 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 	_ = rotationResp.HandleStorageErrorAfterRotationJob(req, err)
 
 	if setNewCreds {
-		b.ClearCaches()
+		b.clearCaches()
 	}
 	return nil, nil
 }

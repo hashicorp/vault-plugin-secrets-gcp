@@ -51,6 +51,8 @@ func (b *backend) pathStaticAccountRotateKey(ctx context.Context, req *logical.R
 
 	b.staticAccountLock.Lock()
 	defer b.staticAccountLock.Unlock()
+	b.identityLock.RLock()
+	defer b.identityLock.RUnlock()
 
 	acct, err := b.getStaticAccount(name, ctx, req.Storage)
 	if err != nil {
@@ -66,6 +68,10 @@ func (b *backend) pathStaticAccountRotateKey(ctx context.Context, req *logical.R
 
 	if acct.TokenGen == nil {
 		return nil, fmt.Errorf("unexpected invalid account has no TokenGen")
+	}
+	iamAdmin, err := b.checkStaticAccountTarget(ctx, req.Storage, &acct.ServiceAccountId)
+	if err != nil {
+		return logical.ErrorResponse(err.Error()), nil
 	}
 
 	scopes := acct.TokenGen.Scopes
@@ -83,7 +89,7 @@ func (b *backend) pathStaticAccountRotateKey(ctx context.Context, req *logical.R
 		return nil, err
 	}
 
-	newTokenGen, err := b.createNewTokenGen(ctx, req, acct.ResourceName(), scopes)
+	newTokenGen, err := b.createNewTokenGenWithIAM(ctx, iamAdmin, acct.ResourceName(), scopes)
 	if err != nil {
 		return nil, err
 	}
@@ -95,11 +101,6 @@ func (b *backend) pathStaticAccountRotateKey(ctx context.Context, req *logical.R
 	}
 
 	// Try deleting the old key.
-	iamAdmin, err := b.IAMAdminClient(req.Storage)
-	if err != nil {
-		return nil, err
-	}
-
 	b.tryDeleteWALs(ctx, req.Storage, newWalId)
 
 	if oldTokenGen != nil {
