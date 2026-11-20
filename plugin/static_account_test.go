@@ -112,6 +112,7 @@ func testExistingStaticAccountIdentity(t *testing.T, setup staticIdentityTestSet
 	for _, target := range []gcputil.ServiceAccountId{
 		{Project: "-", EmailOrId: staticIdentityRootEmail},
 		{Project: staticIdentityProject, EmailOrId: staticIdentityRootID},
+		{Project: "-", EmailOrId: strings.ToUpper(staticIdentityRootEmail)},
 	} {
 		for _, tc := range staticAccountIdentityExistingPaths {
 			t.Run(fmt.Sprintf("%s/%s", target.ResourceName(), tc.name), func(t *testing.T) {
@@ -157,7 +158,7 @@ func testExistingStaticAccountIdentity(t *testing.T, setup staticIdentityTestSet
 
 func TestStaticAccountIdentity_Create(t *testing.T) {
 	for _, mount := range staticIdentityConfigs(t) {
-		for _, target := range []string{staticIdentityRootEmail, staticIdentityRootID} {
+		for _, target := range []string{staticIdentityRootEmail, staticIdentityRootID, strings.ToUpper(staticIdentityRootEmail)} {
 			for _, secretType := range []string{SecretTypeKey, SecretTypeAccessToken} {
 				t.Run(fmt.Sprintf("%s/%s/%s", mount.name, target, secretType), func(t *testing.T) {
 					b, storage, transport, ctx := setupStaticAccountIdentityTest(t, mount.cfg)
@@ -179,6 +180,91 @@ func TestStaticAccountIdentity_Create(t *testing.T) {
 					assert.Nil(t, entry, "must not persist a static account targeting the mount identity")
 				})
 			}
+		}
+	}
+}
+
+// TestStaticAccountIdentity_MixedCaseMountIdentity makes sure a mount identity
+// configured with a different email case still matches the canonical target.
+func TestStaticAccountIdentity_MixedCaseMountIdentity(t *testing.T) {
+	upperEmail := strings.ToUpper(staticIdentityRootEmail)
+	for _, mount := range []struct {
+		name string
+		cfg  config
+	}{
+		{"service_account credentials", config{CredentialsRaw: staticIdentityJSON(t, map[string]interface{}{
+			"type": "service_account", "project_id": staticIdentityProject,
+			"client_email": upperEmail, "client_id": staticIdentityRootID,
+			"private_key_id": "fake-key-id", "private_key": "fake-key", "token_uri": staticIdentityTokenURL,
+		})}},
+		{"plugin workload identity federation", config{
+			PluginIdentityTokenParams: pluginidentityutil.PluginIdentityTokenParams{
+				IdentityTokenAudience: "//iam.googleapis.com/projects/1/locations/global/workloadIdentityPools/pool/providers/vault",
+			},
+			ServiceAccountEmail: upperEmail,
+		}},
+	} {
+		for _, target := range []string{staticIdentityRootEmail, staticIdentityRootID} {
+			t.Run(mount.name+"/"+target, func(t *testing.T) {
+				b, storage, transport, ctx := setupStaticAccountIdentityTest(t, mount.cfg)
+
+				resp, err := b.HandleRequest(ctx, &logical.Request{
+					Operation: logical.CreateOperation,
+					Path:      "static-account/self-test",
+					Storage:   storage,
+					Data: map[string]interface{}{
+						"service_account_email": target,
+						"secret_type":           SecretTypeKey,
+					},
+				})
+
+				assertStaticAccountIdentityRejected(t, resp, err, transport)
+				entry, err := storage.Get(ctx, "static-account/self-test")
+				require.NoError(t, err)
+				assert.Nil(t, entry)
+			})
+		}
+	}
+}
+
+// TestStaticAccountIdentity_ResourceNameRejected makes sure a full service
+// account resource name is not accepted as service_account_email, so it cannot
+// be used to reach the mount identity.
+func TestStaticAccountIdentity_ResourceNameRejected(t *testing.T) {
+	for _, mount := range staticIdentityConfigs(t) {
+		for _, target := range []string{
+			"projects/" + staticIdentityProject + "/serviceAccounts/" + staticIdentityRootEmail,
+			"projects/-/serviceAccounts/" + staticIdentityRootID,
+		} {
+			t.Run(mount.name+"/"+target, func(t *testing.T) {
+				b, storage, transport, ctx := setupStaticAccountIdentityTest(t, mount.cfg)
+				// Create retries failed service account lookups until the request
+				// deadline, so keep the deadline short.
+				reqCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+				defer cancel()
+
+				resp, err := b.HandleRequest(reqCtx, &logical.Request{
+					Operation: logical.CreateOperation,
+					Path:      "static-account/self-test",
+					Storage:   storage,
+					Data: map[string]interface{}{
+						"service_account_email": target,
+						"secret_type":           SecretTypeKey,
+					},
+				})
+				if err == nil && resp != nil {
+					err = resp.Error()
+				}
+				require.Error(t, err)
+				if resp != nil {
+					assert.Nil(t, resp.Secret)
+				}
+				assert.Empty(t, transport.keyCreates)
+				assert.Zero(t, transport.tokensIssued)
+				entry, err := storage.Get(ctx, "static-account/self-test")
+				require.NoError(t, err)
+				assert.Nil(t, entry)
+			})
 		}
 	}
 }
@@ -1456,7 +1542,18 @@ func (tr *staticAccountIdentityTransport) RoundTrip(req *http.Request) (*http.Re
 	case req.URL.Host == "iam.googleapis.com" && len(parts) >= 4 &&
 		parts[0] == "projects" && (parts[1] == "-" || parts[1] == staticIdentityProject) && parts[2] == "serviceAccounts":
 		account := &iam.ServiceAccount{ProjectId: staticIdentityProject}
-		switch parts[3] {
+		// IAM rejects service account names that are themselves resource names.
+		if req.Method == http.MethodGet && parts[3] == "projects" {
+			return &http.Response{
+				StatusCode: http.StatusNotFound,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(`{"error":{"code":404,"message":"not found"}}`)),
+				Request:    req,
+			}, nil
+		}
+		// IAM resolves service account emails case-insensitively and returns the
+		// canonical lowercase email.
+		switch strings.ToLower(parts[3]) {
 		case staticIdentityRootEmail, staticIdentityRootID:
 			account.Email, account.UniqueId = staticIdentityRootEmail, staticIdentityRootID
 		case staticIdentityOtherEmail, staticIdentityOtherID:
